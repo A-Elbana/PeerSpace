@@ -5,10 +5,8 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
-// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model ActivityLog {
   id             Int        @id
   date           DateTime?  @db.Timestamp(6)
@@ -21,8 +19,8 @@ model ActivityLog {
 }
 
 model Admin {
-  uid  Int   @id
-  User User?
+  uid  Int  @id
+  User User @relation(fields: [uid], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model Assignment {
@@ -47,15 +45,14 @@ model AssignmentFileAttachment {
 }
 
 model Badge {
-  sid     Int
-  badge   String  @db.VarChar
-  Student Student @relation(fields: [sid], references: [uid], onDelete: NoAction, onUpdate: NoAction)
-
-  @@id([sid, badge])
+  id           Int            @id
+  name         String         @db.VarChar
+  icon_url     String         @db.VarChar
+  StudentBadge StudentBadge[]
 }
 
 model Comment {
-  id                 Int
+  id                 Int       @id
   pid                Int
   content            String    @db.VarChar
   approved_by_inst   Boolean
@@ -67,11 +64,9 @@ model Comment {
   parent_comment_pid Int?
   parent_comment_id  Int?
   User               User      @relation(fields: [commenter_uid], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Comment            Comment?  @relation("CommentToComment", fields: [parent_comment_id, parent_comment_pid], references: [id, pid], onDelete: NoAction, onUpdate: NoAction)
+  Comment            Comment?  @relation("CommentToComment", fields: [parent_comment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_Comment      Comment[] @relation("CommentToComment")
   Post               Post      @relation(fields: [pid], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@id([id, pid])
 }
 
 model Community {
@@ -116,8 +111,8 @@ model Instructor {
   area_of_expertise   String?      @db.VarChar
   google_scholar_link String?      @db.VarChar
   Assignment          Assignment[]
+  User                User         @relation(fields: [uid], references: [id], onDelete: NoAction, onUpdate: NoAction)
   Manages             Manages[]
-  User                User?
 }
 
 model Manages {
@@ -208,19 +203,28 @@ model Session {
   cid        Int       @id
   title      String    @db.VarChar
   start_time DateTime  @db.Timestamp(6)
-  meet_url   DateTime  @db.Timestamp(6)
+  meet_url   String    @db.VarChar
   Community  Community @relation(fields: [cid], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model Student {
   uid           Int             @id
-  Badge         Badge[]
   Enrollment    Enrollment[]
+  User          User            @relation(fields: [uid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  StudentBadge  StudentBadge[]
   Submission    Submission[]
   Task          Task[]
   TaskAssignees TaskAssignees[]
-  User          User?
   Voted         Voted[]
+}
+
+model StudentBadge {
+  sid     Int
+  bid     Int
+  Badge   Badge   @relation(fields: [bid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Student Student @relation(fields: [sid], references: [uid], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([sid, bid])
 }
 
 model Submission {
@@ -236,10 +240,10 @@ model Submission {
 }
 
 model SubmissionFileAttachment {
-  sid        Int?
+  subid      Int?
   fid        Int         @id
   File       File        @relation(fields: [fid], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Submission Submission? @relation(fields: [sid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Submission Submission? @relation(fields: [subid], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model Task {
@@ -291,16 +295,17 @@ model User {
   lname         String        @db.VarChar
   activated     Boolean
   password_hash String        @db.VarChar
+  role          String?       @db.VarChar
   token_hash    String?       @db.VarChar
   avatar_url    String?       @db.VarChar
   ActivityLog   ActivityLog[]
+  Admin         Admin?
   Comment       Comment[]
+  Instructor    Instructor?
   Note          Note[]
   Notebook      Notebook[]
   Post          Post[]
-  Instructor    Instructor    @relation(fields: [id], references: [uid], onDelete: NoAction, onUpdate: NoAction)
-  Admin         Admin         @relation(fields: [id], references: [uid], onDelete: NoAction, onUpdate: NoAction, map: "User_id_fkey1")
-  Student       Student       @relation(fields: [id], references: [uid], onDelete: NoAction, onUpdate: NoAction, map: "User_id_fkey2")
+  Student       Student?
 }
 
 model Voted {

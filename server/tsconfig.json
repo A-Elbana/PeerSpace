@@ -1,9 +1,47 @@
 {
+  // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
-    "sourceMap": true,
+    // File layout
+    "rootDir": ".",
     "outDir": "dist",
-    "rootDir": "src",
-    "lib": ["ESNext"],
-    "esModuleInterop": true
-  }
+
+    // Language + module settings for Node + Prisma
+    "target": "ES2023",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "lib": ["ES2020"],
+
+    // Node typings
+    "types": ["node"],
+
+    // Interop + JSON
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+
+    // Outputs
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+
+    // Strictness
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+
+    // Performance / compatibility
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "incremental": true,
+
+    // Useful for many Node tools
+    "isolatedModules": false
+  },
+
+  "include": [
+    "/*.ts",
+    "generated//.ts",
+    "prisma/**/.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
 }

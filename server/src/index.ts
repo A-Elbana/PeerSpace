@@ -19,6 +19,8 @@ app.post("/users", async (req, res) => {
   try {
     const { id, email, fname, lname, password, activated = false, avatar_url } = req.body;
 
+    console.log(req.body)
+
     // Validate required fields
     if (!id || !email || !fname || !lname || !password) {
       return res.status(400).json({
@@ -26,23 +28,6 @@ app.post("/users", async (req, res) => {
       });
     }
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { id }
-    });
-
-    if (existingUser) {
-      return res.status(409).json({ error: "User with this ID already exists" });
-    }
-
-    // Check if email already exists
-    const existingEmail = await prisma.user.findFirst({
-      where: { email }
-    });
-
-    if (existingEmail) {
-      return res.status(409).json({ error: "User with this email already exists" });
-    }
 
     // Hash the password
     const password_hash = await bcrypt.hash(password, 10);
