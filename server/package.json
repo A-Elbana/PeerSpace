@@ -2,7 +2,7 @@
   "name": "server",
   "version": "1.0.0",
   "description": "Backend for PeerSpace",
-  "main": "index.ts",
+  "main": "src/index.ts",
   "author": "",
   "license": "ISC",
   "scripts": {
