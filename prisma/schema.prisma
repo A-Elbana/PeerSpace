@@ -1,0 +1,314 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model ActivityLog {
+  id             Int        @id
+  date           DateTime?  @db.Timestamp(6)
+  associated_uid Int
+  associated_cid Int?
+  description    String?    @db.VarChar
+  action_type    Int?
+  Community      Community? @relation(fields: [associated_cid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User           User       @relation(fields: [associated_uid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model Admin {
+  uid  Int   @id
+  User User?
+}
+
+model Assignment {
+  id                       Int                        @id
+  title                    String                     @db.VarChar
+  due_date                 DateTime?                  @db.Timestamp(6)
+  max_points               Float?
+  assigner_uid             Int
+  cid                      Int
+  Instructor               Instructor                 @relation(fields: [assigner_uid], references: [uid], onDelete: NoAction, onUpdate: NoAction)
+  Community                Community                  @relation(fields: [cid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  AssignmentFileAttachment AssignmentFileAttachment[]
+  Submission               Submission[]
+  TaskAssignmentRelation   TaskAssignmentRelation[]
+}
+
+model AssignmentFileAttachment {
+  aid        Int?
+  fid        Int         @id
+  Assignment Assignment? @relation(fields: [aid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  File       File        @relation(fields: [fid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model Badge {
+  sid     Int
+  badge   String  @db.VarChar
+  Student Student @relation(fields: [sid], references: [uid], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([sid, badge])
+}
+
+model Comment {
+  id                 Int
+  pid                Int
+  content            String    @db.VarChar
+  approved_by_inst   Boolean
+  approved_by_op     Boolean
+  approved_at_inst   DateTime? @db.Timestamp(6)
+  approved_at_op     DateTime? @db.Timestamp(6)
+  comment_date       DateTime  @db.Timestamp(6)
+  commenter_uid      Int
+  parent_comment_pid Int?
+  parent_comment_id  Int?
+  User               User      @relation(fields: [commenter_uid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Comment            Comment?  @relation("CommentToComment", fields: [parent_comment_id, parent_comment_pid], references: [id, pid], onDelete: NoAction, onUpdate: NoAction)
+  other_Comment      Comment[] @relation("CommentToComment")
+  Post               Post      @relation(fields: [pid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([id, pid])
+}
+
+model Community {
+  id          Int           @id
+  name        String        @db.VarChar
+  description String?       @db.VarChar
+  type        String        @db.VarChar
+  banner_url  String?       @db.VarChar
+  ActivityLog ActivityLog[]
+  Assignment  Assignment[]
+  Enrollment  Enrollment[]
+  Manages     Manages[]
+  Post        Post[]
+  Session     Session?
+}
+
+model Enrollment {
+  cid       Int
+  sid       Int
+  Community Community @relation(fields: [cid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Student   Student   @relation(fields: [sid], references: [uid], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([cid, sid])
+}
+
+model File {
+  id                       Int                       @id
+  name                     String                    @db.VarChar
+  storage_url              String                    @db.VarChar
+  type                     String                    @db.VarChar
+  description              String?                   @db.VarChar
+  size                     Float
+  AssignmentFileAttachment AssignmentFileAttachment?
+  NoteFileAttachment       NoteFileAttachment?
+  PostFileAttachment       PostFileAttachment?
+  SubmissionFileAttachment SubmissionFileAttachment?
+}
+
+model Instructor {
+  uid                 Int          @id
+  title               String?      @db.VarChar
+  area_of_expertise   String?      @db.VarChar
+  google_scholar_link String?      @db.VarChar
+  Assignment          Assignment[]
+  Manages             Manages[]
+  User                User?
+}
+
+model Manages {
+  iid        Int
+  cid        Int
+  Community  Community  @relation(fields: [cid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Instructor Instructor @relation(fields: [iid], references: [uid], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([iid, cid])
+}
+
+model Note {
+  id                 Int                  @id
+  title              String               @db.VarChar
+  body               String?              @db.VarChar
+  created_at         DateTime             @db.Timestamp(6)
+  updated_at         DateTime?            @db.Timestamp(6)
+  owner_uid          Int
+  notebook_id        Int?
+  Notebook           Notebook?            @relation(fields: [notebook_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User               User                 @relation(fields: [owner_uid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  NoteFileAttachment NoteFileAttachment[]
+  PostNoteAttachment PostNoteAttachment[]
+}
+
+model NoteFileAttachment {
+  nid  Int?
+  fid  Int   @id
+  File File  @relation(fields: [fid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Note Note? @relation(fields: [nid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model Notebook {
+  id          Int       @id
+  title       String    @db.VarChar
+  description String?   @db.VarChar
+  created_at  DateTime  @db.Timestamp(6)
+  updated_at  DateTime? @db.Timestamp(6)
+  owner_uid   Int
+  Note        Note[]
+  User        User      @relation(fields: [owner_uid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model Post {
+  id                 Int                  @id
+  title              String               @db.VarChar
+  type               String               @db.VarChar
+  post_date          DateTime             @db.Timestamp(6)
+  body               String?              @db.VarChar
+  is_resolved        Boolean?
+  owner_uid          Int
+  cid                Int
+  Comment            Comment[]
+  Community          Community            @relation(fields: [cid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User               User                 @relation(fields: [owner_uid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  PostFileAttachment PostFileAttachment[]
+  PostNoteAttachment PostNoteAttachment[]
+  PostTag            PostTag[]
+  Voted              Voted[]
+}
+
+model PostFileAttachment {
+  pid  Int?
+  fid  Int   @id
+  File File  @relation(fields: [fid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Post Post? @relation(fields: [pid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model PostNoteAttachment {
+  pid  Int
+  nid  Int
+  Note Note @relation(fields: [nid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Post Post @relation(fields: [pid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([pid, nid])
+}
+
+model PostTag {
+  post_id Int
+  tag     String @db.VarChar
+  Post    Post   @relation(fields: [post_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([post_id, tag])
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model Session {
+  cid        Int       @id
+  title      String    @db.VarChar
+  start_time DateTime  @db.Timestamp(6)
+  meet_url   DateTime  @db.Timestamp(6)
+  Community  Community @relation(fields: [cid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model Student {
+  uid           Int             @id
+  Badge         Badge[]
+  Enrollment    Enrollment[]
+  Submission    Submission[]
+  Task          Task[]
+  TaskAssignees TaskAssignees[]
+  User          User?
+  Voted         Voted[]
+}
+
+model Submission {
+  id                       Int                        @id
+  subm_date                DateTime                   @db.Timestamp(6)
+  grade                    Float?
+  feedback                 String?                    @db.VarChar
+  aid                      Int
+  sid                      Int
+  Assignment               Assignment                 @relation(fields: [aid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Student                  Student                    @relation(fields: [sid], references: [uid], onDelete: NoAction, onUpdate: NoAction)
+  SubmissionFileAttachment SubmissionFileAttachment[]
+}
+
+model SubmissionFileAttachment {
+  sid        Int?
+  fid        Int         @id
+  File       File        @relation(fields: [fid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Submission Submission? @relation(fields: [sid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model Task {
+  id                     Int                     @id
+  title                  String                  @db.VarChar
+  description            String?                 @db.VarChar
+  priority               Int?
+  start_date             DateTime?               @db.Timestamp(6)
+  end_date               DateTime?               @db.Timestamp(6)
+  status                 Int
+  author                 Int
+  parent_task            Int?
+  Student                Student                 @relation(fields: [author], references: [uid], onDelete: NoAction, onUpdate: NoAction)
+  Task                   Task?                   @relation("TaskToTask", fields: [parent_task], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_Task             Task[]                  @relation("TaskToTask")
+  TaskAssignees          TaskAssignees[]
+  TaskAssignmentRelation TaskAssignmentRelation?
+  TaskTag                TaskTag[]
+}
+
+model TaskAssignees {
+  tid     Int
+  sid     Int
+  Student Student @relation(fields: [sid], references: [uid], onDelete: NoAction, onUpdate: NoAction)
+  Task    Task    @relation(fields: [tid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([tid, sid])
+}
+
+model TaskAssignmentRelation {
+  aid        Int?
+  tid        Int         @id
+  Assignment Assignment? @relation(fields: [aid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Task       Task        @relation(fields: [tid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model TaskTag {
+  task_id Int
+  tag     String @db.VarChar
+  Task    Task   @relation(fields: [task_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([task_id, tag])
+}
+
+model User {
+  id            Int           @id
+  email         String        @db.VarChar
+  fname         String        @db.VarChar
+  lname         String        @db.VarChar
+  activated     Boolean
+  password_hash String        @db.VarChar
+  token_hash    String?       @db.VarChar
+  avatar_url    String?       @db.VarChar
+  ActivityLog   ActivityLog[]
+  Comment       Comment[]
+  Note          Note[]
+  Notebook      Notebook[]
+  Post          Post[]
+  Instructor    Instructor    @relation(fields: [id], references: [uid], onDelete: NoAction, onUpdate: NoAction)
+  Admin         Admin         @relation(fields: [id], references: [uid], onDelete: NoAction, onUpdate: NoAction, map: "User_id_fkey1")
+  Student       Student       @relation(fields: [id], references: [uid], onDelete: NoAction, onUpdate: NoAction, map: "User_id_fkey2")
+}
+
+model Voted {
+  sid      Int
+  pid      Int
+  voteType Boolean
+  Post     Post    @relation(fields: [pid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Student  Student @relation(fields: [sid], references: [uid], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([sid, pid])
+}
