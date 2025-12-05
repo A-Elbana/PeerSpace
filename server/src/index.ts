@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import bcrypt from "bcrypt";
-import { prisma } from "./config/prisma";
+import prisma from "./config/prisma";
 
 dotenv.config(); // loads .env
 
@@ -35,16 +35,16 @@ app.post("/users", async (req, res) => {
     // Create the user
     const newUser = await prisma.user.create({
       data: {
-        id,
-        email,
-        fname,
-        lname,
-        password_hash,
-        activated,
-        avatar_url: avatar_url || null,
-        token_hash: null,
-      },
+        id: 0,
+        email: "alice@mail.com",
+        fname: "Alice",
+        lname: "Wonder",
+        activated: true,
+        password_hash: "$2b$10$somehashedpassword",
+        role: "student" // optional
+      }
     });
+
 
     // Return user without password hash
     const { password_hash: _, ...userWithoutPassword } = newUser;
