@@ -7,6 +7,13 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  STUDENT
+  INSTRUCTOR
+  ADMIN
+  // Assuming 'guest' is unauthenticated, we don't need it as a database role
+}
+
 model ActivityLog {
   id             Int        @id
   date           DateTime?  @db.Timestamp(6)
@@ -210,7 +217,7 @@ model Session {
 model Student {
   uid           Int             @id
   Enrollment    Enrollment[]
-  User          User            @relation(fields: [uid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User          User            @relation(fields: [uid], references: [id], onDelete: Cascade, onUpdate: Cascade)
   StudentBadge  StudentBadge[]
   Submission    Submission[]
   Task          Task[]
@@ -289,23 +296,23 @@ model TaskTag {
 }
 
 model User {
-  id            Int           @id
-  email         String        @db.VarChar
-  fname         String        @db.VarChar
-  lname         String        @db.VarChar
-  activated     Boolean
-  password_hash String        @db.VarChar
-  role          String?       @db.VarChar
-  token_hash    String?       @db.VarChar
-  avatar_url    String?       @db.VarChar
-  ActivityLog   ActivityLog[]
-  Admin         Admin?
-  Comment       Comment[]
-  Instructor    Instructor?
-  Note          Note[]
-  Notebook      Notebook[]
-  Post          Post[]
-  Student       Student?
+  id             Int           @id
+  email          String        @unique @db.VarChar
+  fname          String        @db.VarChar
+  lname          String        @db.VarChar
+  activated      Boolean
+  hashedPassword String        @db.VarChar
+  role           Role?         @default(STUDENT)
+  token_hash     String?       @db.VarChar
+  avatar_url     String?       @db.VarChar
+  ActivityLog    ActivityLog[]
+  Admin          Admin?
+  Comment        Comment[]
+  Instructor     Instructor?
+  Note           Note[]
+  Notebook       Notebook[]
+  Post           Post[]
+  Student        Student?
 }
 
 model Voted {
