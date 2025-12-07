@@ -12,6 +12,7 @@ build
 
 # Prisma generated files
 /src/generated/prisma
+/src/generated/json-schema
 
 # Logs
 *.log
