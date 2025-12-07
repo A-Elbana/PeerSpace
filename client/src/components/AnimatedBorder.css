@@ -1,0 +1,164 @@
+/* ===========================
+   ANIMATED BORDER STYLES
+   =========================== */
+
+.animated-border-container {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+/* Border gradient pseudo-element */
+.animated-border-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  padding: 2px;
+  background: linear-gradient(135deg,
+      transparent 0%,
+      transparent 40%,
+      transparent 100%);
+  -webkit-mask: linear-gradient(#fff 0%, #fff 0%, transparent 100%);
+  mask: linear-gradient(#fff 0%, #fff 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Animated glow effect for border */
+.animated-border-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  pointer-events: none;
+  z-index: 9;
+  transition: all 0.1s ease-out;
+}
+
+.animated-border-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+}
+
+/* ===========================
+   LIGHT MODE - ANIMATED BORDER
+   =========================== */
+
+.animated-border-container.light-mode {
+  background: #ffffff;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Light mode animated gradient border */
+.animated-border-container.light-mode::before {
+  background: linear-gradient(90deg,
+      #3b82f6 0%,
+      #60a5fa 25%,
+      #ec4899 50%,
+      #f472b6 75%,
+      #3b82f6 100%);
+  background-size: 200% 200%;
+  animation: gradient-shift-light 3s ease infinite;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.animated-border-container.light-mode:hover::before {
+  opacity: 1;
+}
+
+/* Animated glow for light mode */
+.animated-border-container.light-mode .animated-border-glow {
+  background: radial-gradient(circle at var(--border-light-x, 50%) var(--border-light-y, 50%),
+      rgba(59, 130, 246, 0.15) 0%,
+      rgba(236, 72, 153, 0.1) 50%,
+      transparent 100%);
+  filter: blur(20px);
+}
+
+@keyframes gradient-shift-light {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* ===========================
+   DARK MODE - ANIMATED BORDER
+   =========================== */
+
+.animated-border-container.dark-mode {
+  background: #1f2937;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Dark mode animated gradient border */
+.animated-border-container.dark-mode::before {
+  background: linear-gradient(90deg,
+      #60a5fa 0%,
+      #8b5cf6 25%,
+      #f472b6 50%,
+      #ec4899 75%,
+      #60a5fa 100%);
+  background-size: 200% 200%;
+  animation: gradient-shift-dark 3s ease infinite;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.animated-border-container.dark-mode:hover::before {
+  opacity: 1;
+}
+
+/* Animated glow for dark mode */
+.animated-border-container.dark-mode .animated-border-glow {
+  background: radial-gradient(circle at var(--border-light-x, 50%) var(--border-light-y, 50%),
+      rgba(139, 92, 246, 0.2) 0%,
+      rgba(244, 114, 182, 0.15) 50%,
+      transparent 100%);
+  filter: blur(20px);
+}
+
+@keyframes gradient-shift-dark {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* ===========================
+   RESPONSIVE DESIGN
+   =========================== */
+
+@media (max-width: 768px) {
+  .animated-border-container {
+    border-radius: 8px;
+  }
+
+  .animated-border-container::before {
+    border-radius: 8px;
+  }
+
+  .animated-border-glow {
+    border-radius: 8px;
+  }
+}
