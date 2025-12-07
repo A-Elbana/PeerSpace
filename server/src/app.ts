@@ -1,21 +1,33 @@
-import express from "express";
-import cors from "cors";
+import express, { Request, Response, NextFunction } from "express";
 import dotenv from "dotenv";
 import swaggerUi from "swagger-ui-express";
 import prisma from "./config/prisma";
 import { swaggerSpec } from "./config/swagger";
 import authRoutes from "./routes/authRoutes";
+import { getCorsConfig } from "./config/corsConfig";
+import { generalLimiter } from "./middleware/rateLimitMiddleware";
+import { errorHandler, asyncHandler } from "./middleware/errorHandler";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// Middleware - Order matters!
+// 1. CORS configuration
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const corsMiddleware = require("cors")(getCorsConfig());
+  corsMiddleware(req, res, next);
+});
 
-// Swagger documentation
+// 2. Body parsing
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ limit: "10mb", extended: true }));
+
+// 3. General rate limiting
+app.use(generalLimiter);
+
+// 4. Swagger documentation
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 /**
@@ -38,12 +50,29 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *                   type: string
  *                   example: Server running
  */
-app.get("/", (req, res) => {
-  res.json({ message: "Server running" });
+app.get(
+  "/",
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json({
+      message: "Server running",
+      timestamp: new Date().toISOString(),
+    });
+  })
+);
+
+// 5. Routes
+app.use("/api/auth", authRoutes);
+
+// 6. 404 handler for undefined routes
+app.use((req: Request, res: Response) => {
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.method} ${req.path} not found`,
+  });
 });
 
-// Routes
-app.use("/api/auth", authRoutes);
+// 7. Global error handler (MUST be last middleware)
+app.use(errorHandler);
 
 // Start server
 app.listen(PORT, () => {
@@ -51,4 +80,5 @@ app.listen(PORT, () => {
   console.log(
     `API Documentation available at http://localhost:${PORT}/api-docs`
   );
+  console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
 });

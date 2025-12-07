@@ -7,6 +7,13 @@ import {
   refreshToken,
 } from "../controllers/AuthController";
 import { authenticateToken } from "../middleware/authMiddleware";
+import {
+  validateRegister,
+  validateLogin,
+  validateRefreshToken,
+  handleValidationErrors,
+} from "../middleware/validationMiddleware";
+import { authLimiter } from "../middleware/rateLimitMiddleware";
 
 const router = express.Router();
 
@@ -52,7 +59,13 @@ const router = express.Router();
  *       500:
  *         description: Server error
  */
-router.post("/register", registerUser);
+router.post(
+  "/register",
+  authLimiter,
+  validateRegister,
+  handleValidationErrors,
+  registerUser
+);
 
 /**
  * @swagger
@@ -85,7 +98,13 @@ router.post("/register", registerUser);
  *       500:
  *         description: Server error
  */
-router.post("/login", loginUser);
+router.post(
+  "/login",
+  authLimiter,
+  validateLogin,
+  handleValidationErrors,
+  loginUser
+);
 
 /**
  * @swagger
@@ -153,6 +172,11 @@ router.get("/me", authenticateToken, getCurrentUser);
  *       500:
  *         description: Server error
  */
-router.post("/refresh", refreshToken);
+router.post(
+  "/refresh",
+  validateRefreshToken,
+  handleValidationErrors,
+  refreshToken
+);
 
 export default router;
