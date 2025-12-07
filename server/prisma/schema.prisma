@@ -301,11 +301,11 @@ model TaskTag {
 }
 
 model User {
-  id             Int           @id
+  id             Int           @id @default(autoincrement())
   email          String        @unique @db.VarChar
   fname          String        @db.VarChar
   lname          String        @db.VarChar
-  activated      Boolean
+  activated      Boolean       @default(true)
   hashedPassword String        @db.VarChar
   role           Role?         @default(STUDENT)
   token_hash     String?       @db.VarChar

@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import swaggerUi from "swagger-ui-express";
 import prisma from "./config/prisma";
 import { swaggerSpec } from "./config/swagger";
+import authRoutes from "./routes/authRoutes";
 
 dotenv.config();
 
@@ -40,6 +41,9 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get("/", (req, res) => {
   res.json({ message: "Server running" });
 });
+
+// Routes
+app.use("/api/auth", authRoutes);
 
 // Start server
 app.listen(PORT, () => {
