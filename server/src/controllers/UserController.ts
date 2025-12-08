@@ -1,0 +1,166 @@
+import { Request, Response } from "express";
+import prisma from "../config/prisma";
+import { Role } from "../generated/prisma/client";
+
+// Standard user selection to exclude sensitive data
+const userSelect = {
+    id: true,
+    email: true,
+    fname: true,
+    lname: true,
+    role: true,
+    avatar_url: true,
+    activated: true,
+};
+
+// Helper for sanitization
+const sanitizeString = (input: string): string => {
+    return input.trim().substring(0, 255);
+};
+
+export const getAllUsers = async (req: Request, res: Response) => {
+    try {
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 10;
+        const skip = (page - 1) * limit;
+
+        const users = await prisma.user.findMany({
+            skip,
+            take: limit,
+            select: userSelect,
+            orderBy: { id: "asc" },
+        });
+
+        const total = await prisma.user.count();
+
+        res.status(200).json({
+            data: users,
+            meta: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+            },
+        });
+    } catch (error: any) {
+        console.error("Get All Users Error:", error);
+        res.status(500).json({ message: "Failed to fetch users" });
+    }
+};
+
+export const getUserById = async (req: Request, res: Response) => {
+    const id = req.params.id;
+    if (!id) {
+        return res.status(400).json({ message: "User ID is required" });
+    }
+    const userId = parseInt(id);
+
+    if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+    }
+
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: userSelect,
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.status(200).json(user);
+    } catch (error: any) {
+        console.error("Get User By ID Error:", error);
+        res.status(500).json({ message: "Failed to fetch user details" });
+    }
+};
+
+export const updateUser = async (req: Request, res: Response) => {
+    const id = req.params.id;
+    if (!id) {
+        return res.status(400).json({ message: "User ID is required" });
+    }
+    const targetUserId = parseInt(id);
+    const requestingUserId = (req as any).userId;
+    const requestingUserRole = (req as any).role;
+
+    if (isNaN(targetUserId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+    }
+
+    // Authorization: Users can only update themselves, Admins can update anyone
+    if (targetUserId !== requestingUserId && requestingUserRole !== "ADMIN") {
+        return res.status(403).json({ message: "You are not authorized to update this user" });
+    }
+
+    const { fname, lname, avatar_url } = req.body;
+
+    try {
+        const updateData: any = {};
+        if (fname) updateData.fname = sanitizeString(fname);
+        if (lname) updateData.lname = sanitizeString(lname);
+        if (avatar_url) updateData.avatar_url = avatar_url; // URL validation handled by middleware
+
+        const updatedUser = await prisma.user.update({
+            where: { id: targetUserId },
+            data: updateData,
+            select: userSelect,
+        });
+
+        res.status(200).json({
+            message: "User updated successfully",
+            user: updatedUser,
+        });
+    } catch (error: any) {
+        console.error("Update User Error:", error);
+        if (error.code === "P2025") {
+            return res.status(404).json({ message: "User not found" });
+        }
+        res.status(500).json({ message: "Failed to update user" });
+    }
+};
+
+export const deleteUser = async (req: Request, res: Response) => {
+    const id = req.params.id;
+    if (!id) {
+        return res.status(400).json({ message: "User ID is required" });
+    }
+    const targetUserId = parseInt(id);
+    const requestingUserId = (req as any).userId;
+    const requestingUserRole = (req as any).role;
+
+    if (isNaN(targetUserId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+    }
+
+    // Authorization: Users can only delete themselves, Admins can delete anyone
+    if (targetUserId !== requestingUserId && requestingUserRole !== "ADMIN") {
+        return res.status(403).json({ message: "You are not authorized to delete this user" });
+    }
+
+    try {
+        // We should probably delete related records first or rely on cascade?
+        // The schema shows some relations. User has `onDelete: Cascade` in `Student` model relation:
+        // `User User @relation(fields: [uid], references: [id], onDelete: Cascade, onUpdate: Cascade)`
+        // But others might be NoAction.
+        // e.g. ActivityLog: onDelete: NoAction
+        // This might cause FK constraint errors if we just delete the user.
+        // However, for now, let's try a simple delete. If it fails, we handle the error.
+
+        await prisma.user.delete({
+            where: { id: targetUserId },
+        });
+
+        res.status(200).json({ message: "User deleted successfully" });
+    } catch (error: any) {
+        console.error("Delete User Error:", error);
+        if (error.code === "P2025") {
+            return res.status(404).json({ message: "User not found" });
+        }
+        if (error.code === "P2003") {
+            return res.status(409).json({ message: "Cannot delete user because they have associated records." });
+        }
+        res.status(500).json({ message: "Failed to delete user" });
+    }
+};

@@ -4,6 +4,7 @@ import swaggerUi from "swagger-ui-express";
 import prisma from "./config/prisma";
 import { swaggerSpec } from "./config/swagger";
 import authRoutes from "./routes/authRoutes";
+import userRoutes from "./routes/userRoutes";
 import { getCorsConfig } from "./config/corsConfig";
 import { generalLimiter } from "./middleware/rateLimitMiddleware";
 import { errorHandler, asyncHandler } from "./middleware/errorHandler";
@@ -62,6 +63,7 @@ app.get(
 
 // 5. Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
 
 // 6. 404 handler for undefined routes
 app.use((req: Request, res: Response) => {

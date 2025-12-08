@@ -84,3 +84,38 @@ export const validateRefreshToken = [
     .isJWT()
     .withMessage("Invalid refresh token format"),
 ];
+
+/**
+ * User update validation rules
+ */
+export const validateUserUpdate = [
+  body("fname")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("First name cannot be empty")
+    .isLength({ min: 2, max: 50 })
+    .withMessage("First name must be between 2 and 50 characters")
+    .matches(/^[a-zA-Z\s'-]+$/)
+    .withMessage(
+      "First name can only contain letters, spaces, hyphens, and apostrophes"
+    ),
+
+  body("lname")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Last name cannot be empty")
+    .isLength({ min: 2, max: 50 })
+    .withMessage("Last name must be between 2 and 50 characters")
+    .matches(/^[a-zA-Z\s'-]+$/)
+    .withMessage(
+      "Last name can only contain letters, spaces, hyphens, and apostrophes"
+    ),
+
+  body("avatar_url")
+    .optional()
+    .isURL()
+    .withMessage("Invalid avatar URL format"),
+];
+
