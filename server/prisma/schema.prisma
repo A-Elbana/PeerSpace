@@ -169,7 +169,7 @@ model Notebook {
 }
 
 model Post {
-  id                 Int                  @id
+  id                 Int                  @id @default(autoincrement())
   title              String               @db.VarChar
   type               String               @db.VarChar
   post_date          DateTime             @db.Timestamp(6)
