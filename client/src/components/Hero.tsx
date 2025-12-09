@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
 
 const Hero: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -94,8 +95,6 @@ const Hero: React.FC = () => {
       ctx.strokeStyle = 'rgba(100, 150, 255, 0.15)'
       ctx.lineWidth = 1
 
-      const centerSafeRadius = 150 // Radius around center to keep clear of edges
-
       for (let i = 0; i < particles.length; i++) {
         for (let j = i + 1; j < particles.length; j++) {
           const p1 = particles[i]
@@ -169,7 +168,7 @@ const Hero: React.FC = () => {
           in one friendly workspace.
         </p>
         <div className="ps-hero-cta">
-          <button className="btn-primary">Join Now</button>
+          <Link to="/signup" className="btn-primary">Join Now</Link>
           <a className="btn-ghost" href="#features">
             Learn More
           </a>

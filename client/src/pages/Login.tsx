@@ -9,8 +9,8 @@ import { useTheme } from '../hooks/useTheme';
 import { useMouseTracker } from '../hooks/useMouseTracker';
 import { isValidEmail } from '../utils/validation';
 import logo from '../assets/peerspace-logo.png';
-import InteractiveDots from './InteractiveDots';
-import './Login.css';
+import InteractiveDots from '../components/InteractiveDots';
+import '../styles/Login.css';
 
 /**
  * Login Component
@@ -51,7 +51,7 @@ const Login: React.FC = () => {
 
     // TODO: Replace with actual API call
     setTimeout(() => {
-      // console.log('Login attempt:', credentials);
+      console.log('Login attempt:', credentials);
       setIsLoading(false);
       // Navigation logic will be implemented here
     }, 1500);

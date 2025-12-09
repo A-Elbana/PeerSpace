@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 
 const Navbar: React.FC = () => {
   const [scrolled, setScrolled] = useState(false)
@@ -19,7 +20,7 @@ const Navbar: React.FC = () => {
           <a href="#features">Features</a>
           <a href="#pricing">Pricing</a>
           <a href="#about">About</a>
-          <button className="cta">Join Now</button>
+          <Link to="/signup" className="cta">Join Now</Link>
         </nav>
       </div>
     </header>

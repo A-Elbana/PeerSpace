@@ -1,34 +1,51 @@
 /* Login Page Layout */
 .login-page {
   display: flex;
+  align-items: stretch;
+  justify-content: center;
   min-height: 100vh;
   width: 100%;
   position: relative;
-  overflow: hidden;
-  background: #f5f5f5;
+  background: #ffffff;
+  padding: 60px var(--spacing-xl) 60px var(--spacing-xl);
+  overflow-y: auto;
+}
+
+/* ===========================
+   WRAPPER FOR CENTERED LAYOUT
+   =========================== */
+.login-page>* {
+  flex: 0 0 auto;
 }
 
 /* ===========================
    LEFT PANEL - FORM SECTION
    =========================== */
 .login-left-panel {
-  flex: 0 0 50%;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--spacing-3xl);
+  padding: 0;
   position: relative;
   z-index: 2;
   background: #ffffff;
+  width: 50%;
+  max-width: 550px;
+  border-radius: 16px 0 0 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+  border-right: none;
+  align-self: stretch;
 }
 
 .login-card {
   width: 100%;
-  max-width: 480px;
   background: #ffffff;
   border-radius: 0;
   padding: var(--spacing-3xl);
   box-shadow: none;
+  border: none;
 }
 
 .login-logo-top {
@@ -350,9 +367,9 @@
    RIGHT PANEL - GEOMETRIC DESIGN
    =========================== */
 .login-right-panel {
-  flex: 0 0 50%;
+  flex: 0 0 auto;
   position: relative;
-  background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+  background: #ffffff;
   overflow: hidden;
   z-index: 1;
   display: flex;
@@ -360,6 +377,14 @@
   align-items: center;
   justify-content: center;
   padding: var(--spacing-3xl);
+  width: 50%;
+  max-width: 550px;
+  border-radius: 0 16px 16px 0;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+  border-left: none;
+  margin-left: 0;
+  align-self: stretch;
 }
 
 /* Interactive Mouse-following glow effect */
@@ -368,7 +393,7 @@
   position: absolute;
   width: 400px;
   height: 400px;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.3) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(102, 126, 234, 0.15) 0%, transparent 70%);
   border-radius: 50%;
   pointer-events: none;
   z-index: 0;
@@ -386,7 +411,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  overflow: hidden;
+  opacity: 0.6;
   z-index: 0;
 }
 
@@ -483,8 +508,8 @@
 .device-illustration {
   position: relative;
   z-index: 2;
-  margin-bottom: var(--spacing-2xl);
-  min-height: 400px;
+  width: 100%;
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -520,6 +545,37 @@
   margin-bottom: var(--spacing-lg);
   padding-bottom: var(--spacing-sm);
   border-bottom: 2px solid #e5e7eb;
+}
+
+/* Stats View - Community Feature */
+.stats-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-md) 0;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-md);
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: var(--font-weight-bold);
+  color: #2563eb;
+  margin-bottom: var(--spacing-xs);
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: var(--font-weight-medium);
 }
 
 .progress-view {
@@ -876,9 +932,8 @@
 /* Right Panel Text */
 .right-panel-text {
   text-align: center;
-  margin-top: var(--spacing-xl);
   max-width: 480px;
-  min-height: 120px;
+  padding: var(--spacing-lg) 0;
 }
 
 .panel-title {

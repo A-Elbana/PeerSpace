@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import './AnimatedBorder.css';
+import '../styles/AnimatedBorder.css';
 
 interface AnimatedBorderProps {
   children: React.ReactNode;

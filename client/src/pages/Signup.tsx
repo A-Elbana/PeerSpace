@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import type { UserRole } from '../types';
 import { Mail, Lock, User, Moon, Sun } from 'lucide-react';
 import { ROLES, BLUE_GRADIENT } from '../constants/roles';
 import { SIGNUP_FEATURES } from '../constants/features';
 import { useTheme } from '../hooks/useTheme';
 import { useMouseTracker } from '../hooks/useMouseTracker';
-import './Signup.css';
-import InteractiveDots from './InteractiveDots';
+import '../styles/Signup.css';
+import InteractiveDots from '../components/InteractiveDots';
 import logo from '../assets/peerspace-logo.png';
 
 /**
@@ -19,7 +20,10 @@ const Signup: React.FC = () => {
   const { mousePosition, containerRef } = useMouseTracker();
 
   const [selectedRole, setSelectedRole] = useState<UserRole>('student');
-  const [fullName, setFullName] = useState('');
+  // Replaced fullName with firstName and lastName
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -34,7 +38,9 @@ const Signup: React.FC = () => {
 
     // Simulate signup - Replace with actual registration logic
     setTimeout(() => {
-      // console.log('Signup attempt:', { fullName, email, password, role: selectedRole });
+      // Concatenate names for submission if needed, or send separately
+      // const fullName = `${firstName} ${lastName}`.trim(); 
+      // console.log('Signup attempt:', { firstName, lastName, email, password, role: selectedRole });
       setIsLoading(false);
     }, 1500);
   };
@@ -72,7 +78,7 @@ const Signup: React.FC = () => {
       <div className="signup-left-panel">
         <div className="signup-card">
           {/* Logo */}
-          <div className="signup-logo-top">
+          <div className="login-logo-top">
             <img src={logo} alt="PeerSpace Logo" className="logo-img-top" />
             <span className="logo-text-top">PeerSpace</span>
           </div>
@@ -113,19 +119,37 @@ const Signup: React.FC = () => {
             className="signup-form"
             onSubmit={handleSubmit}
           >
-            <div className="form-group">
-              <label htmlFor="fullName">Full Name</label>
-              <div className="input-wrapper">
-                <User size={16} className="input-icon" />
-                <input
-                  id="fullName"
-                  type="text"
-                  className="input"
-                  placeholder="John Doe"
-                  value={fullName}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFullName(e.target.value)}
-                  required
-                />
+            {/* Split Name Fields */}
+            <div className="form-row">
+              <div className="form-group half-width">
+                <label htmlFor="firstName">First Name</label>
+                <div className="input-wrapper">
+                  <User size={16} className="input-icon" />
+                  <input
+                    id="firstName"
+                    type="text"
+                    className="input"
+                    placeholder="John"
+                    value={firstName}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFirstName(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="form-group half-width">
+                <label htmlFor="lastName">Last Name</label>
+                <div className="input-wrapper">
+                  <User size={16} className="input-icon" />
+                  <input
+                    id="lastName"
+                    type="text"
+                    className="input"
+                    placeholder="Doe"
+                    value={lastName}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLastName(e.target.value)}
+                    required
+                  />
+                </div>
               </div>
             </div>
 
@@ -215,7 +239,7 @@ const Signup: React.FC = () => {
           </form>
 
           <div className="form-footer">
-            <p>Already have an account? <a href="/">Sign in</a></p>
+            <p>Already have an account? <Link to="/login">Sign in</Link></p>
           </div>
         </div>
       </div>
@@ -236,12 +260,112 @@ const Signup: React.FC = () => {
           <div className="shape shape-circle-1"></div>
           <div className="shape shape-circle-2"></div>
           <div className="shape shape-half-circle"></div>
-          <div className="shape shape-half-circle"></div>
           {/* Interactive Scattering Dots */}
           <InteractiveDots />
         </div>
 
-        {/* Feature Content */}
+        {/* Device Illustration */}
+        <div className="device-illustration">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentFeature}
+              className="laptop-device"
+              initial={{ opacity: 0, scale: 0.9, x: 50 }}
+              animate={{ opacity: 1, scale: 1, x: 0 }}
+              exit={{ opacity: 0, scale: 0.9, x: -50 }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+            >
+              <div className="laptop-screen">
+                <div className="screen-content">
+                  <div className="screen-header">{currentFeatureData.screenContent.header}</div>
+
+                  {/* Community Stats View */}
+                  {currentFeatureData.type === 'community' && currentFeatureData.screenContent.stats && (
+                    <div className="stats-view">
+                      {currentFeatureData.screenContent.stats.map((stat, index) => (
+                        <motion.div
+                          key={index}
+                          className="stat-item"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                        >
+                          <div className="stat-value">{stat.value}</div>
+                          <div className="stat-label">{stat.label}</div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Progress Tracking View */}
+                  {currentFeatureData.type === 'progress' && currentFeatureData.screenContent.items && (
+                    <div className="progress-view">
+                      {currentFeatureData.screenContent.items.map((item, index) => (
+                        <div key={index} className="course-item">
+                          <div className="course-thumb"></div>
+                          <div className="course-info">
+                            <div className="course-title">{item.title}</div>
+                            <div className="course-progress">
+                              <div className="progress-bar">
+                                <motion.div
+                                  className="progress-fill"
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${item.progress}%` }}
+                                  transition={{ duration: 0.8, delay: 0.2 }}
+                                ></motion.div>
+                              </div>
+                            </div>
+                            <div className="course-meta">{item.due}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Collaboration/Chat View */}
+                  {currentFeatureData.type === 'collaboration' && currentFeatureData.screenContent.messages && (
+                    <div className="chat-view">
+                      <div className="chat-header-info">
+                        <div className="chat-group-avatar">
+                          <div className="avatar-dot"></div>
+                          <div className="avatar-dot"></div>
+                          <div className="avatar-dot"></div>
+                        </div>
+                        <div className="chat-group-info">
+                          <div className="chat-group-name">Study Community</div>
+                          <div className="chat-group-members">{currentFeatureData.screenContent.members} members</div>
+                        </div>
+                      </div>
+                      <div className="chat-messages">
+                        {currentFeatureData.screenContent.messages.map((msg, index) => (
+                          <motion.div
+                            key={index}
+                            className={`chat-message ${msg.user === 'You' ? 'own-message' : ''}`}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.1 }}
+                          >
+                            <div className="message-user">{msg.user}</div>
+                            <div className="message-bubble">
+                              <div className="message-text">{msg.text}</div>
+                              <div className="message-time">{msg.time}</div>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                      <div className="chat-input">
+                        <div className="input-placeholder">Type a message...</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="laptop-base"></div>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Text Content */}
         <div className="right-panel-text">
           <AnimatePresence mode="wait">
             <motion.div
@@ -262,6 +386,7 @@ const Signup: React.FC = () => {
           {features.map((_, index) => (
             <button
               key={index}
+              type="button"
               className={`dot ${index === currentFeature ? 'active' : ''}`}
               onClick={() => setCurrentFeature(index)}
               aria-label={`Go to feature ${index + 1}`}
