@@ -1,8 +1,5 @@
 @import "tailwindcss";
 
-/* Tailwind v4 plugin for animations */
-@plugin "tailwindcss-animate";
-
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -136,6 +133,8 @@ a {
     color: inherit;
 }
 
+
+/* TAILWIND RELATED STUFF */
 @theme inline {
     --radius-sm: calc(var(--radius) - 4px);
     --radius-md: calc(var(--radius) - 2px);
@@ -172,6 +171,71 @@ a {
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-ring: var(--sidebar-ring);
+
+    /* Custom Color Palette - Royal Gold */
+    --color-royal-gold-50: #fdf9e7;
+    --color-royal-gold-100: #fcf2cf;
+    --color-royal-gold-200: #f8e5a0;
+    --color-royal-gold-300: #f5d870;
+    --color-royal-gold-400: #f2cb40;
+    --color-royal-gold-500: #eebe11;
+    --color-royal-gold-600: #bf980d;
+    --color-royal-gold-700: #8f720a;
+    --color-royal-gold-800: #5f4c07;
+    --color-royal-gold-900: #302603;
+    --color-royal-gold-950: #211b02;
+
+    /* Custom Color Palette - Turf Green */
+    --color-turf-green-50: #edf7ee;
+    --color-turf-green-100: #dcefdd;
+    --color-turf-green-200: #b9dfbb;
+    --color-turf-green-300: #95d099;
+    --color-turf-green-400: #72c077;
+    --color-turf-green-500: #4fb056;
+    --color-turf-green-600: #3f8d44;
+    --color-turf-green-700: #2f6a33;
+    --color-turf-green-800: #204622;
+    --color-turf-green-900: #102311;
+    --color-turf-green-950: #0b190c;
+
+    /* Custom Color Palette - Tech Blue */
+    --color-tech-blue-50: #ebf1fa;
+    --color-tech-blue-100: #d7e2f4;
+    --color-tech-blue-200: #afc5e9;
+    --color-tech-blue-300: #87a8de;
+    --color-tech-blue-400: #5f8bd3;
+    --color-tech-blue-500: #376fc8;
+    --color-tech-blue-600: #2c58a0;
+    --color-tech-blue-700: #214278;
+    --color-tech-blue-800: #162c50;
+    --color-tech-blue-900: #0b1628;
+    --color-tech-blue-950: #080f1c;
+
+    /* Custom Color Palette - Frosted Blue */
+    --color-frosted-blue-50: #ecf8f9;
+    --color-frosted-blue-100: #d8f0f3;
+    --color-frosted-blue-200: #b1e1e7;
+    --color-frosted-blue-300: #8bd2da;
+    --color-frosted-blue-400: #64c3ce;
+    --color-frosted-blue-500: #3db5c2;
+    --color-frosted-blue-600: #31909b;
+    --color-frosted-blue-700: #256c74;
+    --color-frosted-blue-800: #18484e;
+    --color-frosted-blue-900: #0c2427;
+    --color-frosted-blue-950: #09191b;
+
+    /* Custom Color Palette - Black (Neutrals) */
+    --color-black-50: #f4f2f1;
+    --color-black-100: #e8e6e3;
+    --color-black-200: #d2ccc6;
+    --color-black-300: #bbb3aa;
+    --color-black-400: #a4998e;
+    --color-black-500: #8e8071;
+    --color-black-600: #71665b;
+    --color-black-700: #554d44;
+    --color-black-800: #39332d;
+    --color-black-900: #1c1a17;
+    --color-black-950: #141210;
 }
 
 .dark {

@@ -28,7 +28,6 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { removeTokens } from '../utils/auth';
 import api from '../services/api';
-import '../styles/Dashboard.css';
 
 interface UserData {
     id: string;
@@ -158,11 +157,11 @@ const Dashboard: React.FC = () => {
     const getStatusIcon = (status: Assignment['status']) => {
         switch (status) {
             case 'completed':
-                return <CheckCircle2 className="status-icon status-completed" size={16} />;
+                return <CheckCircle2 className="shrink-0 text-turf-green-600" size={16} />;
             case 'overdue':
-                return <AlertCircle className="status-icon status-overdue" size={16} />;
+                return <AlertCircle className="shrink-0 text-royal-gold-600" size={16} />;
             default:
-                return <Clock className="status-icon status-pending" size={16} />;
+                return <Clock className="shrink-0 text-royal-gold-500" size={16} />;
         }
     };
 
@@ -178,85 +177,102 @@ const Dashboard: React.FC = () => {
         return `Due in ${diffDays} days`;
     };
 
+    const getDueDateStyles = (status: Assignment['status']) => {
+        switch (status) {
+            case 'completed':
+                return 'bg-turf-green-100 text-turf-green-700';
+            case 'overdue':
+                return 'bg-royal-gold-100 text-royal-gold-700';
+            default:
+                return 'bg-royal-gold-50 text-royal-gold-600';
+        }
+    };
+
     if (isLoading) {
         return (
-            <div className="dashboard-loading">
-                <div className="loading-spinner"></div>
+            <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-black-600">
+                <div className="w-10 h-10 border-3 border-black-200 border-t-tech-blue-600 rounded-full animate-spin"></div>
                 <p>Loading your dashboard...</p>
             </div>
         );
     }
 
     return (
-        <div className="dashboard-container">
+        <div className="min-h-screen bg-gradient-to-br from-black-50 to-black-100">
             {/* Header */}
-            <header className="dashboard-header">
-                <div className="header-content">
-                    <div className="header-left">
-                        <h1 className="dashboard-title">PeerSpace</h1>
-                        <div className="search-container">
-                            <Search className="search-icon" size={18} />
-                            <input
-                                type="text"
-                                placeholder="Search communities, assignments..."
-                                className="search-input"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
+            <header className="sticky top-0 z-50 bg-white border-b border-black-200 shadow-sm">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                    <div className="flex flex-col lg:flex-row items-center justify-between gap-4 lg:gap-8">
+                        <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 flex-1 w-full lg:w-auto">
+                            <h1 className="text-2xl font-bold bg-gradient-to-r from-tech-blue-600 to-frosted-blue-500 bg-clip-text text-transparent whitespace-nowrap">
+                                PeerSpace
+                            </h1>
+                            <div className="relative flex-1 w-full max-w-lg">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-black-400 pointer-events-none" size={18} />
+                                <input
+                                    type="text"
+                                    placeholder="Search communities, assignments..."
+                                    className="w-full pl-11 pr-4 py-2.5 text-sm border border-black-300 rounded-lg bg-black-50 focus:outline-none focus:ring-2 focus:ring-tech-blue-600 focus:border-transparent focus:bg-white transition-all"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
                         </div>
-                    </div>
 
-                    <div className="header-right">
-                        <Button variant="ghost" size="icon" className="header-icon-btn">
-                            <Bell size={20} />
-                            <span className="notification-badge">3</span>
-                        </Button>
+                        <div className="flex items-center gap-3 w-full lg:w-auto justify-end">
+                            <Button variant="ghost" size="icon" className="relative">
+                                <Bell size={20} />
+                                <span className="absolute top-0 right-0 bg-royal-gold-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                                    3
+                                </span>
+                            </Button>
 
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="user-menu-trigger">
-                                    <Avatar className="user-avatar">
-                                        <AvatarImage src="" alt={user?.firstName} />
-                                        <AvatarFallback>
-                                            {getInitials(user?.firstName, user?.lastName)}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <div className="user-info">
-                                        <span className="user-name">
-                                            {user?.firstName} {user?.lastName}
-                                        </span>
-                                        <span className="user-role">{user?.role}</span>
-                                    </div>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="user-menu-content">
-                                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => navigate('/profile')}>
-                                    <Settings className="menu-icon" size={16} />
-                                    Settings
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={handleLogout}>
-                                    <LogOut className="menu-icon" size={16} />
-                                    Logout
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="gap-3 px-3 py-2 h-auto">
+                                        <Avatar className="w-9 h-9 border-2 border-tech-blue-400">
+                                            <AvatarImage src="" alt={user?.firstName} />
+                                            <AvatarFallback className="bg-gradient-to-br from-tech-blue-600 to-frosted-blue-500 text-white">
+                                                {getInitials(user?.firstName, user?.lastName)}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <div className="hidden md:flex flex-col items-start gap-0.5">
+                                            <span className="text-sm font-semibold text-black-800">
+                                                {user?.firstName} {user?.lastName}
+                                            </span>
+                                            <span className="text-xs text-black-500 capitalize">{user?.role}</span>
+                                        </div>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="min-w-[200px]">
+                                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer">
+                                        <Settings className="mr-2" size={16} />
+                                        Settings
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                                        <LogOut className="mr-2" size={16} />
+                                        Logout
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
                     </div>
                 </div>
             </header>
 
             {/* Main Content */}
-            <main className="dashboard-main">
-                <div className="dashboard-grid">
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div className="flex flex-col gap-8">
                     {/* Welcome Section */}
-                    <section className="welcome-section">
-                        <Card className="welcome-card">
+                    <section className="w-full">
+                        <Card className="bg-gradient-to-r from-tech-blue-600 to-frosted-blue-500 border-none text-white">
                             <CardHeader>
-                                <CardTitle className="welcome-title">
+                                <CardTitle className="text-white text-2xl sm:text-3xl">
                                     Welcome back, {user?.firstName}! 👋
                                 </CardTitle>
-                                <CardDescription>
+                                <CardDescription className="text-white/90 text-base">
                                     Here's what's happening in your communities today
                                 </CardDescription>
                             </CardHeader>
@@ -264,74 +280,82 @@ const Dashboard: React.FC = () => {
                     </section>
 
                     {/* Stats Cards */}
-                    <section className="stats-section">
-                        <Card className="stat-card">
-                            <CardContent className="stat-content">
-                                <div className="stat-icon-wrapper stat-communities">
+                    <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <Card className="border border-black-200 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-tech-blue-400 cursor-pointer">
+                            <CardContent className="flex items-center gap-5 p-6">
+                                <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-tech-blue-600 to-tech-blue-400 flex items-center justify-center text-white shrink-0">
                                     <BookOpen size={24} />
                                 </div>
-                                <div className="stat-details">
-                                    <p className="stat-label">Communities</p>
-                                    <p className="stat-value">{communities.length}</p>
+                                <div className="flex flex-col gap-1">
+                                    <p className="text-sm text-black-600 m-0">Communities</p>
+                                    <p className="text-3xl font-bold text-black-900 m-0 leading-none">{communities.length}</p>
                                 </div>
                             </CardContent>
                         </Card>
 
-                        <Card className="stat-card">
-                            <CardContent className="stat-content">
-                                <div className="stat-icon-wrapper stat-assignments">
+                        <Card className="border border-black-200 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-tech-blue-400 cursor-pointer">
+                            <CardContent className="flex items-center gap-5 p-6">
+                                <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-frosted-blue-600 to-frosted-blue-400 flex items-center justify-center text-white shrink-0">
                                     <Calendar size={24} />
                                 </div>
-                                <div className="stat-details">
-                                    <p className="stat-label">Assignments</p>
-                                    <p className="stat-value">{assignments.length}</p>
+                                <div className="flex flex-col gap-1">
+                                    <p className="text-sm text-black-600 m-0">Assignments</p>
+                                    <p className="text-3xl font-bold text-black-900 m-0 leading-none">{assignments.length}</p>
                                 </div>
                             </CardContent>
                         </Card>
 
-                        <Card className="stat-card">
-                            <CardContent className="stat-content">
-                                <div className="stat-icon-wrapper stat-progress">
+                        <Card className="border border-black-200 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-tech-blue-400 cursor-pointer sm:col-span-2 lg:col-span-1">
+                            <CardContent className="flex items-center gap-5 p-6">
+                                <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-turf-green-600 to-turf-green-400 flex items-center justify-center text-white shrink-0">
                                     <TrendingUp size={24} />
                                 </div>
-                                <div className="stat-details">
-                                    <p className="stat-label">Progress</p>
-                                    <p className="stat-value">78%</p>
+                                <div className="flex flex-col gap-1">
+                                    <p className="text-sm text-black-600 m-0">Progress</p>
+                                    <p className="text-3xl font-bold text-black-900 m-0 leading-none">78%</p>
                                 </div>
                             </CardContent>
                         </Card>
                     </section>
 
                     {/* Communities Section */}
-                    <section className="communities-section">
-                        <div className="section-header">
-                            <h2 className="section-title">My Communities</h2>
-                            <Button className="add-btn">
+                    <section className="w-full">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5">
+                            <h2 className="text-2xl font-bold text-black-900 m-0">My Communities</h2>
+                            <Button className="gap-2 bg-gradient-to-r from-tech-blue-600 to-frosted-blue-500 border-none transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:opacity-90 w-full sm:w-auto">
                                 <Plus size={18} />
                                 Join Community
                             </Button>
                         </div>
 
-                        <div className="communities-grid">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {communities.map((community) => (
-                                <Card key={community.id} className="community-card">
+                                <Card
+                                    key={community.id}
+                                    className="border border-black-200 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-tech-blue-400 cursor-pointer relative overflow-hidden group"
+                                >
+                                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-tech-blue-600 to-frosted-blue-500 scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
                                     <CardHeader>
-                                        <div className="community-header">
-                                            <div className="community-icon">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-tech-blue-600 to-frosted-blue-500 flex items-center justify-center text-white">
                                                 <BookOpen size={24} />
                                             </div>
                                             {community.unreadPosts > 0 && (
-                                                <span className="unread-badge">{community.unreadPosts}</span>
+                                                <span className="bg-royal-gold-500 text-white text-xs font-bold px-2 py-1 rounded-full min-w-[24px] text-center">
+                                                    {community.unreadPosts}
+                                                </span>
                                             )}
                                         </div>
-                                        <CardTitle className="community-title">{community.name}</CardTitle>
-                                        <CardDescription className="community-description">
+                                        <CardTitle className="text-lg font-semibold text-black-900 my-2">
+                                            {community.name}
+                                        </CardTitle>
+                                        <CardDescription className="text-sm text-black-600 leading-relaxed line-clamp-2">
                                             {community.description}
                                         </CardDescription>
                                     </CardHeader>
                                     <CardContent>
-                                        <div className="community-footer">
-                                            <div className="community-members">
+                                        <div className="flex items-center justify-between pt-3 border-t border-black-200">
+                                            <div className="flex items-center gap-2 text-sm text-black-600">
                                                 <Users size={16} />
                                                 <span>{community.memberCount} members</span>
                                             </div>
@@ -346,28 +370,32 @@ const Dashboard: React.FC = () => {
                     </section>
 
                     {/* Assignments Section */}
-                    <section className="assignments-section">
-                        <div className="section-header">
-                            <h2 className="section-title">Upcoming Assignments</h2>
-                            <Button variant="outline" size="sm">
+                    <section className="w-full">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5">
+                            <h2 className="text-2xl font-bold text-black-900 m-0">Upcoming Assignments</h2>
+                            <Button variant="outline" size="sm" className="w-full sm:w-auto">
                                 View All
                             </Button>
                         </div>
 
-                        <Card className="assignments-card">
-                            <CardContent className="assignments-list">
+                        <Card className="border border-black-200">
+                            <CardContent className="p-0">
                                 {assignments.map((assignment, index) => (
                                     <React.Fragment key={assignment.id}>
-                                        <div className="assignment-item">
-                                            <div className="assignment-info">
+                                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 px-6 py-5 transition-colors hover:bg-black-50">
+                                            <div className="flex items-center gap-4 flex-1 w-full">
                                                 {getStatusIcon(assignment.status)}
-                                                <div className="assignment-details">
-                                                    <h3 className="assignment-title">{assignment.title}</h3>
-                                                    <p className="assignment-community">{assignment.communityName}</p>
+                                                <div className="flex flex-col gap-1 flex-1">
+                                                    <h3 className="text-[15px] font-semibold text-black-900 m-0">
+                                                        {assignment.title}
+                                                    </h3>
+                                                    <p className="text-[13px] text-black-600 m-0">
+                                                        {assignment.communityName}
+                                                    </p>
                                                 </div>
                                             </div>
-                                            <div className="assignment-due">
-                                                <span className={`due-date ${assignment.status}`}>
+                                            <div className="shrink-0 w-full sm:w-auto">
+                                                <span className={`inline-block text-[13px] font-medium px-3 py-1.5 rounded-md whitespace-nowrap w-full sm:w-auto text-center ${getDueDateStyles(assignment.status)}`}>
                                                     {formatDueDate(assignment.dueDate)}
                                                 </span>
                                             </div>
@@ -385,3 +413,4 @@ const Dashboard: React.FC = () => {
 };
 
 export default Dashboard;
+
