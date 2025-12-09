@@ -1,7 +1,12 @@
-import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import React, { useEffect, useState } from 'react';
 
-const Navbar: React.FC = () => {
+
+interface NavbarProps {
+  theme: 'theme-light' | 'theme-dark';
+  toggleTheme: () => void;
+}
+
+const Navbar: React.FC<NavbarProps> = ({ theme, toggleTheme }) => {
   const [scrolled, setScrolled] = useState(false)
 
   useEffect(() => {
@@ -18,9 +23,9 @@ const Navbar: React.FC = () => {
         <div className="ps-brand">PeerSpace</div>
         <nav className="ps-nav">
           <a href="#features">Features</a>
-          <a href="#pricing">Pricing</a>
-          <a href="#about">About</a>
-          <Link to="/signup" className="cta">Join Now</Link>
+          <button className="theme-toggle-nav" onClick={toggleTheme} aria-label="Toggle theme">
+            {theme === 'theme-dark' ? '☀️' : '🌙'}
+          </button>
         </nav>
       </div>
     </header>

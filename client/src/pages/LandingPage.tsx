@@ -6,11 +6,17 @@ import Footer from '../components/Footer'
 import '../styles/landing.css';
 
 const LandingPage: React.FC = () => {
+  const [theme, setTheme] = React.useState<'theme-light' | 'theme-dark'>('theme-dark');
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'theme-dark' ? 'theme-light' : 'theme-dark');
+  };
+
   return (
-    <div className="landing-root">
-      <Navbar />
+    <div className={`landing-root ${theme}`}>
+      <Navbar theme={theme} toggleTheme={toggleTheme} />
       <main>
-        <Hero />
+        <Hero theme={theme} />
         <Features />
       </main>
       <Footer />

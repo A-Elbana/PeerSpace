@@ -3,7 +3,7 @@ import React from 'react'
 const features = [
   {
     title: 'Organized Classrooms',
-    desc: 'Create and manage class spaces that keep content organized for teachers and students.',
+    desc: 'No more whatsapp groups, create and manage class spaces that keep content organized for teachers and students.',
   },
   { title: 'Assignments & Grading', desc: 'Post assignments, collect submissions, and give feedback quickly.' },
   { title: 'File Sharing', desc: 'Upload resources and attachments for easy access.' },

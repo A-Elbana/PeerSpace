@@ -117,9 +117,37 @@ export const registerUser = async (
       return newUser;
     });
 
-    // Return success WITHOUT sensitive data
+    // Generate Access Token (short-lived)
+    const accessToken = jwt.sign(
+      {
+        userId: result.id,
+        email: result.email,
+        role: result.role,
+        type: "access",
+      },
+      JWT_SECRET,
+      { expiresIn: ACCESS_TOKEN_EXPIRY }
+    );
+
+    // Generate Refresh Token (long-lived)
+    const refreshToken = jwt.sign(
+      { userId: result.id, type: "refresh" },
+      JWT_SECRET,
+      { expiresIn: REFRESH_TOKEN_EXPIRY }
+    );
+
+    // Store refresh token hash in database
+    const tokenHash = await bcrypt.hash(refreshToken, 10);
+    await prisma.user.update({
+      where: { id: result.id },
+      data: { token_hash: tokenHash },
+    });
+
+    // Return success WITH tokens (Auto-login)
     res.status(201).json({
-      message: "User registered successfully. Please log in.",
+      message: "User registered successfully",
+      accessToken,
+      refreshToken,
       user: {
         id: result.id,
         email: result.email,
@@ -163,7 +191,7 @@ export const loginUser = async (
 
     // Validate email format
     if (!validateEmail(email)) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({ message: "Invalid email" });
     }
 
     const sanitizedEmail = sanitizeString(email).toLowerCase();
@@ -189,7 +217,7 @@ export const loginUser = async (
     const isPasswordValid = await bcrypt.compare(password, user.hashedPassword);
 
     if (!isPasswordValid) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({ message: "Incorrect password" });
     }
 
     // Generate Access Token (short-lived)
