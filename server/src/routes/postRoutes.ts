@@ -22,10 +22,11 @@ const router = express.Router();
  * @swagger
  * /api/posts:
  *   post:
- *     summary: Create a new post (requires membership)
+ *     summary: Create a new post
  *     tags: [Posts]
  *     security:
  *       - bearerAuth: []
+ *     description: Create a new post in a community. User must be a member of the community (enrolled student or managing instructor)
  *     requestBody:
  *       required: true
  *       content:
@@ -39,19 +40,27 @@ const router = express.Router();
  *             properties:
  *               title:
  *                 type: string
+ *                 maxLength: 255
+ *                 description: Post title
  *               type:
  *                 type: string
+ *                 description: Post type/category
  *               body:
  *                 type: string
+ *                 description: Post content
  *               cid:
- *                 type: integer
+ *                 type: string
+ *                 format: uuid
+ *                 description: Community UUID
  *     responses:
  *       201:
- *         description: Post created
+ *         description: Post created successfully
  *       400:
- *         description: Invalid input
+ *         description: Invalid input or missing required fields
  *       403:
- *         description: Not a member
+ *         description: User not a member of the community
+ *       500:
+ *         description: Server error
  */
 router.post("/", authenticateToken, createPost);
 
@@ -59,15 +68,20 @@ router.post("/", authenticateToken, createPost);
  * @swagger
  * /api/posts:
  *   get:
- *     summary: Get posts by community (public communities accessible to guests)
+ *     summary: Get posts by community
  *     tags: [Posts]
+ *     description: Retrieve paginated posts from a community. PUBLIC communities accessible to guests; PRIVATE communities require authentication and membership
+ *     security:
+ *       - bearerAuth: []
+ *       - {}
  *     parameters:
  *       - in: query
  *         name: cid
  *         required: true
  *         schema:
- *           type: integer
- *         description: Community ID
+ *           type: string
+ *           format: uuid
+ *         description: Community UUID
  *       - in: query
  *         name: page
  *         schema:
@@ -80,9 +94,13 @@ router.post("/", authenticateToken, createPost);
  *           default: 10
  *     responses:
  *       200:
- *         description: List of posts
+ *         description: List of posts with pagination metadata
+ *       400:
+ *         description: Invalid community ID format
  *       403:
- *         description: Private community requires authentication
+ *         description: Private community requires authentication and membership
+ *       500:
+ *         description: Server error
  */
 router.get("/", getPostsByCommunity);
 
@@ -90,21 +108,28 @@ router.get("/", getPostsByCommunity);
  * @swagger
  * /api/posts/{id}:
  *   get:
- *     summary: Get post by ID (public posts accessible to guests)
+ *     summary: Get post by ID
  *     tags: [Posts]
+ *     description: Retrieve a specific post. PUBLIC community posts accessible to guests; PRIVATE community posts require authentication and membership
+ *     security:
+ *       - bearerAuth: []
+ *       - {}
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: integer
+ *         description: Post ID
  *     responses:
  *       200:
- *         description: Post details
+ *         description: Post details with author information and comment count
  *       403:
- *         description: Private community requires authentication
+ *         description: Private community requires authentication and membership
  *       404:
- *         description: Not found
+ *         description: Post not found
+ *       500:
+ *         description: Server error
  */
 router.get("/:id", getPostById);
 
@@ -116,12 +141,14 @@ router.get("/:id", getPostById);
  *     tags: [Posts]
  *     security:
  *       - bearerAuth: []
+ *     description: Update post details. Only the post author, community instructors, or admins allowed
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: integer
+ *         description: Post ID
  *     requestBody:
  *       content:
  *         application/json:
@@ -130,6 +157,7 @@ router.get("/:id", getPostById);
  *             properties:
  *               title:
  *                 type: string
+ *                 maxLength: 255
  *               body:
  *                 type: string
  *               is_resolved:
@@ -138,9 +166,13 @@ router.get("/:id", getPostById);
  *                 type: string
  *     responses:
  *       200:
- *         description: Updated post
+ *         description: Post updated successfully
  *       403:
- *         description: Unauthorized
+ *         description: Unauthorized - only author, instructors, or admins can update
+ *       404:
+ *         description: Post not found
+ *       500:
+ *         description: Server error
  */
 router.put("/:id", authenticateToken, updatePost);
 /**
@@ -151,17 +183,23 @@ router.put("/:id", authenticateToken, updatePost);
  *     tags: [Posts]
  *     security:
  *       - bearerAuth: []
+ *     description: Toggle the resolution status of a post. Only post author, community instructors, or admins allowed
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: integer
+ *         description: Post ID
  *     responses:
  *       200:
- *         description: Status toggled
+ *         description: Resolution status toggled successfully
  *       403:
- *         description: Unauthorized
+ *         description: Unauthorized - only author, instructors, or admins can resolve
+ *       404:
+ *         description: Post not found
+ *       500:
+ *         description: Server error
  */
 router.patch("/:id/resolve", authenticateToken, togglePostResolved);
 
@@ -173,17 +211,23 @@ router.patch("/:id/resolve", authenticateToken, togglePostResolved);
  *     tags: [Posts]
  *     security:
  *       - bearerAuth: []
+ *     description: Delete a post. Only post author, community instructors, or admins allowed
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: integer
+ *         description: Post ID
  *     responses:
  *       200:
- *         description: Deleted
+ *         description: Post deleted successfully
  *       403:
- *         description: Unauthorized
+ *         description: Unauthorized - only author, instructors, or admins can delete
+ *       404:
+ *         description: Post not found
+ *       500:
+ *         description: Server error
  */
 router.delete("/:id", authenticateToken, deletePost);
 

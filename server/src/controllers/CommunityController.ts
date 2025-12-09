@@ -84,11 +84,9 @@ export const createCommunity = async (req: Request, res: Response) => {
 
     // Only INSTRUCTOR or ADMIN can create communities
     if (userRole !== Role.INSTRUCTOR && userRole !== Role.ADMIN) {
-      return res
-        .status(403)
-        .json({
-          message: "Only instructors and admins can create communities",
-        });
+      return res.status(403).json({
+        message: "Only instructors and admins can create communities",
+      });
     }
 
     // Create community (id is auto-generated)
@@ -137,11 +135,12 @@ export const getCommunities = async (req: Request, res: Response) => {
   const userRole = (req as any).role;
 
   // Pagination with validation
-  const page = Math.max(1, parseInt(req.query.page as string) || 1);
-  const limit = Math.min(
-    50,
-    Math.max(1, parseInt(req.query.limit as string) || 10)
-  );
+  const pageParam = parseInt(req.query.page as string);
+  const limitParam = parseInt(req.query.limit as string);
+
+  const page = !isNaN(pageParam) && pageParam > 0 ? pageParam : 1;
+  const limit =
+    !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
   const skip = (page - 1) * limit;
 
   // Filter by type (optional)
@@ -150,45 +149,63 @@ export const getCommunities = async (req: Request, res: Response) => {
   try {
     let whereClause: any = {};
 
-    // Guests see only public communities
-    if (!userId) {
-      whereClause.type = CommunityType.PUBLIC;
-    } else if (
+    // Check if type filter is provided and valid
+    const isValidTypeFilter =
       typeFilter &&
-      Object.values(CommunityType).includes(typeFilter as CommunityType)
-    ) {
-      const typeEnum = typeFilter as CommunityType;
-      if (typeEnum === CommunityType.PUBLIC) {
-        whereClause.type = CommunityType.PUBLIC;
+      Object.values(CommunityType).includes(typeFilter as CommunityType);
+
+    // Admins see everything (highest priority)
+    if (userRole === Role.ADMIN) {
+      if (isValidTypeFilter) {
+        whereClause.type = typeFilter as CommunityType;
+      }
+      // else: no filter, show all (whereClause stays empty = all communities)
+    }
+    // Guests (no authentication)
+    else if (!userId) {
+      whereClause.type = CommunityType.PUBLIC;
+    }
+    // Authenticated non-admin users: apply filtering
+    else {
+      // Type filter provided
+      if (isValidTypeFilter) {
+        const typeEnum = typeFilter as CommunityType;
+        if (typeEnum === CommunityType.PUBLIC) {
+          // Show public communities
+          whereClause.type = CommunityType.PUBLIC;
+        } else {
+          // Show only their private communities
+          whereClause = {
+            AND: [
+              { type: CommunityType.PRIVATE },
+              {
+                OR: [
+                  { Enrollment: { some: { sid: userId } } },
+                  { Manages: { some: { iid: userId } } },
+                ],
+              },
+            ],
+          };
+        }
       } else {
-        // Private filter: only the user's private communities
+        // No type filter: show public + their private communities
         whereClause = {
-          type: CommunityType.PRIVATE,
           OR: [
-            { Enrollment: { some: { sid: userId } } },
-            { Manages: { some: { iid: userId } } },
+            { type: CommunityType.PUBLIC },
+            {
+              AND: [
+                { type: CommunityType.PRIVATE },
+                {
+                  OR: [
+                    { Enrollment: { some: { sid: userId } } },
+                    { Manages: { some: { iid: userId } } },
+                  ],
+                },
+              ],
+            },
           ],
         };
       }
-    } else if (userRole === Role.ADMIN) {
-      // Admins see everything
-      whereClause = {};
-    } else {
-      // Authenticated users: public + their private communities
-      whereClause = {
-        OR: [
-          { type: CommunityType.PUBLIC },
-          {
-            type: CommunityType.PRIVATE,
-            AND: {
-              OR: [
-                { Enrollment: { some: { sid: userId } } },
-                { Manages: { some: { iid: userId } } },
-              ],
-            },
-          },
-        ],
-      };
     }
 
     const communities = await prisma.community.findMany({
@@ -219,21 +236,14 @@ export const getCommunities = async (req: Request, res: Response) => {
 
 /**
  * Get community by ID
- * PUBLIC: anyone can view
- * PRIVATE: only members can view
+ * Assumes middleware has already validated authorization
  */
 export const getCommunityById = async (req: Request, res: Response) => {
-  const id = req.params.id || "";
-  const userId = (req as any).userId;
-  const userRole = (req as any).role;
-
-  if (!isValidUUID(id)) {
-    return res.status(400).json({ message: "Invalid community ID" });
-  }
+  const community = (req as any).community;
 
   try {
-    const community = await prisma.community.findUnique({
-      where: { id },
+    const communityDetails = await prisma.community.findUnique({
+      where: { id: community.id },
       select: {
         ...communitySelect,
         _count: {
@@ -245,47 +255,9 @@ export const getCommunityById = async (req: Request, res: Response) => {
       },
     });
 
-    if (!community) {
-      return res.status(404).json({ message: "Community not found" });
-    }
-
-    // PUBLIC: accessible to everyone
-    if (community.type === "PUBLIC") {
-      return res.status(200).json({
-        success: true,
-        data: community,
-      });
-    }
-
-    // PRIVATE: require authentication and membership (or admin)
-    if (!userId) {
-      return res
-        .status(403)
-        .json({
-          message: "Authentication required to view private communities",
-        });
-    }
-
-    if (userRole === Role.ADMIN) {
-      return res.status(200).json({
-        success: true,
-        data: community,
-      });
-    }
-
-    // Check membership
-    const isMember = await isUserMemberOfCommunity(userId, id);
-    if (!isMember) {
-      return res
-        .status(403)
-        .json({
-          message: "You must be a member to view this private community",
-        });
-    }
-
     res.status(200).json({
       success: true,
-      data: community,
+      data: communityDetails,
     });
   } catch (error: any) {
     console.error("Get Community Error:", error);
@@ -295,35 +267,13 @@ export const getCommunityById = async (req: Request, res: Response) => {
 
 /**
  * Update community
- * Only managers (Instructor managing this community) or ADMIN
+ * Assumes middleware has already validated authorization and loaded community
  */
 export const updateCommunity = async (req: Request, res: Response) => {
-  const id = req.params.id || "";
-  const userId = (req as any).userId;
-  const userRole = (req as any).role;
+  const community = (req as any).community;
   const { name, description, banner_url, type } = req.body;
 
-  if (!isValidUUID(id)) {
-    return res.status(400).json({ message: "Invalid community ID" });
-  }
-
   try {
-    const community = await prisma.community.findUnique({ where: { id } });
-    if (!community) {
-      return res.status(404).json({ message: "Community not found" });
-    }
-
-    // Authorization: Manager or Admin
-    const isManager = await isUserManagerOfCommunity(userId, id);
-    if (!isManager && userRole !== Role.ADMIN) {
-      return res
-        .status(403)
-        .json({
-          message:
-            "Only community managers or admins can update this community",
-        });
-    }
-
     // Build update data
     const updateData: any = {};
     if (name) updateData.name = sanitizeString(name);
@@ -339,7 +289,7 @@ export const updateCommunity = async (req: Request, res: Response) => {
     }
 
     const updatedCommunity = await prisma.community.update({
-      where: { id },
+      where: { id: community.id },
       data: updateData,
       select: communitySelect,
     });
@@ -363,33 +313,19 @@ export const updateCommunity = async (req: Request, res: Response) => {
 
 /**
  * Delete community
- * ADMIN or community MANAGER can delete
+ * Assumes middleware has already validated authorization and loaded community
  */
 export const deleteCommunity = async (req: Request, res: Response) => {
-  const id = req.params.id || "";
-  const userId = (req as any).userId;
-  const userRole = (req as any).role;
-
-  if (!isValidUUID(id)) {
-    return res.status(400).json({ message: "Invalid community ID" });
-  }
-
-  // Check if user is ADMIN or manager of this community
-  if (userRole !== Role.ADMIN) {
-    const isManager = await isUserManagerOfCommunity(userId, id);
-    if (!isManager) {
-      return res
-        .status(403)
-        .json({
-          message: "Only admins or community managers can delete communities",
-        });
-    }
-  }
+  const community = (req as any).community;
 
   try {
-    await prisma.community.delete({
-      where: { id },
-    });
+    // Delete all associated data first to avoid constraint violations
+    await prisma.post.deleteMany({ where: { cid: community.id } });
+    await prisma.enrollment.deleteMany({ where: { cid: community.id } });
+    await prisma.manages.deleteMany({ where: { cid: community.id } });
+
+    // Delete the community
+    await prisma.community.delete({ where: { id: community.id } });
 
     res.status(200).json({
       success: true,
@@ -400,23 +336,16 @@ export const deleteCommunity = async (req: Request, res: Response) => {
     if (error.code === "P2025") {
       return res.status(404).json({ message: "Community not found" });
     }
-    if (error.code === "P2003") {
-      return res
-        .status(409)
-        .json({ message: "Cannot delete community with existing relations" });
-    }
     res.status(500).json({ message: "Failed to delete community" });
   }
 };
 
 /**
  * Get members of a community
- * Only managers, admins, or members can view
+ * Assumes middleware has already validated authorization and loaded community
  */
 export const getCommunityMembers = async (req: Request, res: Response) => {
-  const id = req.params.id || "";
-  const userId = (req as any).userId;
-  const userRole = (req as any).role;
+  const community = (req as any).community;
 
   // Pagination
   const page = Math.max(1, parseInt(req.query.page as string) || 1);
@@ -426,27 +355,10 @@ export const getCommunityMembers = async (req: Request, res: Response) => {
   );
   const skip = (page - 1) * limit;
 
-  if (!isValidUUID(id)) {
-    return res.status(400).json({ message: "Invalid community ID" });
-  }
-
   try {
-    const community = await prisma.community.findUnique({ where: { id } });
-    if (!community) {
-      return res.status(404).json({ message: "Community not found" });
-    }
-
-    // Authorization: Members/Managers/Admins can view member list
-    const isMember = await isUserMemberOfCommunity(userId, id);
-    if (!isMember && userRole !== Role.ADMIN) {
-      return res
-        .status(403)
-        .json({ message: "Only members can view the member list" });
-    }
-
     // Get enrolled students
     const students = await prisma.enrollment.findMany({
-      where: { cid: id },
+      where: { cid: community.id },
       skip,
       take: limit,
       select: {
@@ -468,7 +380,7 @@ export const getCommunityMembers = async (req: Request, res: Response) => {
 
     // Get managing instructors
     const instructors = await prisma.manages.findMany({
-      where: { cid: id },
+      where: { cid: community.id },
       select: {
         Instructor: {
           select: {
@@ -489,7 +401,9 @@ export const getCommunityMembers = async (req: Request, res: Response) => {
     const studentList = students.map((s) => s.Student.User);
     const instructorList = instructors.map((i) => i.Instructor.User);
 
-    const totalStudents = await prisma.enrollment.count({ where: { cid: id } });
+    const totalStudents = await prisma.enrollment.count({
+      where: { cid: community.id },
+    });
 
     res.status(200).json({
       success: true,

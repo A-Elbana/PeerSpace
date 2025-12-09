@@ -6,6 +6,7 @@ import {
   updateCommunity,
   deleteCommunity,
   getCommunityMembers,
+  shareCommunity,
 } from "../controllers/CommunityController";
 import {
   enrollInCommunity,
@@ -13,7 +14,11 @@ import {
   addStudentToCommunity,
   removeStudentFromCommunity,
 } from "../controllers/EnrollmentController";
-import { authenticateToken, authorizeRole } from "../middleware/authMiddleware";
+import {
+  authenticateToken,
+  authorizeRole,
+  optionalAuthenticateToken,
+} from "../middleware/authMiddleware";
 import {
   validateCommunityCreate,
   validateCommunityUpdate,
@@ -41,6 +46,10 @@ const router = express.Router();
  *   get:
  *     summary: Get all communities with pagination
  *     tags: [Communities]
+ *     description: Retrieve communities. Guests see PUBLIC only; authenticated users see PUBLIC + their PRIVATE communities; admins see all
+ *     security:
+ *       - bearerAuth: []
+ *       - {}
  *     parameters:
  *       - in: query
  *         name: page
@@ -63,11 +72,11 @@ const router = express.Router();
  *         description: Filter by community type
  *     responses:
  *       200:
- *         description: List of communities
+ *         description: List of communities with pagination metadata
  *       500:
  *         description: Server error
  */
-router.get("/", getCommunities);
+router.get("/", optionalAuthenticateToken, getCommunities);
 
 /**
  * @swagger
@@ -77,6 +86,7 @@ router.get("/", getCommunities);
  *     tags: [Communities]
  *     security:
  *       - bearerAuth: []
+ *     description: Create a new community. Only INSTRUCTOR and ADMIN roles allowed. Creator is automatically added as manager.
  *     requestBody:
  *       required: true
  *       content:
@@ -90,23 +100,29 @@ router.get("/", getCommunities);
  *               name:
  *                 type: string
  *                 minLength: 3
- *                 maxLength: 100
+ *                 maxLength: 255
+ *                 description: Community name
  *               type:
  *                 type: string
  *                 enum: [PUBLIC, PRIVATE]
+ *                 description: Community visibility type
  *               description:
  *                 type: string
- *                 maxLength: 500
+ *                 maxLength: 255
+ *                 description: Community description
  *               banner_url:
  *                 type: string
  *                 format: uri
+ *                 description: URL to community banner image
  *     responses:
  *       201:
- *         description: Community created
+ *         description: Community created successfully (returns UUID id)
  *       400:
- *         description: Validation error
+ *         description: Validation error (missing/invalid required fields)
  *       403:
  *         description: Only instructors and admins can create communities
+ *       409:
+ *         description: Community name already exists
  *       500:
  *         description: Server error
  */
@@ -125,24 +141,37 @@ router.post(
  *   get:
  *     summary: Get community by ID
  *     tags: [Communities]
+ *     description: Retrieve community details. PUBLIC communities visible to everyone; PRIVATE communities require membership or admin role
+ *     security:
+ *       - bearerAuth: []
+ *       - {}
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
- *         description: Community ID
+ *           type: string
+ *           format: uuid
+ *         description: Community UUID
  *     responses:
  *       200:
- *         description: Community details
+ *         description: Community details with member and post counts
+ *       400:
+ *         description: Invalid community ID format
  *       403:
- *         description: Authentication required for private communities
+ *         description: Authentication required for private communities or user is not a member
  *       404:
  *         description: Community not found
  *       500:
  *         description: Server error
  */
-router.get("/:id", getCommunityById);
+router.get(
+  "/:id",
+  optionalAuthenticateToken,
+  loadCommunity,
+  authorizeCommunityAccess,
+  getCommunityById
+);
 
 /**
  * @swagger
@@ -152,13 +181,15 @@ router.get("/:id", getCommunityById);
  *     tags: [Communities]
  *     security:
  *       - bearerAuth: []
+ *     description: Update community details. Only community managers (instructors managing this community) or admins allowed
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
- *         description: Community ID
+ *           type: string
+ *           format: uuid
+ *         description: Community UUID
  *     requestBody:
  *       content:
  *         application/json:
@@ -168,31 +199,35 @@ router.get("/:id", getCommunityById);
  *               name:
  *                 type: string
  *                 minLength: 3
- *                 maxLength: 100
+ *                 maxLength: 255
  *               type:
  *                 type: string
  *                 enum: [PUBLIC, PRIVATE]
  *               description:
  *                 type: string
- *                 maxLength: 500
+ *                 maxLength: 255
  *               banner_url:
  *                 type: string
  *                 format: uri
  *     responses:
  *       200:
- *         description: Community updated
+ *         description: Community updated successfully
  *       400:
- *         description: Validation error
+ *         description: Validation error or no valid fields to update
  *       403:
  *         description: Only community managers or admins can update
  *       404:
  *         description: Community not found
+ *       409:
+ *         description: Community name already exists
  *       500:
  *         description: Server error
  */
 router.put(
   "/:id",
   authenticateToken,
+  loadCommunity,
+  authorizeCommunityManage,
   validateCommunityUpdate,
   handleValidationErrors,
   updateCommunity
@@ -206,18 +241,22 @@ router.put(
  *     tags: [Communities]
  *     security:
  *       - bearerAuth: []
+ *     description: Delete a community. Only admins or community managers allowed
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
- *         description: Community ID
+ *           type: string
+ *           format: uuid
+ *         description: Community UUID
  *     responses:
  *       200:
- *         description: Community deleted
+ *         description: Community deleted successfully
+ *       400:
+ *         description: Invalid community ID format
  *       403:
- *         description: Only admins can delete communities
+ *         description: Only admins or community managers can delete communities
  *       404:
  *         description: Community not found
  *       409:
@@ -228,7 +267,8 @@ router.put(
 router.delete(
   "/:id",
   authenticateToken,
-  authorizeRole(["ADMIN"]),
+  loadCommunity,
+  authorizeCommunityManage,
   deleteCommunity
 );
 
@@ -240,13 +280,15 @@ router.delete(
  *     tags: [Communities]
  *     security:
  *       - bearerAuth: []
+ *     description: Retrieve paginated list of community members (students and instructors). Only members, managers, or admins allowed
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
- *         description: Community ID
+ *           type: string
+ *           format: uuid
+ *         description: Community UUID
  *       - in: query
  *         name: page
  *         schema:
@@ -260,7 +302,9 @@ router.delete(
  *           maximum: 50
  *     responses:
  *       200:
- *         description: List of community members
+ *         description: List of community members with pagination
+ *       400:
+ *         description: Invalid community ID format
  *       403:
  *         description: Only members can view member list
  *       404:
@@ -268,7 +312,13 @@ router.delete(
  *       500:
  *         description: Server error
  */
-router.get("/:id/members", authenticateToken, getCommunityMembers);
+router.get(
+  "/:id/members",
+  authenticateToken,
+  loadCommunity,
+  authorizeCommunityAccess,
+  getCommunityMembers
+);
 
 /**
  * @swagger
@@ -278,22 +328,36 @@ router.get("/:id/members", authenticateToken, getCommunityMembers);
  *     tags: [Communities]
  *     security:
  *       - bearerAuth: []
+ *     description: Enroll student in community using invitation code (which is the community ID). PUBLIC communities require no code; PRIVATE communities require invitation code in body for body-based enrollment
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
- *         description: Community ID
+ *           type: string
+ *           format: uuid
+ *         description: Community UUID (invitation code for enrollment)
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               communityId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Optional community ID for alternative enrollment (required for private communities)
  *     responses:
  *       201:
- *         description: Successfully enrolled
+ *         description: Successfully enrolled in community
+ *       400:
+ *         description: Invalid community ID format or missing code for private community
  *       403:
  *         description: Only students can enroll
  *       404:
  *         description: Community not found
  *       409:
- *         description: Already enrolled
+ *         description: Already enrolled in community
  *       500:
  *         description: Server error
  */
@@ -301,6 +365,7 @@ router.post(
   "/:id/enroll",
   authenticateToken,
   authorizeRole(["STUDENT"]),
+  loadCommunity,
   enrollInCommunity
 );
 
@@ -312,16 +377,20 @@ router.post(
  *     tags: [Communities]
  *     security:
  *       - bearerAuth: []
+ *     description: Remove student from community enrollment
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
- *         description: Community ID
+ *           type: string
+ *           format: uuid
+ *         description: Community UUID
  *     responses:
  *       200:
  *         description: Successfully left community
+ *       400:
+ *         description: Invalid community ID format
  *       403:
  *         description: Only students can leave
  *       404:
@@ -333,6 +402,7 @@ router.delete(
   "/:id/leave",
   authenticateToken,
   authorizeRole(["STUDENT"]),
+  loadCommunity,
   leaveCommunity
 );
 
@@ -344,13 +414,15 @@ router.delete(
  *     tags: [Communities]
  *     security:
  *       - bearerAuth: []
+ *     description: Add a student to community enrollment. Only instructors and admins allowed
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
- *         description: Community ID
+ *           type: string
+ *           format: uuid
+ *         description: Community UUID
  *     requestBody:
  *       required: true
  *       content:
@@ -367,20 +439,21 @@ router.delete(
  *       201:
  *         description: Student added successfully
  *       400:
- *         description: Invalid student ID
+ *         description: Invalid community ID format or student ID
  *       403:
- *         description: Only instructors or admins
+ *         description: Only instructors or admins can add students
  *       404:
  *         description: Student or community not found
  *       409:
- *         description: Student already enrolled
+ *         description: Student already enrolled in community
  *       500:
  *         description: Server error
  */
 router.post(
   "/:id/students",
   authenticateToken,
-  authorizeRole(["INSTRUCTOR", "ADMIN"]),
+  loadCommunity,
+  authorizeCommunityManage,
   validateAddStudent,
   handleValidationErrors,
   addStudentToCommunity
@@ -394,13 +467,15 @@ router.post(
  *     tags: [Communities]
  *     security:
  *       - bearerAuth: []
+ *     description: Remove a student from community enrollment. Only community managers (instructors managing this community) or admins allowed
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
- *         description: Community ID
+ *           type: string
+ *           format: uuid
+ *         description: Community UUID
  *       - in: path
  *         name: studentId
  *         required: true
@@ -410,17 +485,61 @@ router.post(
  *     responses:
  *       200:
  *         description: Student removed successfully
+ *       400:
+ *         description: Invalid community ID format
  *       403:
- *         description: Only community managers or admins
+ *         description: Only community managers or admins can remove students
  *       404:
- *         description: Student not enrolled
+ *         description: Student not enrolled or community not found
  *       500:
  *         description: Server error
  */
 router.delete(
   "/:id/students/:studentId",
   authenticateToken,
+  loadCommunity,
+  authorizeCommunityManage,
   removeStudentFromCommunity
+);
+
+/**
+ * @swagger
+ * /api/communities/{id}/share:
+ *   get:
+ *     summary: Get community invitation code
+ *     tags: [Communities]
+ *     security:
+ *       - bearerAuth: []
+ *       - {}
+ *     description: Get the invitation code (community UUID) for sharing. PUBLIC communities accessible to anyone; PRIVATE communities require membership or admin role
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Community UUID
+ *     responses:
+ *       200:
+ *         description: Invitation code (community ID) returned successfully
+ *       400:
+ *         description: Invalid community ID format
+ *       401:
+ *         description: Authentication required to view invitation code for private communities
+ *       403:
+ *         description: Only members or admins can view invitation code for private communities
+ *       404:
+ *         description: Community not found
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  "/:id/share",
+  optionalAuthenticateToken,
+  loadCommunity,
+  authorizeCommunityAccess,
+  shareCommunity
 );
 
 export default router;

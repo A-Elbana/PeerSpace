@@ -10,29 +10,16 @@ const isValidUUID = (value: string): boolean => {
 
 /**
  * Enroll in a community (Student joins)
+ * Assumes middleware has already validated community access
  * PUBLIC communities: Anyone can join
- * PRIVATE communities: Require invitation/approval (for now, simplified: INSTRUCTOR/ADMIN can add, or self-enroll is blocked)
+ * PRIVATE communities: Require invitation code (passed in body)
  */
 export const enrollInCommunity = async (req: Request, res: Response) => {
-  const bodyCommunityId = req.body?.communityId
-    ? String(req.body.communityId)
-    : "";
-  const paramCommunityId = req.params.id ? String(req.params.id) : "";
-  const communityId = bodyCommunityId || paramCommunityId;
-  const idSource = bodyCommunityId
-    ? "body"
-    : paramCommunityId
-    ? "params"
-    : null;
-
+  const community = (req as any).community;
   const userId = (req as any).userId;
   const userRole = (req as any).role;
 
-  if (!communityId || !isValidUUID(communityId)) {
-    return res.status(400).json({ message: "Invalid community ID" });
-  }
-
-  // Only STUDENT role can enroll (Instructors use Manages)
+  // Only STUDENT role can enroll
   if (userRole !== Role.STUDENT) {
     return res
       .status(403)
@@ -40,26 +27,11 @@ export const enrollInCommunity = async (req: Request, res: Response) => {
   }
 
   try {
-    const community = await prisma.community.findUnique({
-      where: { id: communityId },
-    });
-
-    if (!community) {
-      return res.status(404).json({ message: "Community not found" });
-    }
-
-    // Invitation code enforcement: PRIVATE communities must come from body
-    if (community.type === CommunityType.PRIVATE && idSource !== "body") {
-      return res
-        .status(400)
-        .json({ message: "Invitation code required in request body" });
-    }
-
     // Check if already enrolled
     const existing = await prisma.enrollment.findUnique({
       where: {
         cid_sid: {
-          cid: communityId,
+          cid: community.id,
           sid: userId,
         },
       },
@@ -71,16 +43,9 @@ export const enrollInCommunity = async (req: Request, res: Response) => {
         .json({ message: "Already enrolled in this community" });
     }
 
-    // Business rule: PUBLIC communities allow self-enrollment
-    // PRIVATE communities could require approval (simplified for MVP: allow enrollment)
-    // To enforce approval, check if PRIVATE and return 403 unless invited
-
-    // Simplified MVP: Allow enrollment in both PUBLIC and PRIVATE
-    // For stricter control, add invitation system later
-
     await prisma.enrollment.create({
       data: {
-        cid: communityId,
+        cid: community.id,
         sid: userId,
       },
     });
@@ -100,15 +65,12 @@ export const enrollInCommunity = async (req: Request, res: Response) => {
 
 /**
  * Leave a community (Student unenrolls)
+ * Assumes middleware has already validated community and loaded it
  */
 export const leaveCommunity = async (req: Request, res: Response) => {
-  const communityId = req.params.id || "";
+  const community = (req as any).community;
   const userId = (req as any).userId;
   const userRole = (req as any).role;
-
-  if (!isValidUUID(communityId)) {
-    return res.status(400).json({ message: "Invalid community ID" });
-  }
 
   if (userRole !== Role.STUDENT) {
     return res
@@ -120,7 +82,7 @@ export const leaveCommunity = async (req: Request, res: Response) => {
     const enrollment = await prisma.enrollment.findUnique({
       where: {
         cid_sid: {
-          cid: communityId,
+          cid: community.id,
           sid: userId,
         },
       },
@@ -135,7 +97,7 @@ export const leaveCommunity = async (req: Request, res: Response) => {
     await prisma.enrollment.delete({
       where: {
         cid_sid: {
-          cid: communityId,
+          cid: community.id,
           sid: userId,
         },
       },
@@ -152,27 +114,15 @@ export const leaveCommunity = async (req: Request, res: Response) => {
 };
 
 /**
- * Add a student to a community (INSTRUCTOR/ADMIN only)
- * Useful for private communities or bulk enrollment
+ * Add a student to a community (INSTRUCTOR/ADMIN managing this community)
+ * Assumes middleware has already validated authorization and loaded community
  */
 export const addStudentToCommunity = async (req: Request, res: Response) => {
-  const communityId = req.params.id || "";
+  const community = (req as any).community;
   const { studentId } = req.body;
-  const userRole = (req as any).role;
-
-  if (!isValidUUID(communityId)) {
-    return res.status(400).json({ message: "Invalid community ID" });
-  }
 
   if (!studentId || isNaN(parseInt(studentId))) {
     return res.status(400).json({ message: "Valid student ID is required" });
-  }
-
-  // Only INSTRUCTOR or ADMIN
-  if (userRole !== Role.INSTRUCTOR && userRole !== Role.ADMIN) {
-    return res
-      .status(403)
-      .json({ message: "Only instructors or admins can add students" });
   }
 
   try {
@@ -192,7 +142,7 @@ export const addStudentToCommunity = async (req: Request, res: Response) => {
     const existing = await prisma.enrollment.findUnique({
       where: {
         cid_sid: {
-          cid: communityId,
+          cid: community.id,
           sid: targetStudentId,
         },
       },
@@ -206,7 +156,7 @@ export const addStudentToCommunity = async (req: Request, res: Response) => {
 
     await prisma.enrollment.create({
       data: {
-        cid: communityId,
+        cid: community.id,
         sid: targetStudentId,
       },
     });
@@ -227,47 +177,25 @@ export const addStudentToCommunity = async (req: Request, res: Response) => {
 };
 
 /**
- * Remove a student from a community (INSTRUCTOR/ADMIN only)
+ * Remove a student from a community
+ * Assumes middleware has already validated authorization and loaded community
  */
 export const removeStudentFromCommunity = async (
   req: Request,
   res: Response
 ) => {
-  const communityId = req.params.id || "";
+  const community = (req as any).community;
   const studentId = parseInt(req.params.studentId || "");
-  const userRole = (req as any).role;
-  const userId = (req as any).userId;
 
-  if (!isValidUUID(communityId) || isNaN(studentId)) {
-    return res.status(400).json({ message: "Invalid community or student ID" });
-  }
-
-  // Only INSTRUCTOR managing this community or ADMIN
-  if (userRole !== Role.ADMIN) {
-    // Check if user is instructor managing this community
-    const manages = await prisma.manages.findUnique({
-      where: {
-        iid_cid: {
-          iid: userId,
-          cid: communityId,
-        },
-      },
-    });
-
-    if (!manages) {
-      return res
-        .status(403)
-        .json({
-          message: "Only community managers or admins can remove students",
-        });
-    }
+  if (isNaN(studentId)) {
+    return res.status(400).json({ message: "Invalid student ID" });
   }
 
   try {
     const enrollment = await prisma.enrollment.findUnique({
       where: {
         cid_sid: {
-          cid: communityId,
+          cid: community.id,
           sid: studentId,
         },
       },
@@ -282,7 +210,7 @@ export const removeStudentFromCommunity = async (
     await prisma.enrollment.delete({
       where: {
         cid_sid: {
-          cid: communityId,
+          cid: community.id,
           sid: studentId,
         },
       },

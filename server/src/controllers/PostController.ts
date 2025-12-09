@@ -100,6 +100,7 @@ const canAccessCommunity = async (
 export const createPost = async (req: Request, res: Response) => {
   const { title, type, body, cid } = req.body;
   const userId = (req as any).userId;
+  const userRole = (req as any).role;
 
   if (!cid) {
     return res.status(400).json({ message: "Community ID (cid) is required" });
@@ -110,18 +111,26 @@ export const createPost = async (req: Request, res: Response) => {
     return res.status(400).json({ message: "Invalid Community ID" });
   }
 
-  // Validate membership (Student enrolled or Instructor managing)
-  const isMember = await isUserInCommunity(userId, communityId);
-  const role = (req as any).role;
-
-  // Allow members (Students/Instructors of the community) and global Admins
-  if (!isMember && role !== "ADMIN") {
-    return res
-      .status(403)
-      .json({ message: "You are not a member of this community" });
-  }
-
   try {
+    // Verify community exists
+    const community = await prisma.community.findUnique({
+      where: { id: communityId },
+    });
+
+    if (!community) {
+      return res.status(404).json({ message: "Community not found" });
+    }
+
+    // Check membership (Student enrolled or Instructor managing) and authorization
+    const isMember = await isUserInCommunity(userId, communityId);
+
+    // Allow members (Students/Instructors of the community) and global Admins
+    if (!isMember && userRole !== "ADMIN") {
+      return res
+        .status(403)
+        .json({ message: "You are not a member of this community" });
+    }
+
     const post = await prisma.post.create({
       data: {
         title,

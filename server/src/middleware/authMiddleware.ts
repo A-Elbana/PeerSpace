@@ -55,6 +55,50 @@ export const authenticateToken = (
 };
 
 /**
+ * Optional authentication middleware
+ * Attempts to verify JWT token if provided, but does not fail if missing
+ * Allows both authenticated and unauthenticated requests
+ */
+export const optionalAuthenticateToken = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
+
+  if (!token) {
+    // No token provided - continue as unauthenticated guest
+    return next();
+  }
+
+  try {
+    // Verify token signature and expiration
+    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+
+    // Ensure it's an access token (not refresh token)
+    if (decoded.type !== "access") {
+      // Invalid token type - continue as guest
+      return next();
+    }
+
+    // Attach user info to request object
+    (req as any).userId = decoded.userId;
+    (req as any).role = decoded.role;
+    (req as any).email = decoded.email;
+
+    next();
+  } catch (error: any) {
+    // Token verification failed - continue as guest
+    console.debug(
+      "Optional token verification failed, continuing as guest:",
+      error.message
+    );
+    next();
+  }
+};
+
+/**
  * Role-based authorization middleware
  * Restricts access to specific roles
  */
