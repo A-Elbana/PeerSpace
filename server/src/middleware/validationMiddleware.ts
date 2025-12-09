@@ -119,3 +119,71 @@ export const validateUserUpdate = [
     .withMessage("Invalid avatar URL format"),
 ];
 
+/**
+ * Community creation validation rules
+ */
+export const validateCommunityCreate = [
+  body("name")
+    .trim()
+    .notEmpty()
+    .withMessage("Community name is required")
+    .isLength({ min: 3, max: 100 })
+    .withMessage("Community name must be between 3 and 100 characters"),
+
+  body("type")
+    .notEmpty()
+    .withMessage("Community type is required")
+    .isIn(["PUBLIC", "PRIVATE", "public", "private"])
+    .withMessage("Type must be PUBLIC or PRIVATE"),
+
+  body("description")
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage("Description cannot exceed 500 characters"),
+
+  body("banner_url")
+    .optional()
+    .isURL()
+    .withMessage("Invalid banner URL format"),
+];
+
+/**
+ * Community update validation rules
+ */
+export const validateCommunityUpdate = [
+  body("name")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Community name cannot be empty")
+    .isLength({ min: 3, max: 100 })
+    .withMessage("Community name must be between 3 and 100 characters"),
+
+  body("type")
+    .optional()
+    .isIn(["PUBLIC", "PRIVATE", "public", "private"])
+    .withMessage("Type must be PUBLIC or PRIVATE"),
+
+  body("description")
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage("Description cannot exceed 500 characters"),
+
+  body("banner_url")
+    .optional()
+    .isURL()
+    .withMessage("Invalid banner URL format"),
+];
+
+/**
+ * Add student to community validation
+ */
+export const validateAddStudent = [
+  body("studentId")
+    .notEmpty()
+    .withMessage("Student ID is required")
+    .isInt({ min: 1 })
+    .withMessage("Student ID must be a positive integer"),
+];

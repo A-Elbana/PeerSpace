@@ -1,11 +1,11 @@
 import express from "express";
 import {
-    createPost,
-    getPostById,
-    updatePost,
-    deletePost,
-    getPostsByCommunity,
-    togglePostResolved
+  createPost,
+  getPostById,
+  updatePost,
+  deletePost,
+  getPostsByCommunity,
+  togglePostResolved,
 } from "../controllers/PostController";
 import { authenticateToken } from "../middleware/authMiddleware";
 
@@ -22,7 +22,7 @@ const router = express.Router();
  * @swagger
  * /api/posts:
  *   post:
- *     summary: Create a new post
+ *     summary: Create a new post (requires membership)
  *     tags: [Posts]
  *     security:
  *       - bearerAuth: []
@@ -59,13 +59,12 @@ router.post("/", authenticateToken, createPost);
  * @swagger
  * /api/posts:
  *   get:
- *     summary: Get posts (optionally filtered by community)
+ *     summary: Get posts by community (public communities accessible to guests)
  *     tags: [Posts]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: cid
+ *         required: true
  *         schema:
  *           type: integer
  *         description: Community ID
@@ -73,24 +72,26 @@ router.post("/", authenticateToken, createPost);
  *         name: page
  *         schema:
  *           type: integer
+ *           default: 1
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
+ *           default: 10
  *     responses:
  *       200:
  *         description: List of posts
+ *       403:
+ *         description: Private community requires authentication
  */
-router.get("/", authenticateToken, getPostsByCommunity);
+router.get("/", getPostsByCommunity);
 
 /**
  * @swagger
  * /api/posts/{id}:
  *   get:
- *     summary: Get post by ID
+ *     summary: Get post by ID (public posts accessible to guests)
  *     tags: [Posts]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -100,10 +101,12 @@ router.get("/", authenticateToken, getPostsByCommunity);
  *     responses:
  *       200:
  *         description: Post details
+ *       403:
+ *         description: Private community requires authentication
  *       404:
  *         description: Not found
  */
-router.get("/:id", authenticateToken, getPostById);
+router.get("/:id", getPostById);
 
 /**
  * @swagger

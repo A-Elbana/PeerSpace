@@ -19,11 +19,16 @@ enum Role {
   // Assuming 'guest' is unauthenticated, we don't need it as a database role
 }
 
+enum CommunityType {
+  PUBLIC
+  PRIVATE
+}
+
 model ActivityLog {
   id             Int        @id
   date           DateTime?  @db.Timestamp(6)
   associated_uid Int
-  associated_cid Int?
+  associated_cid String?    @db.Uuid
   description    String?    @db.VarChar
   action_type    Int?
   Community      Community? @relation(fields: [associated_cid], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -41,7 +46,7 @@ model Assignment {
   due_date                 DateTime?                  @db.Timestamp(6)
   max_points               Float?
   assigner_uid             Int
-  cid                      Int
+  cid                      String                     @db.Uuid
   Instructor               Instructor                 @relation(fields: [assigner_uid], references: [uid], onDelete: NoAction, onUpdate: NoAction)
   Community                Community                  @relation(fields: [cid], references: [id], onDelete: NoAction, onUpdate: NoAction)
   AssignmentFileAttachment AssignmentFileAttachment[]
@@ -82,10 +87,10 @@ model Comment {
 }
 
 model Community {
-  id          Int           @id
+  id          String        @id @default(uuid()) @db.Uuid
   name        String        @db.VarChar
   description String?       @db.VarChar
-  type        String        @db.VarChar
+  type        CommunityType
   banner_url  String?       @db.VarChar
   ActivityLog ActivityLog[]
   Assignment  Assignment[]
@@ -96,7 +101,7 @@ model Community {
 }
 
 model Enrollment {
-  cid       Int
+  cid       String    @db.Uuid
   sid       Int
   Community Community @relation(fields: [cid], references: [id], onDelete: NoAction, onUpdate: NoAction)
   Student   Student   @relation(fields: [sid], references: [uid], onDelete: NoAction, onUpdate: NoAction)
@@ -129,7 +134,7 @@ model Instructor {
 
 model Manages {
   iid        Int
-  cid        Int
+  cid        String     @db.Uuid
   Community  Community  @relation(fields: [cid], references: [id], onDelete: NoAction, onUpdate: NoAction)
   Instructor Instructor @relation(fields: [iid], references: [uid], onDelete: NoAction, onUpdate: NoAction)
 
@@ -176,7 +181,7 @@ model Post {
   body               String?              @db.VarChar
   is_resolved        Boolean?
   owner_uid          Int
-  cid                Int
+  cid                String               @db.Uuid
   Comment            Comment[]
   Community          Community            @relation(fields: [cid], references: [id], onDelete: NoAction, onUpdate: NoAction)
   User               User                 @relation(fields: [owner_uid], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -212,7 +217,7 @@ model PostTag {
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model Session {
-  cid        Int       @id
+  cid        String    @id @db.Uuid
   title      String    @db.VarChar
   start_time DateTime  @db.Timestamp(6)
   meet_url   String    @db.VarChar

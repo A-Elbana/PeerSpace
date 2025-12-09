@@ -6,6 +6,7 @@ import { swaggerSpec } from "./config/swagger";
 import authRoutes from "./routes/authRoutes";
 import userRoutes from "./routes/userRoutes";
 import postRoutes from "./routes/postRoutes";
+import communityRoutes from "./routes/communityRoutes";
 import { getCorsConfig } from "./config/corsConfig";
 import { generalLimiter } from "./middleware/rateLimitMiddleware";
 import { errorHandler, asyncHandler } from "./middleware/errorHandler";
@@ -27,44 +28,15 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 // 3. General rate limiting
-app.use(generalLimiter);
+// app.use(generalLimiter);
 
 // 4. Swagger documentation
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-/**
- * @swagger
- * /:
- *   get:
- *     summary: Health check endpoint
- *     description: Returns server status
- *     tags:
- *       - Health
- *     responses:
- *       200:
- *         description: Server is running successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: Server running
- */
-app.get(
-  "/",
-  asyncHandler(async (req: Request, res: Response) => {
-    res.json({
-      message: "Server running",
-      timestamp: new Date().toISOString(),
-    });
-  })
-);
-
 // 5. Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/communities", communityRoutes);
 app.use("/api/posts", postRoutes);
 
 // 6. 404 handler for undefined routes
