@@ -7,7 +7,7 @@ import {
   getPostsByCommunity,
   togglePostResolved,
 } from "../controllers/PostController";
-import { authenticateToken } from "../middleware/authMiddleware";
+import { authenticateToken, optionalAuthenticateToken } from "../middleware/authMiddleware";
 
 const router = express.Router();
 
@@ -102,7 +102,7 @@ router.post("/", authenticateToken, createPost);
  *       500:
  *         description: Server error
  */
-router.get("/", getPostsByCommunity);
+router.get("/", optionalAuthenticateToken, getPostsByCommunity);
 
 /**
  * @swagger
@@ -131,7 +131,7 @@ router.get("/", getPostsByCommunity);
  *       500:
  *         description: Server error
  */
-router.get("/:id", getPostById);
+router.get("/:id", optionalAuthenticateToken, getPostById);
 
 /**
  * @swagger
