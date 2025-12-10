@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, Bell, TrendingUp } from 'lucide-react';
+import { Clock, TrendingUp } from 'lucide-react';
 
 // Dashboard Components
 import {
@@ -170,19 +170,12 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
         />
 
         {/* Metric Cards Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <MetricCard
             icon={Clock}
             iconBgColor="bg-frosted-blue-100"
             title="Next Assignment Due"
             subtitle="Database Phase 3 Report - Due Tomorrow at 11:59 PM"
-          />
-          <MetricCard
-            icon={Bell}
-            iconBgColor="bg-frosted-blue-100"
-            title="Unread Notifications"
-            subtitle="New posts and feedback available for you."
-            badge={{ text: '5 new', color: 'bg-turf-green-500 text-white' }}
           />
           <MetricCard
             icon={TrendingUp}

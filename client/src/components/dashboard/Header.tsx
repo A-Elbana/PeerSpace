@@ -1,6 +1,6 @@
-import React from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '../ui/button';
+import NotificationDropdown from './NotificationDropdown';
 
 interface HeaderProps {
   title: string;
@@ -25,13 +25,16 @@ const Header: React.FC<HeaderProps> = ({
       </div>
 
       {showNewTaskButton && (
-        <Button
-          onClick={onNewTask}
-          className="flex items-center gap-2 bg-frosted-blue-500 hover:bg-frosted-blue-600 text-white"
-        >
-          <Plus size={18} />
-          <span>New Task</span>
-        </Button>
+        <div className="flex items-center gap-3">
+          <NotificationDropdown />
+          <Button
+            onClick={onNewTask}
+            className="flex items-center gap-2 bg-frosted-blue-500 hover:bg-frosted-blue-600 text-white"
+          >
+            <Plus size={18} />
+            <span>New Task</span>
+          </Button>
+        </div>
       )}
     </div>
   );

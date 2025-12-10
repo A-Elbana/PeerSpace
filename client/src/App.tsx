@@ -4,6 +4,7 @@ import Signup from './pages/Signup';
 import Logout from './pages/Logout';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
+import Notifications from './pages/Notifications';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 import './styles/App.css';
@@ -52,6 +53,15 @@ function App() {
           element={
             <ProtectedRoute>
               <Settings />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute>
+              <Notifications />
             </ProtectedRoute>
           }
         />
