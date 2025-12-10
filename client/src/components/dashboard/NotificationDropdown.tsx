@@ -97,15 +97,13 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
               <div
                 key={notification.id}
                 onClick={() => onNotificationClick?.(notification)}
-                className={`px-4 py-3 cursor-pointer hover:bg-accent transition-colors ${
-                  !notification.read ? 'bg-accent/50' : ''
-                }`}
+                className={`px-4 py-3 cursor-pointer hover:bg-accent transition-colors ${!notification.read ? 'bg-accent/50' : ''
+                  }`}
               >
                 <div className="flex items-start gap-3">
                   <div
-                    className={`mt-1.5 h-2 w-2 rounded-full flex-shrink-0 ${
-                      !notification.read ? 'bg-frosted-blue-500' : 'bg-transparent'
-                    }`}
+                    className={`mt-1.5 h-2 w-2 rounded-full flex-shrink-0 ${!notification.read ? 'bg-frosted-blue-500' : 'bg-transparent'
+                      }`}
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">

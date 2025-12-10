@@ -211,9 +211,8 @@ const NotificationsPage = () => {
               {filteredNotifications.map((notification) => (
                 <li
                   key={notification.id}
-                  className={`p-4 hover:bg-accent/50 transition-colors ${
-                    !notification.read ? 'bg-accent/30' : ''
-                  }`}
+                  className={`p-4 hover:bg-accent/50 transition-colors ${!notification.read ? 'bg-accent/30' : ''
+                    }`}
                 >
                   <div className="flex items-start gap-4">
                     {/* Type Indicator */}
@@ -228,11 +227,10 @@ const NotificationsPage = () => {
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <p
-                            className={`text-sm ${
-                              !notification.read
+                            className={`text-sm ${!notification.read
                                 ? 'font-semibold text-foreground'
                                 : 'font-medium text-foreground'
-                            }`}
+                              }`}
                           >
                             {notification.title}
                           </p>
