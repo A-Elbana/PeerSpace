@@ -5,7 +5,7 @@ import { isAuthenticated, setTokens } from '../utils/auth';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import type { UserRole } from '../types';
-import { Mail, Lock, User, Moon, Sun, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, User, Moon, Sun, Eye, EyeOff, Home, GraduationCap, BookOpen } from 'lucide-react';
 
 import { SIGNUP_FEATURES } from '../constants/features';
 import { useTheme } from '../hooks/useTheme';
@@ -22,7 +22,7 @@ const Signup: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
   const { mousePosition, containerRef } = useMouseTracker();
 
-  const [selectedRole] = useState<UserRole>('student');
+  const [selectedRole, setSelectedRole] = useState<UserRole>('student');
   // Replaced fullName with firstName and lastName
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -162,6 +162,17 @@ const Signup: React.FC = () => {
 
   return (
     <div className={`signup-page ${isDarkMode ? 'dark-mode' : ''}`}>
+      {/* Home Button */}
+      <motion.button
+        onClick={() => navigate('/')}
+        whileHover={{ scale: 1.2, rotate: 5 }}
+        whileTap={{ scale: 0.95 }}
+        aria-label="Go to home"
+        className="fixed top-4 left-4 p-3 rounded-lg bg-primary text-primary-foreground shadow-lg hover:shadow-xl hover:bg-primary/90 transition-all duration-300 z-50 hover:-translate-y-1"
+      >
+        <Home size={24} />
+      </motion.button>
+
       {/* Theme Toggle Button */}
       <motion.button
         className="theme-toggle"
@@ -188,7 +199,40 @@ const Signup: React.FC = () => {
           </div>
 
           {/* Role Selector */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-foreground mb-3">
+              I am a
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <motion.button
+                type="button"
+                onClick={() => setSelectedRole('student')}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all duration-200 ${selectedRole === 'student'
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border bg-card hover:border-primary/50 text-muted-foreground'
+                  }`}
+              >
+                <GraduationCap size={32} className="mb-2" />
+                <span className="font-semibold">Student</span>
+              </motion.button>
 
+              <motion.button
+                type="button"
+                onClick={() => setSelectedRole('instructor')}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all duration-200 ${selectedRole === 'instructor'
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border bg-card hover:border-primary/50 text-muted-foreground'
+                  }`}
+              >
+                <BookOpen size={32} className="mb-2" />
+                <span className="font-semibold">Instructor</span>
+              </motion.button>
+            </div>
+          </div>
 
           {/* Signup Form */}
           <form

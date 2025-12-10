@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { setTokens } from '../utils/auth';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, LogIn, Moon, Sun, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, LogIn, Moon, Sun, Eye, EyeOff, Home } from 'lucide-react';
 
 import { LOGIN_FEATURES, FEATURE_CYCLE_INTERVAL } from '../constants/features';
 import { useTheme } from '../hooks/useTheme';
@@ -136,6 +136,17 @@ const Login: React.FC = () => {
 
   return (
     <div className={`login-page ${isDarkMode ? 'dark-mode' : ''}`}>
+      {/* Home Button */}
+      <motion.button
+        onClick={() => navigate('/')}
+        whileHover={{ scale: 1.2, rotate: 5 }}
+        whileTap={{ scale: 0.95 }}
+        aria-label="Go to home"
+        className="fixed top-4 left-4 p-3 rounded-lg bg-primary text-primary-foreground shadow-lg hover:shadow-xl hover:bg-primary/90 transition-all duration-300 z-50 hover:-translate-y-1"
+      >
+        <Home size={24} />
+      </motion.button>
+
       {/* Theme Toggle Button */}
       <motion.button
         className="theme-toggle"
