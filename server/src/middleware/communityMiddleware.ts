@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import prisma from "../config/prisma";
 import { Role, CommunityType } from "../generated/prisma/client";
+import { isValidUUID, isUserMemberOfCommunity, isUserManagerOfCommunity } from "../utils/helpers";
 
 /**
  * Extended Request with community data
@@ -8,60 +9,6 @@ import { Role, CommunityType } from "../generated/prisma/client";
 interface CommunityRequest extends Request {
   community?: any;
 }
-
-const isValidUUID = (value: string): boolean => {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-    value
-  );
-};
-
-/**
- * Helper to check if user is member of community
- */
-export const isUserMemberOfCommunity = async (
-  userId: number,
-  communityId: string
-): Promise<boolean> => {
-  // Check enrollment (Student)
-  const enrollment = await prisma.enrollment.findUnique({
-    where: {
-      cid_sid: {
-        cid: communityId,
-        sid: userId,
-      },
-    },
-  });
-  if (enrollment) return true;
-
-  // Check manages (Instructor)
-  const manages = await prisma.manages.findUnique({
-    where: {
-      iid_cid: {
-        iid: userId,
-        cid: communityId,
-      },
-    },
-  });
-  return !!manages;
-};
-
-/**
- * Helper to check if user is manager (Instructor) of community
- */
-export const isUserManagerOfCommunity = async (
-  userId: number,
-  communityId: string
-): Promise<boolean> => {
-  const manages = await prisma.manages.findUnique({
-    where: {
-      iid_cid: {
-        iid: userId,
-        cid: communityId,
-      },
-    },
-  });
-  return !!manages;
-};
 
 /**
  * Middleware: Load community by ID from params and attach to request

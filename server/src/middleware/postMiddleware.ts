@@ -1,106 +1,194 @@
+import { Request, Response, NextFunction } from "express";
 import prisma from "../config/prisma";
+import { Role, CommunityType } from "../generated/prisma/client";
+import { isValidUUID, isUserMemberOfCommunity, isUserManagerOfCommunity } from "../utils/helpers";
 
 /**
- * Validates if a string is a valid UUID
+ * Extended Request with post data
  */
-export const isValidUUID = (value: string): boolean => {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-    value
-  );
+interface PostRequest extends Request {
+  post?: any;
+  community?: any;
+}
+
+/**
+ * Middleware: Load post by ID from params and attach to request
+ * Also loads the associated community
+ * Fails with 404 if post doesn't exist
+ */
+export const loadPost = async (
+  req: PostRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  const postId = parseInt(req.params.id || req.params.postId || "");
+
+  if (isNaN(postId)) {
+    return res.status(400).json({ message: "Invalid post ID" });
+  }
+
+  try {
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+      include: {
+        Community: true,
+        User: {
+          select: {
+            id: true,
+            fname: true,
+            lname: true,
+            avatar_url: true,
+          },
+        },
+      },
+    });
+
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    req.post = post;
+    req.community = post.Community;
+    next();
+  } catch (error) {
+    console.error("Load Post Error:", error);
+    res.status(500).json({ message: "Failed to load post" });
+  }
 };
 
 /**
- * Helper to check if user is in community (Student enrolled or Instructor managing)
+ * Middleware: Authorize post access based on community type
+ * PUBLIC communities: accessible to everyone (including guests)
+ * PRIVATE communities: accessible only to members or admins
  */
-export const isUserInCommunity = async (
-  userId: number,
-  communityId: string
-): Promise<boolean> => {
-  // Check Enrollment (Student)
-  const enrollment = await prisma.enrollment.findUnique({
-    where: {
-      cid_sid: {
-        cid: communityId,
-        sid: userId,
-      },
-    },
-  });
-  if (enrollment) return true;
-
-  // Check Manages (Instructor)
-  const manages = await prisma.manages.findUnique({
-    where: {
-      iid_cid: {
-        iid: userId,
-        cid: communityId,
-      },
-    },
-  });
-  if (manages) return true;
-
-  return false;
-};
-
-/**
- * Helper to check if user is an instructor of the community
- */
-export const isInstructorOfCommunity = async (
-  userId: number,
-  communityId: string
-): Promise<boolean> => {
-  const manages = await prisma.manages.findUnique({
-    where: {
-      iid_cid: {
-        iid: userId,
-        cid: communityId,
-      },
-    },
-  });
-  return !!manages;
-};
-
-/**
- * Helper to check community access (public vs private)
- */
-export const canAccessCommunity = async (
-  userId: number | undefined,
-  communityId: string,
-  userRole: string | undefined
-): Promise<{ allowed: boolean; message?: string }> => {
-  const community = await prisma.community.findUnique({
-    where: { id: communityId },
-  });
+export const authorizePostAccess = async (
+  req: PostRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  const community = req.community;
+  const userId = (req as any).userId;
+  const userRole = (req as any).role;
 
   if (!community) {
-    return { allowed: false, message: "Community not found" };
+    return res.status(500).json({ message: "Community not loaded" });
   }
 
-  // PUBLIC communities: everyone can access
-  if (community.type === "PUBLIC") {
-    return { allowed: true };
+  // PUBLIC communities are accessible to everyone
+  if (community.type === CommunityType.PUBLIC) {
+    return next();
   }
 
-  // PRIVATE communities: require authentication
+  // PRIVATE communities require authentication
   if (!userId) {
-    return {
-      allowed: false,
-      message: "Authentication required for private communities",
-    };
+    return res
+      .status(403)
+      .json({ message: "Authentication required for private communities" });
   }
 
-  // Admins have access to all
-  if (userRole === "ADMIN") {
-    return { allowed: true };
+  // Admins have access to all communities
+  if (userRole === Role.ADMIN) {
+    return next();
   }
 
   // Check membership
-  const isMember = await isUserInCommunity(userId, communityId);
+  const isMember = await isUserMemberOfCommunity(userId, community.id);
   if (!isMember) {
-    return {
-      allowed: false,
-      message: "You must be a member of this private community",
-    };
+    return res
+      .status(403)
+      .json({ message: "You must be a member to access this private community" });
   }
 
-  return { allowed: true };
+  next();
 };
+
+/**
+ * Middleware: Authorize post edit/delete
+ * Only post owner, community instructors, or admins can edit/delete
+ */
+export const authorizePostEdit = async (
+  req: PostRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  const post = req.post;
+  const userId = (req as any).userId;
+  const userRole = (req as any).role;
+
+  if (!post) {
+    return res.status(500).json({ message: "Post not loaded" });
+  }
+
+  // Admins can edit any post
+  if (userRole === Role.ADMIN) {
+    return next();
+  }
+
+  // Post owner can edit their own post
+  if (post.owner_uid === userId) {
+    return next();
+  }
+
+  // Community instructors can edit posts in their communities
+  const isInstructor = await isUserManagerOfCommunity(userId, post.cid);
+  if (isInstructor) {
+    return next();
+  }
+
+  return res
+    .status(403)
+    .json({ message: "You are not authorized to edit this post" });
+};
+
+/**
+ * Middleware: Require community membership to create posts
+ * Used when creating posts - checks membership in the target community
+ */
+export const requirePostMembership = async (
+  req: PostRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  const userId = (req as any).userId;
+  const userRole = (req as any).role;
+  const cid = req.body.cid;
+
+  if (!cid) {
+    return res.status(400).json({ message: "Community ID (cid) is required" });
+  }
+
+  if (!isValidUUID(String(cid))) {
+    return res.status(400).json({ message: "Invalid community ID" });
+  }
+
+  // Admins bypass membership requirement
+  if (userRole === Role.ADMIN) {
+    return next();
+  }
+
+  try {
+    // Check community exists
+    const community = await prisma.community.findUnique({
+      where: { id: String(cid) },
+    });
+
+    if (!community) {
+      return res.status(404).json({ message: "Community not found" });
+    }
+
+    // Check membership
+    const isMember = await isUserMemberOfCommunity(userId, String(cid));
+    if (!isMember) {
+      return res
+        .status(403)
+        .json({ message: "You must be a member of this community to create posts" });
+    }
+
+    req.community = community;
+    next();
+  } catch (error) {
+    console.error("Require Post Membership Error:", error);
+    res.status(500).json({ message: "Failed to verify membership" });
+  }
+};
+

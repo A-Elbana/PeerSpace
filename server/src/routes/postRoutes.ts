@@ -8,6 +8,12 @@ import {
   togglePostResolved,
 } from "../controllers/PostController";
 import { authenticateToken, optionalAuthenticateToken } from "../middleware/authMiddleware";
+import {
+  loadPost,
+  authorizePostAccess,
+  authorizePostEdit,
+  requirePostMembership,
+} from "../middleware/postMiddleware";
 
 const router = express.Router();
 
@@ -62,7 +68,7 @@ const router = express.Router();
  *       500:
  *         description: Server error
  */
-router.post("/", authenticateToken, createPost);
+router.post("/", authenticateToken, requirePostMembership, createPost);
 
 /**
  * @swagger
@@ -131,7 +137,7 @@ router.get("/", optionalAuthenticateToken, getPostsByCommunity);
  *       500:
  *         description: Server error
  */
-router.get("/:id", optionalAuthenticateToken, getPostById);
+router.get("/:id", optionalAuthenticateToken, loadPost, authorizePostAccess, getPostById);
 
 /**
  * @swagger
@@ -174,7 +180,7 @@ router.get("/:id", optionalAuthenticateToken, getPostById);
  *       500:
  *         description: Server error
  */
-router.put("/:id", authenticateToken, updatePost);
+router.put("/:id", authenticateToken, loadPost, authorizePostEdit, updatePost);
 /**
  * @swagger
  * /api/posts/{id}/resolve:
@@ -201,7 +207,7 @@ router.put("/:id", authenticateToken, updatePost);
  *       500:
  *         description: Server error
  */
-router.patch("/:id/resolve", authenticateToken, togglePostResolved);
+router.patch("/:id/resolve", authenticateToken, loadPost, authorizePostEdit, togglePostResolved);
 
 /**
  * @swagger
@@ -229,6 +235,6 @@ router.patch("/:id/resolve", authenticateToken, togglePostResolved);
  *       500:
  *         description: Server error
  */
-router.delete("/:id", authenticateToken, deletePost);
+router.delete("/:id", authenticateToken, loadPost, authorizePostEdit, deletePost);
 
 export default router;

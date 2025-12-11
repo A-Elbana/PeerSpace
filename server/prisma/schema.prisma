@@ -41,7 +41,7 @@ model Admin {
 }
 
 model Assignment {
-  id                       Int                        @id
+  id                       Int                        @id @default(autoincrement())
   title                    String                     @db.VarChar
   due_date                 DateTime?                  @db.Timestamp(6)
   max_points               Float?

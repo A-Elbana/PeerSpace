@@ -199,3 +199,54 @@ export const validateAddStudent = [
     .isInt({ min: 1 })
     .withMessage("Student ID must be a positive integer"),
 ];
+
+/**
+ * Assignment creation validation rules
+ */
+export const validateAssignmentCreate = [
+  body("title")
+    .trim()
+    .notEmpty()
+    .withMessage("Assignment title is required")
+    .isLength({ min: 1, max: 255 })
+    .withMessage("Title must be between 1 and 255 characters"),
+
+  body("cid")
+    .notEmpty()
+    .withMessage("Community ID (cid) is required")
+    .isUUID()
+    .withMessage("Invalid community ID format"),
+
+  body("due_date")
+    .optional()
+    .isISO8601()
+    .withMessage("due_date must be a valid ISO 8601 date string"),
+
+  body("max_points")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("max_points must be a non-negative number"),
+];
+
+/**
+ * Assignment update validation rules
+ */
+export const validateAssignmentUpdate = [
+  body("title")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Title cannot be empty")
+    .isLength({ min: 1, max: 255 })
+    .withMessage("Title must be between 1 and 255 characters"),
+
+  body("due_date")
+    .optional()
+    .isISO8601()
+    .withMessage("due_date must be a valid ISO 8601 date string"),
+
+  body("max_points")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("max_points must be a non-negative number"),
+];
