@@ -47,6 +47,11 @@ const Community: React.FC = () => {
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [isLoadingMembers, setIsLoadingMembers] = useState(true);
 
+  // Set page title
+  useEffect(() => {
+    document.title = community ? `PeerSpace - ${community.name}` : 'PeerSpace - Community';
+  }, [community]);
+
   // Fetch user data
   useEffect(() => {
     const fetchUser = async () => {

@@ -12,6 +12,10 @@ const LandingPage: React.FC = () => {
   const navigate = useNavigate();
 
   React.useEffect(() => {
+    document.title = 'PeerSpace - Collaborative Learning Platform';
+  }, []);
+
+  React.useEffect(() => {
     if (isAuthenticated()) {
       navigate('/explore');
     }

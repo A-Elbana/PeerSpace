@@ -28,6 +28,11 @@ const Dashboard: React.FC = () => {
   const [user, setUser] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Set page title
+  useEffect(() => {
+    document.title = 'PeerSpace - Dashboard';
+  }, []);
+
   useEffect(() => {
     const fetchUserData = async () => {
       try {

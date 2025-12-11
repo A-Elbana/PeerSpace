@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Sidebar } from '../../components/dashboard';
 import { Button } from '../../components/ui/button';
@@ -29,10 +29,17 @@ const ManageCommunity: React.FC = () => {
   const [community, setCommunity] = useState<CommunityResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Form state
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+
+  // Set page title
+  useEffect(() => {
+    document.title = community ? `PeerSpace - Manage ${community.name}` : 'PeerSpace - Manage Community';
+  }, [community]);
 
   // Parse user from token
   useEffect(() => {
@@ -109,6 +116,24 @@ const ManageCommunity: React.FC = () => {
       toast.error(message);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!communityId) return;
+
+    try {
+      setIsDeleting(true);
+      await communityApi.delete(communityId);
+      toast.success('Community deleted successfully');
+      navigate('/dashboard');
+    } catch (error: any) {
+      console.error('Failed to delete community:', error);
+      const message = error.response?.data?.message || 'Failed to delete community';
+      toast.error(message);
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -224,8 +249,73 @@ const ManageCommunity: React.FC = () => {
                 </Button>
               </div>
             </form>
+
+            {/* Danger Zone */}
+            <div className="mt-8 pt-6 border-t border-red-500/20">
+              <h3 className="text-lg font-semibold text-red-500 mb-2">Danger Zone</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Once you delete a community, there is no going back. All posts, members, and data will be permanently removed.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="flex items-center gap-2 border-red-500 text-red-500 hover:bg-red-500/10"
+              >
+                <Trash2 size={18} />
+                <span>Delete Community</span>
+              </Button>
+            </div>
           </div>
         </div>
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-background border border-border rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-red-500/10 rounded-full">
+                  <AlertTriangle className="w-6 h-6 text-red-500" />
+                </div>
+                <h2 className="text-lg font-bold text-foreground">Delete Community</h2>
+              </div>
+
+              <p className="text-muted-foreground mb-6">
+                Are you sure you want to delete <span className="font-semibold text-foreground">{community.name}</span>? This action cannot be undone and all associated data will be permanently removed.
+              </p>
+
+              <div className="flex items-center gap-3 justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={isDeleting}
+                  className="border-border text-foreground hover:bg-muted"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white"
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      <span>Deleting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={18} />
+                      <span>Delete</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

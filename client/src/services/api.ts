@@ -48,6 +48,14 @@ api.interceptors.response.use(
     async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
+        // Skip auth redirect for login/register endpoints - let them handle their own errors
+        const isAuthEndpoint = originalRequest.url?.includes('/auth/login') ||
+            originalRequest.url?.includes('/auth/register');
+
+        if (isAuthEndpoint) {
+            return Promise.reject(error);
+        }
+
         // Check if error is 401 and we have a refresh token
         if (error.response?.status === 401 && !originalRequest._retry) {
             const refreshToken = getRefreshToken();

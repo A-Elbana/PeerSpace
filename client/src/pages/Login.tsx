@@ -71,6 +71,8 @@ const Login: React.FC = () => {
       navigate('/explore');
     } catch (err: any) {
       console.error('Login failed', err);
+      console.error('Status:', err.response?.status);
+      console.error('Message:', err.response?.data?.message);
 
       // Extract detailed error message from response
       const errorMessage = err.response?.data?.message;
@@ -79,37 +81,20 @@ const Login: React.FC = () => {
       // Provide user-friendly error messages based on status code
       if (statusCode === 401) {
         // Unauthorized - Invalid credentials
-        if (errorMessage?.includes('credentials')) {
-          setError('Invalid email or password. Please check your credentials and try again.');
-        } else if (errorMessage?.includes('password')) {
-          setFieldErrors({ password: 'Incorrect password' });
-        } else if (errorMessage?.includes('email')) {
-          setFieldErrors({ email: 'Invalid email address' });
-        } else {
-          setError(errorMessage || 'Invalid credentials. Please try again.');
-        }
+        setError('Invalid email or password. Please try again.');
       } else if (statusCode === 403) {
         // Forbidden - Account not activated
-        if (errorMessage?.includes('activated')) {
-          setError('Your account is not activated. Please check your email for the activation link.');
-        } else {
-          setError(errorMessage || 'Access denied. Please contact support.');
-        }
+        setError('Your account is not activated. Please check your email.');
       } else if (statusCode === 400) {
-        // Bad Request - Validation errors
-        if (errorMessage?.includes('email')) {
-          setFieldErrors({ email: errorMessage });
-        } else if (errorMessage?.includes('password')) {
-          setFieldErrors({ password: errorMessage });
-        } else {
-          setError(errorMessage || 'Invalid input. Please check your information.');
-        }
+        // Bad Request - Missing fields
+        setError(errorMessage || 'Please fill in all required fields.');
       } else if (statusCode === 500) {
-        setError('Server error. Please try again later or contact support if the problem persists.');
+        setError('Server error. Please try again later.');
       } else if (!err.response) {
-        setError('Network error. Please check your internet connection and try again.');
+        setError('Network error. Please check your internet connection.');
       } else {
-        setError(errorMessage || 'Login failed. Please try again.');
+        // Show the actual error message for debugging
+        setError(errorMessage || `Login failed (${statusCode}). Please try again.`);
       }
     } finally {
       setIsLoading(false);

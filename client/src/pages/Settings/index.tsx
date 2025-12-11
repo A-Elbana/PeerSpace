@@ -48,6 +48,11 @@ const Settings: React.FC = () => {
 
   const [user, setUser] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Set page title
+  useEffect(() => {
+    document.title = 'PeerSpace - Settings';
+  }, []);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);

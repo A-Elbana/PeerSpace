@@ -49,6 +49,11 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
     const [joiningCommunityId, setJoiningCommunityId] = useState<string | null>(null);
     const [enrolledCommunityIds, setEnrolledCommunityIds] = useState<Set<string>>(new Set());
 
+    // Set page title
+    useEffect(() => {
+        document.title = 'PeerSpace - Explore';
+    }, []);
+
     // Lazy loading states
     const [displayedPosts, setDisplayedPosts] = useState<PostResponse[]>([]);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
