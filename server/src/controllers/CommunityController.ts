@@ -213,7 +213,15 @@ export const getCommunities = async (req: Request, res: Response) => {
       skip,
       take: limit,
       orderBy: { id: "asc" },
-      select: communitySelect,
+      select: {
+        ...communitySelect,
+        _count: {
+          select: {
+            Enrollment: true,
+            Post: true,
+          },
+        },
+      },
     });
 
     const total = await prisma.community.count({ where: whereClause });

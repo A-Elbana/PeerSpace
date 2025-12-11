@@ -15,12 +15,12 @@
     --primary-100: #f1f5f9;
     --primary-50: #f8fafc;
 
-    /* Accent Colors - Vibrant & Modern */
-    --accent-purple: #8b5cf6;
-    --accent-purple-light: #a78bfa;
-    --accent-cyan: #0ea5e9;
+    /* Accent Colors - Teal/Cyan (From Mockup) */
+    --accent-teal: #2dd4bf;
+    --accent-teal-light: #5eead4;
+    --accent-cyan: #06b6d4;
     --accent-cyan-light: #67e8f9;
-    --accent-gradient: linear-gradient(135deg, #8b5cf6 0%, #0ea5e9 100%);
+    --accent-gradient: linear-gradient(135deg, #2dd4bf 0%, #06b6d4 100%);
 
     /* Semantic Colors */
     --success: #10b981;
@@ -239,37 +239,55 @@ a {
 }
 
 .dark {
-    --background: oklch(0.129 0.042 264.695);
-    --foreground: oklch(0.984 0.003 247.858);
-    --card: oklch(0.208 0.042 265.755);
-    --card-foreground: oklch(0.984 0.003 247.858);
-    --popover: oklch(0.208 0.042 265.755);
-    --popover-foreground: oklch(0.984 0.003 247.858);
-    --primary: oklch(0.929 0.013 255.508);
-    --primary-foreground: oklch(0.208 0.042 265.755);
-    --secondary: oklch(0.279 0.041 260.031);
-    --secondary-foreground: oklch(0.984 0.003 247.858);
-    --muted: oklch(0.279 0.041 260.031);
-    --muted-foreground: oklch(0.704 0.04 256.788);
-    --accent: oklch(0.279 0.041 260.031);
-    --accent-foreground: oklch(0.984 0.003 247.858);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.551 0.027 264.364);
-    --chart-1: oklch(0.488 0.243 264.376);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
-    --sidebar: oklch(0.208 0.042 265.755);
-    --sidebar-foreground: oklch(0.984 0.003 247.858);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-    --sidebar-accent: oklch(0.279 0.041 260.031);
-    --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.551 0.027 264.364);
+    /* Premium Dark Mode - Proper Hierarchy */
+    --background: #020617;
+    /* Slate 950 - Deepest Floor */
+    --foreground: #f8fafc;
+    /* Slate 50 */
+
+    --card: #0f172a;
+    /* Slate 900 - Lighter "Objects" */
+    --card-foreground: #f8fafc;
+
+    --popover: #0f172a;
+    --popover-foreground: #f8fafc;
+
+    --primary: #2dd4bf;
+    /* Teal 400 - Vivid Accent */
+    --primary-foreground: #020617;
+
+    --secondary: #1e293b;
+    /* Slate 800 */
+    --secondary-foreground: #f8fafc;
+
+    --muted: #1e293b;
+    --muted-foreground: #94a3b8;
+    /* Slate 400 */
+
+    --accent: #1e293b;
+    /* Hover state background */
+    --accent-foreground: #f8fafc;
+
+    --destructive: #ef4444;
+    --destructive-foreground: #f8fafc;
+
+    --border: #1e293b;
+    /* Slate 800 - Subtle divider */
+    --input: #1e293b;
+    --ring: #2dd4bf;
+
+    /* Sidebar - Distinct from main column */
+    --sidebar: #020617;
+    /* Same as BG or slightly tinted? Let's go same as BG for clean look, border handles separation */
+    --sidebar-foreground: #94a3b8;
+    --sidebar-primary: #2dd4bf;
+    /* Active Icon/Text */
+    --sidebar-primary-foreground: #020617;
+    --sidebar-accent: #1e293b;
+    /* Hover/Active BG Tint */
+    --sidebar-accent-foreground: #f8fafc;
+    --sidebar-border: #1e293b;
+    --sidebar-ring: #2dd4bf;
 }
 
 @layer base {

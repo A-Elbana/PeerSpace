@@ -1,21 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, FileText, MessageCircle } from 'lucide-react';
+import { Users, FileText, MessageCircle, Plus } from 'lucide-react';
 
 // Dashboard Components
 import {
   Sidebar,
-  Header,
   MetricCard,
   ManageCourses,
   PendingSubmissions,
   StudentQuestions,
+  CreateCommunityModal,
 } from '../../components/dashboard';
+import { Button } from '../../components/ui/button';
+import { communityApi, type CommunityResponse } from '../../services/api';
 
 // Types
 import type { ManagedCourse } from '../../components/dashboard/ManageCourses';
 import type { Submission } from '../../components/dashboard/PendingSubmissions';
 import type { StudentQuestion } from '../../components/dashboard/StudentQuestions';
+import type { CreateCommunityData } from '../../components/dashboard/CreateCommunityModal';
 
 interface InstructorDashboardProps {
   user: {
@@ -42,6 +45,10 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [questions, setQuestions] = useState<StudentQuestion[]>([]);
 
+  // Create Community Modal State
+  const [isCreateCommunityOpen, setIsCreateCommunityOpen] = useState(false);
+  const [isCreatingCommunity, setIsCreatingCommunity] = useState(false);
+
   useEffect(() => {
     fetchDashboardData();
   }, []);
@@ -50,98 +57,24 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
     try {
       setIsLoading(true);
 
-      // Mock data - Replace with actual API calls
-      setCourses([
-        {
-          id: '1',
-          name: 'Introduction to Databases',
-          studentCount: 45,
-          pendingSubmissions: 12,
-          pendingQuestions: 3,
-          status: 'active'
-        },
-        {
-          id: '2',
-          name: 'Data Structures & Algorithms',
-          studentCount: 38,
-          pendingSubmissions: 8,
-          pendingQuestions: 5,
-          status: 'active'
-        },
-        {
-          id: '3',
-          name: 'Web Development',
-          studentCount: 52,
-          pendingSubmissions: 0,
-          pendingQuestions: 2,
-          status: 'active'
-        }
-      ]);
+      // Fetch communities managed by the instructor
+      const communitiesResponse = await communityApi.getAll({ limit: 50 });
 
-      setSubmissions([
-        {
-          id: '1',
-          studentName: 'Ahmed Elbana',
-          assignmentTitle: 'Database Phase 3 Report',
-          courseName: 'Introduction to Databases',
-          submittedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          status: 'pending'
-        },
-        {
-          id: '2',
-          studentName: 'Sarah Chen',
-          assignmentTitle: 'Binary Tree Implementation',
-          courseName: 'Data Structures & Algorithms',
-          submittedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-          status: 'pending'
-        },
-        {
-          id: '3',
-          studentName: 'Mike Johnson',
-          assignmentTitle: 'SQL Query Optimization',
-          courseName: 'Introduction to Databases',
-          submittedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          status: 'late'
-        },
-        {
-          id: '4',
-          studentName: 'Emily Davis',
-          assignmentTitle: 'React Component Design',
-          courseName: 'Web Development',
-          submittedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-          status: 'pending'
-        }
-      ]);
+      // Map communities to ManagedCourse format
+      const managedCourses: ManagedCourse[] = communitiesResponse.data.map((community: CommunityResponse) => ({
+        id: community.id,
+        name: community.name,
+        studentCount: community._count?.Enrollment || 0,
+        pendingSubmissions: 0,
+        pendingQuestions: 0,
+        status: 'active' as const,
+      }));
 
-      setQuestions([
-        {
-          id: '1',
-          studentName: 'John Smith',
-          question: 'Can you explain the difference between INNER JOIN and LEFT JOIN with a practical example?',
-          courseName: 'Introduction to Databases',
-          askedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-          priority: 'high',
-          isAnswered: false
-        },
-        {
-          id: '2',
-          studentName: 'Lisa Wang',
-          question: 'How do I implement a balanced BST? The lecture notes are not clear on the rotation part.',
-          courseName: 'Data Structures & Algorithms',
-          askedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-          priority: 'medium',
-          isAnswered: false
-        },
-        {
-          id: '3',
-          studentName: 'Alex Brown',
-          question: 'Is it okay to use Redux for state management in our final project?',
-          courseName: 'Web Development',
-          askedAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
-          priority: 'low',
-          isAnswered: false
-        }
-      ]);
+      setCourses(managedCourses);
+
+      // For now, submissions and questions remain empty until those APIs are implemented
+      setSubmissions([]);
+      setQuestions([]);
 
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
@@ -152,6 +85,17 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
 
   const handleCreateCourse = () => {
     navigate('/courses/new');
+  };
+
+  const handleCreateCommunity = async (data: CreateCommunityData) => {
+    setIsCreatingCommunity(true);
+    try {
+      await communityApi.create(data);
+      // Optionally refresh the dashboard data or show success message
+      await fetchDashboardData();
+    } finally {
+      setIsCreatingCommunity(false);
+    }
   };
 
   const handleGradeSubmission = (submissionId: string) => {
@@ -179,15 +123,24 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
   }
 
   return (
-    <div className="flex min-h-screen bg-[#f0f2f5]">
+    <div className="flex min-h-screen bg-background">
       <Sidebar onLogout={onLogout} />
 
-      <main className="flex-1 ml-64 p-8">
-        <Header
-          title="Instructor Dashboard"
-          subtitle={`Welcome back, ${user.fname}!`}
-          showNewTaskButton={false}
-        />
+      <main className="flex-1 ml-20 p-8 transition-all duration-300">
+        {/* Header with Create Community Button */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Instructor Dashboard</h1>
+            <p className="text-sm text-muted-foreground mt-1">Welcome back, {user.fname}!</p>
+          </div>
+          <Button
+            onClick={() => setIsCreateCommunityOpen(true)}
+            className="flex items-center gap-2 bg-frosted-blue-500 hover:bg-frosted-blue-600 text-white"
+          >
+            <Plus size={18} />
+            <span>Create Community</span>
+          </Button>
+        </div>
 
         {/* Metric Cards Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -216,11 +169,11 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
         {/* Courses Management */}
         <div className="mb-8">
           <ManageCourses
-            title="My Courses"
+            title="My Communities"
             courses={courses}
             onAddCourse={handleCreateCourse}
-            onViewCourse={(id) => navigate(`/course/${id}`)}
-            onManageCourse={(id) => navigate(`/course/${id}/manage`)}
+            onViewCourse={(id) => navigate(`/community/${id}`)}
+            onManageCourse={(id) => navigate(`/community/${id}/manage`)}
           />
         </div>
 
@@ -242,6 +195,14 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
           />
         </div>
       </main>
+
+      {/* Create Community Modal */}
+      <CreateCommunityModal
+        isOpen={isCreateCommunityOpen}
+        onClose={() => setIsCreateCommunityOpen(false)}
+        onSubmit={handleCreateCommunity}
+        isLoading={isCreatingCommunity}
+      />
     </div>
   );
 };

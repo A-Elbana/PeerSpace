@@ -98,6 +98,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                 key={notification.id}
                 onClick={() => onNotificationClick?.(notification)}
                 className={`px-4 py-3 cursor-pointer hover:bg-accent transition-colors ${!notification.read ? 'bg-accent/50' : ''
+
                   }`}
               >
                 <div className="flex items-start gap-3">
@@ -131,7 +132,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
           </button>
         </div>
       </DropdownMenuContent>
-    </DropdownMenu>
+    </DropdownMenu >
   );
 };
 

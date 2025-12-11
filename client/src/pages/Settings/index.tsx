@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
   ArrowLeft,
   Camera,
@@ -11,7 +12,10 @@ import {
   CheckCircle2,
   XCircle,
   Mail,
-  ImageIcon
+  ImageIcon,
+  Lock,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { Sidebar } from '../../components/dashboard';
 import api from '../../services/api';
@@ -56,6 +60,15 @@ const Settings: React.FC = () => {
   const [email, setEmail] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+
+  // Password state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   useEffect(() => {
     fetchUserData();
@@ -147,6 +160,47 @@ const Settings: React.FC = () => {
     }
   };
 
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    // Validation
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error('Please fill in all password fields');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast.error('New password must be at least 8 characters long');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+
+    try {
+      await api.put(`/users/${user.id}`, {
+        currentPassword,
+        password: newPassword
+      });
+
+      // Clear password fields
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      toast.success('Password updated successfully!');
+    } catch (error: any) {
+      console.error('Failed to update password:', error);
+      toast.error(error.response?.data?.message || 'Failed to update password');
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
   const handleDeleteAccount = async () => {
     if (!user || deleteConfirmText !== 'DELETE') return;
 
@@ -183,36 +237,36 @@ const Settings: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+      <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 text-slate-600 animate-spin" />
-          <p className="text-sm text-slate-500 font-medium tracking-wide">Loading settings...</p>
+          <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
+          <p className="text-sm text-muted-foreground font-medium tracking-wide">Loading settings...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-background">
       <Sidebar onLogout={handleLogout} />
 
-      <main className="flex-1 ml-64">
+      <main className="flex-1 ml-20 transition-all duration-300">
         {/* Header Section */}
-        <div className="border-b border-slate-200 bg-white">
+        <div className="border-b border-border bg-card">
           <div className="max-w-4xl mx-auto px-8 py-6">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigate('/dashboard')}
-              className="mb-4 -ml-2 text-slate-600 hover:text-slate-900"
+              className="mb-4 -ml-2 text-muted-foreground hover:text-foreground"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Dashboard
             </Button>
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Account Settings</h1>
-                <p className="text-slate-500 mt-1">Manage your profile and account preferences</p>
+                <h1 className="text-2xl font-semibold text-foreground tracking-tight">Account Settings</h1>
+                <p className="text-muted-foreground mt-1">Manage your profile and account preferences</p>
               </div>
               <Badge variant={getRoleBadgeVariant(user?.role || 'student')} className="uppercase tracking-wider text-xs">
                 {user?.role}
@@ -238,10 +292,10 @@ const Settings: React.FC = () => {
 
           {/* Profile Card */}
           <Card>
-            <CardHeader className="border-b border-slate-100">
+            <CardHeader className="border-b border-border">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-slate-100">
-                  <User className="w-5 h-5 text-slate-600" />
+                <div className="p-2 bg-muted rounded-lg">
+                  <User className="w-5 h-5 text-muted-foreground" />
                 </div>
                 <div>
                   <CardTitle className="text-lg">Personal Information</CardTitle>
@@ -252,18 +306,18 @@ const Settings: React.FC = () => {
             <CardContent className="pt-6">
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Avatar Section */}
-                <div className="flex items-start gap-6 pb-6 border-b border-slate-100">
+                <div className="flex items-start gap-6 pb-6 border-b border-border">
                   <div className="relative group">
-                    <Avatar className="w-20 h-20 border-2 border-slate-200">
+                    <Avatar className="w-20 h-20 border-2 border-border">
                       <AvatarImage src={avatarPreview || avatarUrl} alt="Profile" />
-                      <AvatarFallback className="text-lg font-semibold bg-slate-100 text-slate-600">
+                      <AvatarFallback className="text-lg font-semibold bg-muted text-muted-foreground">
                         {getInitials()}
                       </AvatarFallback>
                     </Avatar>
                     <button
                       type="button"
                       onClick={handleAvatarClick}
-                      className="absolute -bottom-1 -right-1 p-1.5 bg-slate-900 text-white hover:bg-slate-700 transition-colors"
+                      className="absolute -bottom-1 -right-1 p-1.5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors"
                     >
                       <Camera className="w-3.5 h-3.5" />
                     </button>
@@ -276,8 +330,8 @@ const Settings: React.FC = () => {
                     />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-medium text-slate-900">Profile Photo</h3>
-                    <p className="text-sm text-slate-500 mt-1">
+                    <h3 className="font-medium text-foreground">Profile Photo</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
                       Upload a new photo or enter a URL below
                     </p>
                   </div>
@@ -286,7 +340,7 @@ const Settings: React.FC = () => {
                 {/* Name Fields */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="fname" className="text-slate-700">First Name</Label>
+                    <Label htmlFor="fname" className="text-foreground">First Name</Label>
                     <Input
                       id="fname"
                       type="text"
@@ -296,7 +350,7 @@ const Settings: React.FC = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="lname" className="text-slate-700">Last Name</Label>
+                    <Label htmlFor="lname" className="text-foreground">Last Name</Label>
                     <Input
                       id="lname"
                       type="text"
@@ -309,7 +363,7 @@ const Settings: React.FC = () => {
 
                 {/* Email Field */}
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-slate-700 flex items-center gap-2">
+                  <Label htmlFor="email" className="text-foreground flex items-center gap-2">
                     <Mail className="w-4 h-4" />
                     Email Address
                   </Label>
@@ -322,18 +376,18 @@ const Settings: React.FC = () => {
                       disabled
                       className="pr-32"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 bg-slate-100 px-2 py-0.5 border border-slate-200">
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded border border-border">
                       Read only
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     Contact support to change your email address
                   </p>
                 </div>
 
                 {/* Avatar URL Field */}
                 <div className="space-y-2">
-                  <Label htmlFor="avatarUrl" className="text-slate-700 flex items-center gap-2">
+                  <Label htmlFor="avatarUrl" className="text-foreground flex items-center gap-2">
                     <ImageIcon className="w-4 h-4" />
                     Avatar URL
                   </Label>
@@ -347,7 +401,7 @@ const Settings: React.FC = () => {
                     }}
                     placeholder="https://example.com/avatar.jpg"
                   />
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     Enter a direct link to your avatar image
                   </p>
                 </div>
@@ -374,16 +428,120 @@ const Settings: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Danger Zone */}
-          <Card className="border-red-200">
-            <CardHeader className="border-b border-red-100 bg-red-50/50">
+          {/* Password Change Card */}
+          <Card>
+            <CardHeader className="border-b border-border">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-100">
-                  <AlertTriangle className="w-5 h-5 text-red-600" />
+                <div className="p-2 bg-muted rounded-lg">
+                  <Lock className="w-5 h-5 text-muted-foreground" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg text-red-700">Danger Zone</CardTitle>
-                  <CardDescription className="text-red-600/70">Irreversible actions</CardDescription>
+                  <CardTitle className="text-lg">Change Password</CardTitle>
+                  <CardDescription>Update your account password</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <form onSubmit={handlePasswordUpdate} className="space-y-4">
+                {/* Current Password */}
+                <div className="space-y-2">
+                  <Label htmlFor="currentPassword" className="text-foreground">Current Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="currentPassword"
+                      type={showCurrentPassword ? 'text' : 'password'}
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="Enter your current password"
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* New Password */}
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword" className="text-foreground">New Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="newPassword"
+                      type={showNewPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Enter your new password"
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Must be at least 8 characters long</p>
+                </div>
+
+                {/* Confirm New Password */}
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword" className="text-foreground">Confirm New Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirm your new password"
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Submit Button */}
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={isUpdatingPassword} className="min-w-32">
+                    {isUpdatingPassword ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="w-4 h-4" />
+                        Update Password
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Danger Zone */}
+          <Card className="border-destructive/50">
+            <CardHeader className="border-b border-destructive/30 bg-destructive/5">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-destructive/10 rounded-lg">
+                  <AlertTriangle className="w-5 h-5 text-destructive" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg text-destructive">Danger Zone</CardTitle>
+                  <CardDescription className="text-destructive/70">Irreversible actions</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -391,15 +549,15 @@ const Settings: React.FC = () => {
               {!showDeleteConfirm ? (
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-medium text-slate-900">Delete Account</h3>
-                    <p className="text-sm text-slate-500 mt-1">
+                    <h3 className="font-medium text-foreground">Delete Account</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
                       Permanently delete your account and all associated data
                     </p>
                   </div>
                   <Button
                     variant="outline"
                     onClick={() => setShowDeleteConfirm(true)}
-                    className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    className="border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"
                   >
                     <Trash2 className="w-4 h-4" />
                     Delete Account
@@ -416,8 +574,8 @@ const Settings: React.FC = () => {
                   </Alert>
 
                   <div className="space-y-2">
-                    <Label htmlFor="deleteConfirm" className="text-slate-700">
-                      Type <span className="font-mono font-bold text-red-600">DELETE</span> to confirm
+                    <Label htmlFor="deleteConfirm" className="text-foreground">
+                      Type <span className="font-mono font-bold text-destructive">DELETE</span> to confirm
                     </Label>
                     <Input
                       id="deleteConfirm"

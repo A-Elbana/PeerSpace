@@ -15,9 +15,9 @@ export const useTheme = () => {
     // Save theme preference to localStorage and apply class to body
     localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
     if (isDarkMode) {
-      document.body.classList.add('dark-mode');
+      document.body.classList.add('dark');
     } else {
-      document.body.classList.remove('dark-mode');
+      document.body.classList.remove('dark');
     }
   }, [isDarkMode]);
 

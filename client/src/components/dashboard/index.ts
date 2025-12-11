@@ -6,6 +6,7 @@ export { default as MyCourses } from './MyCourses';
 export { default as TodoList } from './TodoList';
 export { default as RecentCourseActivity } from './RecentCourseActivity';
 export { default as NotificationDropdown } from './NotificationDropdown';
+export { default as CreateCommunityModal } from './CreateCommunityModal';
 
 // Instructor-specific components
 export { default as ManageCourses } from './ManageCourses';
@@ -20,3 +21,4 @@ export type { ManagedCourse } from './ManageCourses';
 export type { Submission } from './PendingSubmissions';
 export type { StudentQuestion } from './StudentQuestions';
 export type { Notification } from './NotificationDropdown';
+export type { CreateCommunityData } from './CreateCommunityModal';

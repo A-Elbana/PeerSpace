@@ -42,7 +42,7 @@ const PendingSubmissions: React.FC<PendingSubmissionsProps> = ({
       case 'graded':
         return 'bg-turf-green-100 text-turf-green-700';
       default:
-        return 'bg-gray-100 text-gray-600';
+        return 'bg-muted text-muted-foreground';
     }
   };
 
@@ -59,7 +59,7 @@ const PendingSubmissions: React.FC<PendingSubmissionsProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-border shadow-sm">
+    <div className="bg-card rounded-xl border border-border shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-border">
         <div className="flex items-center gap-2">
@@ -94,7 +94,7 @@ const PendingSubmissions: React.FC<PendingSubmissionsProps> = ({
           submissions.map((submission) => (
             <div
               key={submission.id}
-              className="flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors"
+              className="flex items-center justify-between px-5 py-3 hover:bg-muted/50 transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <Avatar className="w-9 h-9 shrink-0">

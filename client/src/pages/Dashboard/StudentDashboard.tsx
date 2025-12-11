@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, TrendingUp } from 'lucide-react';
+import { Clock, TrendingUp, Lock, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 // Dashboard Components
 import {
@@ -11,6 +12,10 @@ import {
   TodoList,
   RecentCourseActivity,
 } from '../../components/dashboard';
+
+import { communityApi, type CommunityResponse } from '../../services/api';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
 
 // Types
 import type { Course } from '../../components/dashboard/MyCourses';
@@ -42,6 +47,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
   const [todoItems, setTodoItems] = useState<TodoItem[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
 
+  // Private community enrollment state
+  const [communityCode, setCommunityCode] = useState('');
+  const [isEnrolling, setIsEnrolling] = useState(false);
+
   useEffect(() => {
     fetchDashboardData();
   }, []);
@@ -50,78 +59,22 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
     try {
       setIsLoading(true);
 
-      // Mock data - Replace with actual API calls
-      setCourses([
-        {
-          id: '1',
-          name: 'Computer Science',
-          instructor: 'Dr. Smith',
-          status: 'enrolled'
-        },
-        {
-          id: '2',
-          name: 'Discrete Mathematics',
-          instructor: 'Prof. Johnson',
-          status: 'in-progress'
-        },
-        {
-          id: '3',
-          name: 'Robotics Club',
-          instructor: 'Dr. Williams',
-          status: 'enrolled'
-        }
-      ]);
+      // Fetch communities the student is enrolled in
+      const communitiesResponse = await communityApi.getAll({ limit: 50 });
 
-      setTodoItems([
-        {
-          id: '1',
-          title: 'Database Phase 3 Report',
-          assignee: { name: 'You' },
-          dueDate: '2025-12-11',
-          completed: false
-        },
-        {
-          id: '2',
-          title: 'Discrete Mathematics HW',
-          assignee: { name: 'You' },
-          dueDate: '2025-12-15',
-          completed: false
-        },
-        {
-          id: '3',
-          title: 'React Component Assignment',
-          assignee: { name: 'You' },
-          dueDate: '2025-12-10',
-          completed: true
-        }
-      ]);
+      // Map communities to Course format
+      const enrolledCourses: Course[] = communitiesResponse.data.map((community: CommunityResponse) => ({
+        id: community.id,
+        name: community.name,
+        instructor: '', // Will be populated when we have instructor info
+        status: 'enrolled' as const,
+      }));
 
-      setActivities([
-        {
-          id: '1',
-          title: 'Intro to Databases',
-          type: 'course',
-          instructor: { name: 'Dr. Smith' },
-          timestamp: 'Block 01/04',
-          status: 'active'
-        },
-        {
-          id: '2',
-          title: "Data Structures",
-          type: 'course',
-          instructor: { name: 'Prof. Evans' },
-          timestamp: 'Block 04/04',
-          status: 'review'
-        },
-        {
-          id: '3',
-          title: 'Web Development',
-          type: 'course',
-          instructor: { name: 'Dr. Williams' },
-          timestamp: 'Block 01/02',
-          status: 'completed'
-        }
-      ]);
+      setCourses(enrolledCourses);
+
+      // For now, todos and activities remain empty until those APIs are implemented
+      setTodoItems([]);
+      setActivities([]);
 
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
@@ -132,6 +85,35 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
 
   const handleNewTask = () => {
     console.log('New task clicked');
+  };
+
+  const handleEnrollInPrivateCommunity = async () => {
+    if (!communityCode.trim()) {
+      toast.error('Please enter a community ID');
+      return;
+    }
+
+    // Basic UUID validation
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(communityCode.trim())) {
+      toast.error('Invalid community ID format');
+      return;
+    }
+
+    setIsEnrolling(true);
+    try {
+      await communityApi.enroll(communityCode.trim());
+      toast.success('Successfully enrolled in community!');
+      setCommunityCode('');
+      // Refresh the courses list
+      await fetchDashboardData();
+    } catch (error: any) {
+      console.error('Failed to enroll:', error);
+      const message = error.response?.data?.message || 'Failed to enroll in community';
+      toast.error(message);
+    } finally {
+      setIsEnrolling(false);
+    }
   };
 
   const handleToggleTodo = (itemId: string) => {
@@ -159,10 +141,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
   }
 
   return (
-    <div className="flex min-h-screen bg-[#f0f2f5]">
+    <div className="flex min-h-screen bg-background">
       <Sidebar onLogout={onLogout} />
 
-      <main className="flex-1 ml-64 p-8">
+      <main className="flex-1 ml-20 p-8 transition-all duration-300">
         <Header
           title="Student Dashboard"
           subtitle={`Welcome back, ${user.fname}!`}
@@ -199,11 +181,9 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
         {/* Two Columns */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <MyCourses
-            title="My Enrolled Courses"
+            title="My Enrolled Communities"
             courses={courses}
-            onAddCourse={() => navigate('/explore')}
-            onViewCourse={(id) => navigate(`/course/${id}`)}
-            showDiscord
+            onViewCourse={(id) => navigate(`/community/${id}`)}
           />
           <TodoList
             title="My Assignments"
@@ -213,6 +193,47 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
             onToggleItem={handleToggleTodo}
             onViewItem={(id) => console.log('View todo', id)}
           />
+        </div>
+
+        {/* Join Private Community Section */}
+        <div className="bg-card rounded-xl border border-border shadow-sm p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
+              <Lock className="h-5 w-5 text-purple-500" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground">Join Private Community</h3>
+              <p className="text-sm text-muted-foreground">Enter the community ID shared by your instructor</p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <Input
+              type="text"
+              placeholder="Enter community ID (e.g., xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)"
+              value={communityCode}
+              onChange={(e) => setCommunityCode(e.target.value)}
+              className="flex-1"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleEnrollInPrivateCommunity();
+                }
+              }}
+            />
+            <Button
+              onClick={handleEnrollInPrivateCommunity}
+              disabled={isEnrolling || !communityCode.trim()}
+              className="bg-purple-500 hover:bg-purple-600 text-white"
+            >
+              {isEnrolling ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Joining...
+                </>
+              ) : (
+                'Join Community'
+              )}
+            </Button>
+          </div>
         </div>
       </main>
     </div>

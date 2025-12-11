@@ -43,7 +43,7 @@ const TodoList: React.FC<TodoListProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-border shadow-sm">
+    <div className="bg-card rounded-xl border border-border shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-border">
         <div>
@@ -55,7 +55,7 @@ const TodoList: React.FC<TodoListProps> = ({
         {onAddItem && (
           <button
             onClick={onAddItem}
-            className="p-1 hover:bg-gray-100 rounded transition-colors"
+            className="p-1 hover:bg-muted rounded transition-colors"
           >
             <Plus size={18} className="text-muted-foreground" />
           </button>
@@ -67,7 +67,7 @@ const TodoList: React.FC<TodoListProps> = ({
         {items.map((item) => (
           <div
             key={item.id}
-            className="flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors"
+            className="flex items-center justify-between px-5 py-3 hover:bg-muted/50 transition-colors"
           >
             <div className="flex items-center gap-3 min-w-0 flex-1">
               {/* Checkbox */}
@@ -78,7 +78,7 @@ const TodoList: React.FC<TodoListProps> = ({
                   transition-all duration-200
                   ${item.completed
                     ? 'bg-frosted-blue-500 border-frosted-blue-500'
-                    : 'border-gray-300 hover:border-frosted-blue-400'
+                    : 'border-input hover:border-frosted-blue-400'
                   }
                 `}
               >

@@ -68,7 +68,7 @@ const Login: React.FC = () => {
       setTokens(data.accessToken, data.refreshToken);
 
       // Redirect based on role or default to dashboard
-      navigate('/dashboard');
+      navigate('/explore');
     } catch (err: any) {
       console.error('Login failed', err);
 
@@ -256,11 +256,14 @@ const Login: React.FC = () => {
               disabled={isLoading}
             >
               {isLoading ? (
-                <motion.div
-                  className="loading-spinner"
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                />
+                <>
+                  <motion.div
+                    className="loading-spinner"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  />
+                  <span>Signing in...</span>
+                </>
               ) : (
                 <>
                   <LogIn size={18} />

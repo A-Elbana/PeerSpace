@@ -118,7 +118,7 @@ const NotificationsPage = () => {
     <div className="flex min-h-screen bg-background">
       <Sidebar onLogout={handleLogout} />
 
-      <main className="flex-1 p-8 ml-64">
+      <main className="flex-1 p-8 ml-20 transition-all duration-300">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <Button
@@ -228,8 +228,8 @@ const NotificationsPage = () => {
                         <div>
                           <p
                             className={`text-sm ${!notification.read
-                                ? 'font-semibold text-foreground'
-                                : 'font-medium text-foreground'
+                              ? 'font-semibold text-foreground'
+                              : 'font-medium text-foreground'
                               }`}
                           >
                             {notification.title}

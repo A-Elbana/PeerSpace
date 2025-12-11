@@ -4,7 +4,7 @@ import { removeTokens } from '../utils/auth';
 
 /**
  * Logout Component
- * Handles user logout by clearing tokens and redirecting to landing page
+ * Handles user logout by clearing tokens and redirecting to login page
  */
 const Logout = () => {
     const navigate = useNavigate();
@@ -13,8 +13,8 @@ const Logout = () => {
         // Clear authentication tokens
         removeTokens();
 
-        // Redirect to landing page
-        navigate('/', { replace: true });
+        // Redirect to login page
+        navigate('/login', { replace: true });
     }, [navigate]);
 
     return (

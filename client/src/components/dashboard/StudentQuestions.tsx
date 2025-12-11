@@ -41,9 +41,9 @@ const StudentQuestions: React.FC<StudentQuestionsProps> = ({
       case 'medium':
         return 'bg-royal-gold-100 text-royal-gold-700';
       case 'low':
-        return 'bg-gray-100 text-gray-600';
+        return 'bg-muted text-muted-foreground';
       default:
-        return 'bg-gray-100 text-gray-600';
+        return 'bg-muted text-muted-foreground';
     }
   };
 
@@ -62,7 +62,7 @@ const StudentQuestions: React.FC<StudentQuestionsProps> = ({
   const unansweredCount = questions.filter(q => !q.isAnswered).length;
 
   return (
-    <div className="bg-white rounded-xl border border-border shadow-sm">
+    <div className="bg-card rounded-xl border border-border shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-border">
         <div className="flex items-center gap-2">
@@ -97,7 +97,7 @@ const StudentQuestions: React.FC<StudentQuestionsProps> = ({
           questions.map((question) => (
             <div
               key={question.id}
-              className={`flex items-start justify-between px-5 py-3 hover:bg-gray-50 transition-colors ${question.isAnswered ? 'opacity-60' : ''
+              className={`flex items-start justify-between px-5 py-3 hover:bg-muted/50 transition-colors ${question.isAnswered ? 'opacity-60' : ''
                 }`}
             >
               <div className="flex items-start gap-3 min-w-0 flex-1">

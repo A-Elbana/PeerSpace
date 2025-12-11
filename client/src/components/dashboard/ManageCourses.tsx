@@ -32,16 +32,16 @@ const ManageCourses: React.FC<ManageCoursesProps> = ({
       case 'active':
         return 'bg-turf-green-100 text-turf-green-700';
       case 'archived':
-        return 'bg-gray-100 text-gray-600';
+        return 'bg-muted text-muted-foreground';
       case 'draft':
         return 'bg-royal-gold-100 text-royal-gold-700';
       default:
-        return 'bg-gray-100 text-gray-600';
+        return 'bg-muted text-muted-foreground';
     }
   };
 
   return (
-    <div className="bg-white rounded-xl border border-border shadow-sm">
+    <div className="bg-card rounded-xl border border-border shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-border">
         <h3 className="font-semibold text-foreground">{title}</h3>
@@ -62,7 +62,7 @@ const ManageCourses: React.FC<ManageCoursesProps> = ({
         {courses.map((course) => (
           <div
             key={course.id}
-            className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
+            className="flex items-center justify-between px-5 py-4 hover:bg-muted/50 transition-colors"
           >
             <div className="flex items-center gap-4 min-w-0 flex-1">
               <Avatar className="w-10 h-10 shrink-0">

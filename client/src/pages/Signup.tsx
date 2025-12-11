@@ -50,7 +50,7 @@ const Signup: React.FC = () => {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated()) {
-      navigate('/');
+      navigate('/explore');
     }
   }, [navigate]);
 
@@ -110,7 +110,7 @@ const Signup: React.FC = () => {
       setTokens(response.data.accessToken, response.data.refreshToken);
 
       // Redirect to dashboard on success (Auto-login)
-      navigate('/dashboard');
+      navigate('/explore');
     } catch (err: any) {
       console.error('Signup failed', err);
 

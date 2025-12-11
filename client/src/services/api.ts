@@ -112,4 +112,206 @@ api.interceptors.response.use(
     }
 );
 
+// Types for API responses
+export interface CommunityResponse {
+    id: string;
+    name: string;
+    description: string | null;
+    type: 'PUBLIC' | 'PRIVATE';
+    banner_url: string | null;
+    _count?: {
+        Enrollment: number;
+        Post: number;
+    };
+}
+
+export interface PaginationMeta {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+}
+
+export interface CommunitiesListResponse {
+    success: boolean;
+    data: CommunityResponse[];
+    meta: PaginationMeta;
+}
+
+export interface PostResponse {
+    id: number;
+    title: string;
+    type: string;
+    body: string | null;
+    post_date: string;
+    is_resolved: boolean | null;
+    owner_uid: number;
+    cid: string;
+    User: {
+        id: number;
+        fname: string;
+        lname: string;
+        avatar_url: string | null;
+    };
+    _count?: {
+        Comment: number;
+    };
+}
+
+export interface PostsListResponse {
+    data: PostResponse[];
+    meta: PaginationMeta;
+}
+
+// Community API calls
+export const communityApi = {
+    create: async (data: {
+        name: string;
+        description?: string;
+        type: 'PUBLIC' | 'PRIVATE';
+        banner_url?: string;
+    }): Promise<{ success: boolean; message: string; data: CommunityResponse }> => {
+        const response = await api.post('/communities', data);
+        return response.data;
+    },
+
+    getAll: async (params?: {
+        page?: number;
+        limit?: number;
+        type?: 'PUBLIC' | 'PRIVATE';
+    }): Promise<CommunitiesListResponse> => {
+        const response = await api.get('/communities', { params });
+        return response.data;
+    },
+
+    getById: async (id: string): Promise<{ success: boolean; data: CommunityResponse & { _count: { Enrollment: number; Post: number } } }> => {
+        const response = await api.get(`/communities/${id}`);
+        return response.data;
+    },
+
+    update: async (id: string, data: {
+        name?: string;
+        description?: string;
+        type?: 'PUBLIC' | 'PRIVATE';
+        banner_url?: string;
+    }): Promise<{ success: boolean; message: string; data: CommunityResponse }> => {
+        const response = await api.put(`/communities/${id}`, data);
+        return response.data;
+    },
+
+    delete: async (id: string): Promise<{ success: boolean; message: string }> => {
+        const response = await api.delete(`/communities/${id}`);
+        return response.data;
+    },
+
+    getMembers: async (id: string, params?: { page?: number; limit?: number }) => {
+        const response = await api.get(`/communities/${id}/members`, { params });
+        return response.data;
+    },
+
+    enroll: async (id: string): Promise<{ success: boolean; message: string }> => {
+        const response = await api.post(`/communities/${id}/enroll`);
+        return response.data;
+    },
+
+    leave: async (id: string): Promise<{ success: boolean; message: string }> => {
+        const response = await api.delete(`/communities/${id}/leave`);
+        return response.data;
+    },
+
+    getShareCode: async (id: string) => {
+        const response = await api.get(`/communities/${id}/share`);
+        return response.data;
+    },
+};
+
+// Post API calls (for all post types including announcements)
+export const postApi = {
+    create: async (data: {
+        title: string;
+        type: string;
+        body?: string;
+        cid: string;
+    }): Promise<PostResponse> => {
+        const response = await api.post('/posts', data);
+        return response.data;
+    },
+
+    getByCommunity: async (cid: string, params?: {
+        page?: number;
+        limit?: number;
+    }): Promise<PostsListResponse> => {
+        const response = await api.get('/posts', { params: { cid, ...params } });
+        return response.data;
+    },
+
+    getById: async (id: number): Promise<PostResponse> => {
+        const response = await api.get(`/posts/${id}`);
+        return response.data;
+    },
+
+    update: async (id: number, data: {
+        title?: string;
+        body?: string;
+        type?: string;
+        is_resolved?: boolean;
+    }): Promise<PostResponse> => {
+        const response = await api.put(`/posts/${id}`, data);
+        return response.data;
+    },
+
+    delete: async (id: number): Promise<{ message: string }> => {
+        const response = await api.delete(`/posts/${id}`);
+        return response.data;
+    },
+
+    toggleResolved: async (id: number): Promise<PostResponse> => {
+        const response = await api.patch(`/posts/${id}/resolve`);
+        return response.data;
+    },
+};
+
+// Announcement API calls (Posts with type 'announcement')
+export const announcementApi = {
+    create: async (data: {
+        title: string;
+        body: string;
+        cid: string;
+    }): Promise<PostResponse> => {
+        const response = await api.post('/posts', {
+            ...data,
+            type: 'announcement',
+        });
+        return response.data;
+    },
+
+    getByCommunity: async (cid: string, params?: {
+        page?: number;
+        limit?: number;
+    }): Promise<PostsListResponse> => {
+        // The backend doesn't filter by type in the query, so we get all posts
+        // and the frontend will need to filter by type if needed
+        const response = await api.get('/posts', { params: { cid, ...params } });
+        return response.data;
+    },
+
+    getById: async (id: number): Promise<PostResponse> => {
+        const response = await api.get(`/posts/${id}`);
+        return response.data;
+    },
+
+    update: async (id: number, data: {
+        title?: string;
+        body?: string;
+    }): Promise<PostResponse> => {
+        const response = await api.put(`/posts/${id}`, data);
+        return response.data;
+    },
+
+    delete: async (id: number): Promise<{ message: string }> => {
+        const response = await api.delete(`/posts/${id}`);
+        return response.data;
+    },
+};
+
 export default api;
