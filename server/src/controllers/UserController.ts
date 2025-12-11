@@ -1,6 +1,10 @@
 import { Request, Response } from "express";
+import bcrypt from "bcrypt";
 import prisma from "../config/prisma";
 import { Role } from "../generated/prisma/client";
+
+// Security constants
+const BCRYPT_ROUNDS = 12;
 
 // Standard user selection to exclude sensitive data
 const userSelect = {
@@ -94,13 +98,41 @@ export const updateUser = async (req: Request, res: Response) => {
         return res.status(403).json({ message: "You are not authorized to update this user" });
     }
 
-    const { fname, lname, avatar_url } = req.body;
+    const { fname, lname, avatar_url, password, currentPassword } = req.body;
 
     try {
         const updateData: any = {};
         if (fname) updateData.fname = sanitizeString(fname);
         if (lname) updateData.lname = sanitizeString(lname);
         if (avatar_url) updateData.avatar_url = avatar_url; // URL validation handled by middleware
+
+        // Handle password update with secure hashing
+        if (password) {
+            // Require current password to change password
+            if (!currentPassword) {
+                return res.status(400).json({ message: "Current password is required to set a new password" });
+            }
+
+            // Fetch the user's current hashed password
+            const user = await prisma.user.findUnique({
+                where: { id: targetUserId },
+                select: { hashedPassword: true },
+            });
+
+            if (!user) {
+                return res.status(404).json({ message: "User not found" });
+            }
+
+            // Verify current password
+            const isPasswordValid = await bcrypt.compare(currentPassword, user.hashedPassword);
+            if (!isPasswordValid) {
+                return res.status(401).json({ message: "Current password is incorrect" });
+            }
+
+            // Hash and set new password
+            const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
+            updateData.hashedPassword = hashedPassword;
+        }
 
         const updatedUser = await prisma.user.update({
             where: { id: targetUserId },

@@ -117,6 +117,18 @@ export const validateUserUpdate = [
     .optional()
     .isURL()
     .withMessage("Invalid avatar URL format"),
+
+  body("password")
+    .optional()
+    .isLength({ min: 8, max: 128 })
+    .withMessage("Password must be between 8 and 128 characters")
+    .matches(/^(?=.*[A-Za-z])(?=.*\d)/)
+    .withMessage("Password must contain at least one letter and one number"),
+
+  body("currentPassword")
+    .if(body("password").exists())
+    .notEmpty()
+    .withMessage("Current password is required when setting a new password"),
 ];
 
 /**

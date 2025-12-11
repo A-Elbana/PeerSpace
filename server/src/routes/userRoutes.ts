@@ -98,15 +98,35 @@ router.get("/:id", authenticateToken, getUserById);
  *             properties:
  *               fname:
  *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 50
+ *                 description: First name (letters, spaces, hyphens, apostrophes only)
  *               lname:
  *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 50
+ *                 description: Last name (letters, spaces, hyphens, apostrophes only)
  *               avatar_url:
  *                 type: string
+ *                 format: uri
+ *                 description: Avatar URL
+ *               password:
+ *                 type: string
+ *                 minLength: 8
+ *                 maxLength: 128
+ *                 description: New password (must contain at least one letter and one number)
+ *               currentPassword:
+ *                 type: string
+ *                 description: Current password (required when changing password)
  *     responses:
  *       200:
  *         description: User updated successfully
+ *       400:
+ *         description: Validation failed
+ *       401:
+ *         description: Current password is incorrect
  *       403:
- *         description: unauthorized
+ *         description: Unauthorized
  *       404:
  *         description: User not found
  *       500:
