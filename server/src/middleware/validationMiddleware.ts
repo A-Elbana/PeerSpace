@@ -250,3 +250,83 @@ export const validateAssignmentUpdate = [
     .isFloat({ min: 0 })
     .withMessage("max_points must be a non-negative number"),
 ];
+
+/**
+ * Note creation validation rules
+ */
+export const validateNoteCreate = [
+  body("title")
+    .trim()
+    .notEmpty()
+    .withMessage("Note title is required")
+    .isLength({ min: 1, max: 255 })
+    .withMessage("Title must be between 1 and 255 characters"),
+
+  body("body")
+    .optional()
+    .isString()
+    .withMessage("Body must be a string"),
+
+  body("notebook_id")
+    .optional({ nullable: true })
+    .isInt({ min: 1 })
+    .withMessage("notebook_id must be a positive integer"),
+];
+
+/**
+ * Note update validation rules
+ */
+export const validateNoteUpdate = [
+  body("title")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Title cannot be empty")
+    .isLength({ min: 1, max: 255 })
+    .withMessage("Title must be between 1 and 255 characters"),
+
+  body("body")
+    .optional()
+    .isString()
+    .withMessage("Body must be a string"),
+
+  body("notebook_id")
+    .optional({ nullable: true })
+    .isInt({ min: 1 })
+    .withMessage("notebook_id must be a positive integer"),
+];
+
+/**
+ * Notebook creation validation rules
+ */
+export const validateNotebookCreate = [
+  body("title")
+    .trim()
+    .notEmpty()
+    .withMessage("Notebook title is required")
+    .isLength({ min: 1, max: 255 })
+    .withMessage("Title must be between 1 and 255 characters"),
+
+  body("description")
+    .optional()
+    .isString()
+    .withMessage("Description must be a string"),
+];
+
+/**
+ * Notebook update validation rules
+ */
+export const validateNotebookUpdate = [
+  body("title")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Title cannot be empty")
+    .isLength({ min: 1, max: 255 })
+    .withMessage("Title must be between 1 and 255 characters"),
+
+  body("description")
+    .optional()
+    .isString()
+    .withMessage("Description must be a string"),
+];

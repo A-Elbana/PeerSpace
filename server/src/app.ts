@@ -10,6 +10,8 @@ import commentRoutes from "./routes/commentRoutes";
 import communityRoutes from "./routes/communityRoutes";
 import assignmentRoutes from "./routes/assignmentRoutes";
 import submissionRoutes from "./routes/submissionRoutes";
+import noteRoutes from "./routes/noteRoutes";
+import notebookRoutes from "./routes/notebookRoutes";
 import { getCorsConfig } from "./config/corsConfig";
 import { generalLimiter } from "./middleware/rateLimitMiddleware";
 import { errorHandler, asyncHandler } from "./middleware/errorHandler";
@@ -44,6 +46,8 @@ app.use("/api/posts", postRoutes);
 app.use("/api/comments", commentRoutes);
 app.use("/api/assignments", assignmentRoutes);
 app.use("/api/submissions", submissionRoutes);
+app.use("/api/notes", noteRoutes);
+app.use("/api/notebooks", notebookRoutes);
 
 // 6. 404 handler for undefined routes
 app.use((req: Request, res: Response) => {
