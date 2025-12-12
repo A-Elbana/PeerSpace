@@ -12,6 +12,7 @@ import Community from './pages/Community';
 import ManageCommunity from './pages/ManageCommunity';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
+import Notes from './pages/Notes/Notes';
 import './styles/App.css';
 import LandingPage from './pages/LandingPage';
 
@@ -90,6 +91,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <Settings />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/notes"
+            element={
+              <ProtectedRoute>
+                <Notes />
               </ProtectedRoute>
             }
           />

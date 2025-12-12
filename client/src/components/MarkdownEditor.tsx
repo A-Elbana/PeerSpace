@@ -1,5 +1,37 @@
-import { Editable, useEditor } from "@wysimark/react";
-import React from "react";
+import React, { useEffect } from 'react';
+import { useEditor, EditorContent, Editor } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { Markdown } from 'tiptap-markdown';
+import Placeholder from '@tiptap/extension-placeholder';
+import {
+    Bold,
+    Italic,
+    Strikethrough,
+    Heading1,
+    Heading2,
+    Heading3,
+    List,
+    ListOrdered,
+    Quote,
+    Code,
+    Undo,
+    Redo,
+    Code2
+} from 'lucide-react';
+// Local utility for classes to avoid import issues
+function cn(...inputs: (string | undefined | null | false)[]) {
+    // fast implementation or simple join if tailwind-merge not available, 
+    // but better to rely on what installed?
+    // User said ignore installs. I'll just use simple join filter for now as fallback
+    // Or if I want to use the installed libs:
+    // import { clsx, type ClassValue } from "clsx"
+    // import { twMerge } from "tailwind-merge"
+    // I will stick to the simple local function I already have (defaultCn) and rename it to cn for consistency.
+    return inputs.filter(Boolean).join(' ');
+}
+
+// Fallback for cn if it doesn't exist
+
 
 interface MarkdownEditorProps {
     value: string;
@@ -9,6 +41,151 @@ interface MarkdownEditorProps {
     style?: React.CSSProperties;
 }
 
+const MenuBar = ({ editor }: { editor: Editor | null }) => {
+    if (!editor) {
+        return null;
+    }
+
+    const Button = ({
+        onClick,
+        isActive,
+        disabled,
+        children,
+        title
+    }: {
+        onClick: () => void;
+        isActive?: boolean;
+        disabled?: boolean;
+        children: React.ReactNode;
+        title?: string;
+    }) => (
+        <button
+            onClick={onClick}
+            disabled={disabled}
+            title={title}
+            className={cn(
+                "p-2 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground",
+                isActive && "bg-muted text-foreground font-medium",
+                disabled && "opacity-50 cursor-not-allowed"
+            )}
+            type="button"
+        >
+            {children}
+        </button>
+    );
+
+    return (
+        <div className="flex flex-wrap items-center gap-1 p-2 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10 w-full">
+            <Button
+                onClick={() => editor.chain().focus().toggleBold().run()}
+                disabled={!editor.can().chain().focus().toggleBold().run()}
+                isActive={editor.isActive('bold')}
+                title="Bold"
+            >
+                <Bold size={16} />
+            </Button>
+            <Button
+                onClick={() => editor.chain().focus().toggleItalic().run()}
+                disabled={!editor.can().chain().focus().toggleItalic().run()}
+                isActive={editor.isActive('italic')}
+                title="Italic"
+            >
+                <Italic size={16} />
+            </Button>
+            <Button
+                onClick={() => editor.chain().focus().toggleStrike().run()}
+                disabled={!editor.can().chain().focus().toggleStrike().run()}
+                isActive={editor.isActive('strike')}
+                title="Strikethrough"
+            >
+                <Strikethrough size={16} />
+            </Button>
+
+            <div className="w-px h-6 bg-border mx-1" />
+
+            <Button
+                onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                isActive={editor.isActive('heading', { level: 1 })}
+                title="Heading 1"
+            >
+                <Heading1 size={16} />
+            </Button>
+            <Button
+                onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                isActive={editor.isActive('heading', { level: 2 })}
+                title="Heading 2"
+            >
+                <Heading2 size={16} />
+            </Button>
+            <Button
+                onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                isActive={editor.isActive('heading', { level: 3 })}
+                title="Heading 3"
+            >
+                <Heading3 size={16} />
+            </Button>
+
+            <div className="w-px h-6 bg-border mx-1" />
+
+            <Button
+                onClick={() => editor.chain().focus().toggleBulletList().run()}
+                isActive={editor.isActive('bulletList')}
+                title="Bullet List"
+            >
+                <List size={16} />
+            </Button>
+            <Button
+                onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                isActive={editor.isActive('orderedList')}
+                title="Ordered List"
+            >
+                <ListOrdered size={16} />
+            </Button>
+
+            <div className="w-px h-6 bg-border mx-1" />
+
+            <Button
+                onClick={() => editor.chain().focus().toggleCode().run()}
+                isActive={editor.isActive('code')}
+                title="Code"
+            >
+                <Code size={16} />
+            </Button>
+            <Button
+                onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+                isActive={editor.isActive('codeBlock')}
+                title="Code Block"
+            >
+                <Code2 size={16} />
+            </Button>
+            <Button
+                onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                isActive={editor.isActive('blockquote')}
+                title="Blockquote"
+            >
+                <Quote size={16} />
+            </Button>
+
+            <div className="w-px h-6 bg-border mx-1" />
+
+            <Button
+                onClick={() => editor.chain().focus().undo().run()}
+                disabled={!editor.can().chain().focus().undo().run()}
+                title="Undo"
+            >
+                <Undo size={16} />
+            </Button>
+            <Button
+                onClick={() => editor.chain().focus().redo().run()}
+                disabled={!editor.can().chain().focus().redo().run()}
+                title="Redo"
+            >
+                <Redo size={16} />
+            </Button>
+        </div>
+    );
+};
+
 export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     value,
     onChange,
@@ -16,16 +193,68 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     className,
     style,
 }) => {
-    const editor = useEditor({});
+    const editor = useEditor({
+        extensions: [
+            StarterKit,
+            Markdown.configure({
+                html: false, // Force markdown output
+                transformPastedText: true,
+                transformCopiedText: true,
+            }),
+            Placeholder.configure({
+                placeholder: placeholder || 'Write something...',
+            }),
+        ],
+        content: value, // Initial content
+        editorProps: {
+            attributes: {
+                class: cn(
+                    'prose prose-sm sm:prose-base dark:prose-invert focus:outline-none max-w-none min-h-[300px] p-4',
+                    // Manual typography overrides in case prose plugin is missing
+                    '[&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mb-4',
+                    '[&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mb-3',
+                    '[&_h3]:text-xl [&_h3]:font-bold [&_h3]:mb-2',
+                    '[&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-4',
+                    '[&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-4',
+                    '[&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-4',
+                    '[&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:font-mono [&_code]:text-sm',
+                    '[&_pre]:bg-muted [&_pre]:p-4 [&_pre]:rounded-lg [&_pre]:my-4 [&_pre_code]:bg-transparent [&_pre_code]:p-0',
+                    className
+                ),
+            },
+        },
+        onUpdate: ({ editor }) => {
+            const markdownOutput = (editor.storage as any).markdown.getMarkdown();
+            onChange(markdownOutput);
+        },
+    });
+
+    // Update editor content if value changes externally
+    useEffect(() => {
+        if (editor && value !== (editor.storage as any).markdown.getMarkdown()) {
+            // We use standard setContent, trusting that Markdown extension patches it or we might need a workaround if not.
+            // But typically with tiptap-markdown, we might need to parse, but let's try setContent first.
+            // If the user types, onUpdate fires, onChange fires, value updates. value == getMarkdown(). No loop.
+            // If parent resets value, value != getMarkdown(). setContent(value).
+            editor.commands.setContent(value);
+        }
+    }, [value, editor]);
+
+    if (!editor) {
+        return null;
+    }
 
     return (
-        <Editable
-            editor={editor}
-            value={value}
-            onChange={onChange}
-            placeholder={placeholder}
-            className={className}
+        <div
+            className="flex flex-col w-full border border-border rounded-xl bg-card overflow-hidden shadow-sm"
             style={style}
-        />
+        >
+            <MenuBar editor={editor} />
+            <div className="flex-1 overflow-auto bg-background">
+                <EditorContent editor={editor} className="h-full" />
+            </div>
+
+            {/* Optional: Status bar or char count could go here */}
+        </div>
     );
 };

@@ -7,13 +7,11 @@ import {
   FileText,
   MessageSquare,
   Settings,
-  Bookmark,
-  Users,
-  HelpCircle,
   LogOut,
   Sun,
   Moon,
   Megaphone,
+  Book,
 } from 'lucide-react';
 import { useTheme } from '../../hooks/useTheme';
 import logo from '../../assets/peerspace-logo.png';
@@ -36,14 +34,12 @@ const mainNavItems: NavItem[] = [
   { id: 'announcements', label: 'Announcements', icon: Megaphone, path: '/announcements' },
   { id: 'resources', label: 'Resources', icon: FileText, path: '/resources' },
   { id: 'posts', label: 'Posts', icon: MessageSquare, path: '/posts' },
+  { id: 'notes', label: 'Notes', icon: Book, path: '/notes' },
   { id: 'feedbacks', label: 'Feedbacks', icon: MessageSquare, path: '/feedbacks' },
 ];
 
 const secondaryNavItems: NavItem[] = [
   { id: 'settings', label: 'Edit Profile', icon: Settings, path: '/settings' },
-  { id: 'bookmarks', label: 'Bookmarks', icon: Bookmark, path: '/bookmarks' },
-  { id: 'teams', label: 'Teams', icon: Users, path: '/teams' },
-  { id: 'tutorials', label: 'Tutorials', icon: HelpCircle, path: '/tutorials' },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
