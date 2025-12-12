@@ -25,19 +25,19 @@ enum CommunityType {
 }
 
 model ActivityLog {
-  id             Int        @id
+  id             Int        @id @default(autoincrement())
   date           DateTime?  @db.Timestamp(6)
   associated_uid Int
   associated_cid String?    @db.Uuid
   description    String?    @db.VarChar
   action_type    Int?
-  Community      Community? @relation(fields: [associated_cid], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  User           User       @relation(fields: [associated_uid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Community      Community? @relation(fields: [associated_cid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  User           User       @relation(fields: [associated_uid], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
 model Admin {
   uid  Int  @id
-  User User @relation(fields: [uid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User User @relation(fields: [uid], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
 model Assignment {
@@ -47,8 +47,8 @@ model Assignment {
   max_points               Float?
   assigner_uid             Int
   cid                      String                     @db.Uuid
-  Instructor               Instructor                 @relation(fields: [assigner_uid], references: [uid], onDelete: NoAction, onUpdate: NoAction)
-  Community                Community                  @relation(fields: [cid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Instructor               Instructor                 @relation(fields: [assigner_uid], references: [uid], onDelete: Cascade, onUpdate: Cascade)
+  Community                Community                  @relation(fields: [cid], references: [id], onDelete: Cascade, onUpdate: Cascade)
   AssignmentFileAttachment AssignmentFileAttachment[]
   Submission               Submission[]
   TaskAssignmentRelation   TaskAssignmentRelation[]
@@ -57,19 +57,19 @@ model Assignment {
 model AssignmentFileAttachment {
   aid        Int?
   fid        Int         @id
-  Assignment Assignment? @relation(fields: [aid], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  File       File        @relation(fields: [fid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Assignment Assignment? @relation(fields: [aid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  File       File        @relation(fields: [fid], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
 model Badge {
-  id           Int            @id
+  id           Int            @id @default(autoincrement())
   name         String         @db.VarChar
   icon_url     String         @db.VarChar
   StudentBadge StudentBadge[]
 }
 
 model Comment {
-  id                 Int       @id
+  id                 Int       @id @default(autoincrement())
   pid                Int
   content            String    @db.VarChar
   approved_by_inst   Boolean
@@ -80,10 +80,10 @@ model Comment {
   commenter_uid      Int
   parent_comment_pid Int?
   parent_comment_id  Int?
-  User               User      @relation(fields: [commenter_uid], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Comment            Comment?  @relation("CommentToComment", fields: [parent_comment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User               User      @relation(fields: [commenter_uid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  Comment            Comment?  @relation("CommentToComment", fields: [parent_comment_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   other_Comment      Comment[] @relation("CommentToComment")
-  Post               Post      @relation(fields: [pid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Post               Post      @relation(fields: [pid], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
 model Community {
@@ -103,14 +103,14 @@ model Community {
 model Enrollment {
   cid       String    @db.Uuid
   sid       Int
-  Community Community @relation(fields: [cid], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Student   Student   @relation(fields: [sid], references: [uid], onDelete: NoAction, onUpdate: NoAction)
+  Community Community @relation(fields: [cid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  Student   Student   @relation(fields: [sid], references: [uid], onDelete: Cascade, onUpdate: Cascade)
 
   @@id([cid, sid])
 }
 
 model File {
-  id                       Int                       @id
+  id                       Int                       @id @default(autoincrement())
   name                     String                    @db.VarChar
   storage_url              String                    @db.VarChar
   type                     String                    @db.VarChar
@@ -128,29 +128,29 @@ model Instructor {
   area_of_expertise   String?      @db.VarChar
   google_scholar_link String?      @db.VarChar
   Assignment          Assignment[]
-  User                User         @relation(fields: [uid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User                User         @relation(fields: [uid], references: [id], onDelete: Cascade, onUpdate: Cascade)
   Manages             Manages[]
 }
 
 model Manages {
   iid        Int
   cid        String     @db.Uuid
-  Community  Community  @relation(fields: [cid], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Instructor Instructor @relation(fields: [iid], references: [uid], onDelete: NoAction, onUpdate: NoAction)
+  Community  Community  @relation(fields: [cid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  Instructor Instructor @relation(fields: [iid], references: [uid], onDelete: Cascade, onUpdate: Cascade)
 
   @@id([iid, cid])
 }
 
 model Note {
-  id                 Int                  @id
+  id                 Int                  @id @default(autoincrement())
   title              String               @db.VarChar
   body               String?              @db.VarChar
   created_at         DateTime             @db.Timestamp(6)
   updated_at         DateTime?            @db.Timestamp(6)
   owner_uid          Int
   notebook_id        Int?
-  Notebook           Notebook?            @relation(fields: [notebook_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  User               User                 @relation(fields: [owner_uid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Notebook           Notebook?            @relation(fields: [notebook_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  User               User                 @relation(fields: [owner_uid], references: [id], onDelete: Cascade, onUpdate: Cascade)
   NoteFileAttachment NoteFileAttachment[]
   PostNoteAttachment PostNoteAttachment[]
 }
@@ -158,19 +158,19 @@ model Note {
 model NoteFileAttachment {
   nid  Int?
   fid  Int   @id
-  File File  @relation(fields: [fid], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Note Note? @relation(fields: [nid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  File File  @relation(fields: [fid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  Note Note? @relation(fields: [nid], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
 model Notebook {
-  id          Int       @id
+  id          Int       @id @default(autoincrement())
   title       String    @db.VarChar
   description String?   @db.VarChar
   created_at  DateTime  @db.Timestamp(6)
   updated_at  DateTime? @db.Timestamp(6)
   owner_uid   Int
   Note        Note[]
-  User        User      @relation(fields: [owner_uid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User        User      @relation(fields: [owner_uid], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
 model Post {
@@ -183,8 +183,8 @@ model Post {
   owner_uid          Int
   cid                String               @db.Uuid
   Comment            Comment[]
-  Community          Community            @relation(fields: [cid], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  User               User                 @relation(fields: [owner_uid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Community          Community            @relation(fields: [cid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  User               User                 @relation(fields: [owner_uid], references: [id], onDelete: Cascade, onUpdate: Cascade)
   PostFileAttachment PostFileAttachment[]
   PostNoteAttachment PostNoteAttachment[]
   PostTag            PostTag[]
@@ -194,15 +194,15 @@ model Post {
 model PostFileAttachment {
   pid  Int?
   fid  Int   @id
-  File File  @relation(fields: [fid], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Post Post? @relation(fields: [pid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  File File  @relation(fields: [fid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  Post Post? @relation(fields: [pid], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
 model PostNoteAttachment {
   pid  Int
   nid  Int
-  Note Note @relation(fields: [nid], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Post Post @relation(fields: [pid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Note Note @relation(fields: [nid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  Post Post @relation(fields: [pid], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@id([pid, nid])
 }
@@ -210,7 +210,7 @@ model PostNoteAttachment {
 model PostTag {
   post_id Int
   tag     String @db.VarChar
-  Post    Post   @relation(fields: [post_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Post    Post   @relation(fields: [post_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@id([post_id, tag])
 }
@@ -221,7 +221,7 @@ model Session {
   title      String    @db.VarChar
   start_time DateTime  @db.Timestamp(6)
   meet_url   String    @db.VarChar
-  Community  Community @relation(fields: [cid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Community  Community @relation(fields: [cid], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
 model Student {
@@ -238,33 +238,33 @@ model Student {
 model StudentBadge {
   sid     Int
   bid     Int
-  Badge   Badge   @relation(fields: [bid], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Student Student @relation(fields: [sid], references: [uid], onDelete: NoAction, onUpdate: NoAction)
+  Badge   Badge   @relation(fields: [bid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  Student Student @relation(fields: [sid], references: [uid], onDelete: Cascade, onUpdate: Cascade)
 
   @@id([sid, bid])
 }
 
 model Submission {
-  id                       Int                        @id
+  id                       Int                        @id @default(autoincrement())
   subm_date                DateTime                   @db.Timestamp(6)
   grade                    Float?
   feedback                 String?                    @db.VarChar
   aid                      Int
   sid                      Int
-  Assignment               Assignment                 @relation(fields: [aid], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Student                  Student                    @relation(fields: [sid], references: [uid], onDelete: NoAction, onUpdate: NoAction)
+  Assignment               Assignment                 @relation(fields: [aid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  Student                  Student                    @relation(fields: [sid], references: [uid], onDelete: Cascade, onUpdate: Cascade)
   SubmissionFileAttachment SubmissionFileAttachment[]
 }
 
 model SubmissionFileAttachment {
   subid      Int?
   fid        Int         @id
-  File       File        @relation(fields: [fid], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Submission Submission? @relation(fields: [subid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  File       File        @relation(fields: [fid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  Submission Submission? @relation(fields: [subid], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
 model Task {
-  id                     Int                     @id
+  id                     Int                     @id @default(autoincrement())
   title                  String                  @db.VarChar
   description            String?                 @db.VarChar
   priority               Int?
@@ -273,8 +273,8 @@ model Task {
   status                 Int
   author                 Int
   parent_task            Int?
-  Student                Student                 @relation(fields: [author], references: [uid], onDelete: NoAction, onUpdate: NoAction)
-  Task                   Task?                   @relation("TaskToTask", fields: [parent_task], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Student                Student                 @relation(fields: [author], references: [uid], onDelete: Cascade, onUpdate: Cascade)
+  Task                   Task?                   @relation("TaskToTask", fields: [parent_task], references: [id], onDelete: Cascade, onUpdate: Cascade)
   other_Task             Task[]                  @relation("TaskToTask")
   TaskAssignees          TaskAssignees[]
   TaskAssignmentRelation TaskAssignmentRelation?
@@ -284,8 +284,8 @@ model Task {
 model TaskAssignees {
   tid     Int
   sid     Int
-  Student Student @relation(fields: [sid], references: [uid], onDelete: NoAction, onUpdate: NoAction)
-  Task    Task    @relation(fields: [tid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Student Student @relation(fields: [sid], references: [uid], onDelete: Cascade, onUpdate: Cascade)
+  Task    Task    @relation(fields: [tid], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@id([tid, sid])
 }
@@ -293,14 +293,14 @@ model TaskAssignees {
 model TaskAssignmentRelation {
   aid        Int?
   tid        Int         @id
-  Assignment Assignment? @relation(fields: [aid], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Task       Task        @relation(fields: [tid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Assignment Assignment? @relation(fields: [aid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  Task       Task        @relation(fields: [tid], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
 model TaskTag {
   task_id Int
   tag     String @db.VarChar
-  Task    Task   @relation(fields: [task_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Task    Task   @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@id([task_id, tag])
 }
@@ -329,8 +329,8 @@ model Voted {
   sid      Int
   pid      Int
   voteType Boolean
-  Post     Post    @relation(fields: [pid], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Student  Student @relation(fields: [sid], references: [uid], onDelete: NoAction, onUpdate: NoAction)
+  Post     Post    @relation(fields: [pid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  Student  Student @relation(fields: [sid], references: [uid], onDelete: Cascade, onUpdate: Cascade)
 
   @@id([sid, pid])
 }

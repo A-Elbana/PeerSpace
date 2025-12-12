@@ -1,0 +1,229 @@
+import { Request, Response } from "express";
+import prisma from "../config/prisma";
+import { Role } from "../generated/prisma/client";
+
+// Create a submission (Student only)
+export const createSubmission = async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
+  const { aid, fileIds, feedback } = req.body as {
+    aid: number | string;
+    fileIds?: Array<number | string>;
+    feedback?: string | null;
+  };
+
+  const aidNum = Number(aid);
+  if (!aid || Number.isNaN(aidNum)) {
+    return res
+      .status(400)
+      .json({
+        message: "Assignment id (aid) is required and must be a number",
+      });
+  }
+
+  try {
+    const now = new Date();
+    const submission = await prisma.submission.create({
+      data: {
+        aid: aidNum,
+        sid: userId,
+        subm_date: now,
+        feedback: feedback ?? null,
+      },
+    });
+
+    // Optional file attachments
+    if (fileIds && fileIds.length) {
+      for (const fidRaw of fileIds) {
+        const fid = Number(fidRaw);
+        if (!Number.isNaN(fid)) {
+          await prisma.submissionFileAttachment.create({
+            data: { subid: submission.id, fid },
+          });
+        }
+      }
+    }
+
+    const result = await prisma.submission.findUnique({
+      where: { id: submission.id },
+      include: { SubmissionFileAttachment: { include: { File: true } } },
+    });
+
+    res.status(201).json({ success: true, data: result });
+  } catch (error) {
+    console.error("Create Submission Error:", error);
+    res.status(500).json({ message: "Failed to create submission" });
+  }
+};
+
+// Get submissions for an assignment (Instructor/Admin) or student (owner)
+export const getSubmissionsByAssignment = async (
+  req: Request,
+  res: Response
+) => {
+  const { aid } = req.query as any;
+  const page = Math.max(1, parseInt((req.query.page as string) || "1"));
+  const limit = Math.min(
+    50,
+    Math.max(1, parseInt((req.query.limit as string) || "10"))
+  );
+  const skip = (page - 1) * limit;
+
+  if (!aid) {
+    return res.status(400).json({ message: "Assignment id (aid) is required" });
+  }
+
+  try {
+    const where = { aid: Number(aid) };
+    const submissions = await prisma.submission.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { subm_date: "desc" },
+      include: {
+        SubmissionFileAttachment: { include: { File: true } },
+        Student: { include: { User: true } },
+      },
+    });
+    const total = await prisma.submission.count({ where });
+
+    res
+      .status(200)
+      .json({
+        success: true,
+        data: submissions,
+        meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      });
+  } catch (error) {
+    console.error("Get Submissions Error:", error);
+    res.status(500).json({ message: "Failed to fetch submissions" });
+  }
+};
+
+// Get my submissions (Student)
+export const getMySubmissions = async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
+  const page = Math.max(1, parseInt((req.query.page as string) || "1"));
+  const limit = Math.min(
+    50,
+    Math.max(1, parseInt((req.query.limit as string) || "10"))
+  );
+  const skip = (page - 1) * limit;
+
+  try {
+    const where = { sid: userId };
+    const submissions = await prisma.submission.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { subm_date: "desc" },
+      include: {
+        SubmissionFileAttachment: { include: { File: true } },
+        Assignment: true,
+      },
+    });
+    const total = await prisma.submission.count({ where });
+
+    res
+      .status(200)
+      .json({
+        success: true,
+        data: submissions,
+        meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      });
+  } catch (error) {
+    console.error("Get My Submissions Error:", error);
+    res.status(500).json({ message: "Failed to fetch submissions" });
+  }
+};
+
+// Get a submission by id (owner, instructor managing assignment's community, or admin)
+export const getSubmissionById = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const submission = await prisma.submission.findUnique({
+      where: { id: Number(id) },
+      include: {
+        SubmissionFileAttachment: { include: { File: true } },
+        Assignment: true,
+        Student: { include: { User: true } },
+      },
+    });
+    if (!submission)
+      return res.status(404).json({ message: "Submission not found" });
+    res.status(200).json({ success: true, data: submission });
+  } catch (error) {
+    console.error("Get Submission Error:", error);
+    res.status(500).json({ message: "Failed to fetch submission" });
+  }
+};
+
+// Update submission (owner can update feedback or reattach files before grading)
+export const updateSubmission = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { feedback, fileIds } = req.body as {
+    feedback?: string | null;
+    fileIds?: number[];
+  };
+  try {
+    const submission = await prisma.submission.update({
+      where: { id: Number(id) },
+      data: { feedback: feedback ?? null },
+    });
+
+    // Replace files if provided
+    if (fileIds) {
+      await prisma.submissionFileAttachment.deleteMany({
+        where: { subid: submission.id },
+      });
+      for (const fid of fileIds) {
+        await prisma.submissionFileAttachment.create({
+          data: { subid: submission.id, fid },
+        });
+      }
+    }
+
+    const result = await prisma.submission.findUnique({
+      where: { id: submission.id },
+      include: { SubmissionFileAttachment: { include: { File: true } } },
+    });
+
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    console.error("Update Submission Error:", error);
+    res.status(500).json({ message: "Failed to update submission" });
+  }
+};
+
+// Delete submission (owner or admin)
+export const deleteSubmission = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    await prisma.submissionFileAttachment.deleteMany({
+      where: { subid: Number(id) },
+    });
+    await prisma.submission.delete({ where: { id: Number(id) } });
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Delete Submission Error:", error);
+    res.status(500).json({ message: "Failed to delete submission" });
+  }
+};
+
+// Grade submission (Instructor managing community or Admin)
+export const gradeSubmission = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { grade, feedback } = req.body as {
+    grade: number;
+    feedback?: string | null;
+  };
+  try {
+    const updated = await prisma.submission.update({
+      where: { id: Number(id) },
+      data: { grade, feedback: feedback ?? null },
+    });
+    res.status(200).json({ success: true, data: updated });
+  } catch (error) {
+    console.error("Grade Submission Error:", error);
+    res.status(500).json({ message: "Failed to grade submission" });
+  }
+};
