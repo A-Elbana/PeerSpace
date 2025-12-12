@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Sidebar } from '../components/dashboard';
-import { Flame, Clock, Filter, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, MoreHorizontal, Loader2, Sparkles, Users, BookOpen, Rocket, Send, Megaphone, Lock, Search, X, Tag } from 'lucide-react';
+import { Flame, Clock, Filter, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, MoreHorizontal, Loader2, Sparkles, Users, BookOpen, Rocket, Send, Megaphone, Lock, Search, X, Tag, Maximize2, Minimize2 } from 'lucide-react';
 import api, { communityApi, postApi, type CommunityResponse, type PostResponse } from '../services/api';
 import { removeTokens } from '../utils/auth';
+import { MarkdownEditor } from '../components/MarkdownEditor';
 
 // Available post tags
 const POST_TAGS = [
@@ -69,6 +70,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
     const [isCommunityFilterOpen, setIsCommunityFilterOpen] = useState(false);
     const filterRef = useRef<HTMLDivElement>(null);
     const communityFilterRef = useRef<HTMLDivElement>(null);
+    const [isEditorOpen, setIsEditorOpen] = useState(false);
 
     // Load more posts
     const loadMorePosts = useCallback(() => {
@@ -420,16 +422,120 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                 <button
                                     onClick={handleCreatePost}
                                     disabled={!selectedCommunity || !newPostTitle.trim() || !newPostBody.trim() || isCreatingPost}
-                                    className="p-2.5 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-full text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-blue-500/30 group/btn mt-1"
+                                    className="p-2.5 bg-frosted-blue-500 hover:bg-frosted-blue-600 rounded-full text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 group/btn mt-1"
                                 >
                                     {isCreatingPost ? (
                                         <Loader2 size={18} className="animate-spin" />
                                     ) : (
-                                        <Send size={18} className="transform -rotate-45 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform duration-300" />
+                                        <Send size={18} className="transform -rotate-45" />
                                     )}
+                                </button>
+                                <button
+                                    onClick={() => setIsEditorOpen(true)}
+                                    className="absolute bottom-2 right-14 p-2 text-muted-foreground hover:text-primary transition-colors hover:bg-muted/50 rounded-full"
+                                    title="Open full editor"
+                                >
+                                    <Maximize2 size={16} />
                                 </button>
                             </div>
                         </div>
+
+                        {/* Editor Overlay */}
+                        {isEditorOpen && (
+                            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                                <div className="bg-card w-full max-w-4xl h-[80vh] rounded-xl shadow-2xl border border-border flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                                    <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
+                                        <h3 className="font-semibold text-lg flex items-center gap-2">
+                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold shadow-md">
+                                                {user.fname[0]}
+                                            </div>
+                                            Create Post
+                                        </h3>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={handleCreatePost}
+                                                disabled={!selectedCommunity || !newPostTitle.trim() || !newPostBody.trim() || isCreatingPost}
+                                                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                            >
+                                                {isCreatingPost ? (
+                                                    <Loader2 size={16} className="animate-spin mr-2 inline" />
+                                                ) : (
+                                                    <Send size={16} className="mr-2 inline" />
+                                                )}
+                                                Post
+                                            </button>
+                                            <button
+                                                onClick={() => setIsEditorOpen(false)}
+                                                className="p-2 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground"
+                                            >
+                                                <X size={20} />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-4 space-y-4 flex-1 overflow-y-auto bg-background">
+                                        <div className="flex gap-4">
+                                            <div className="flex-1">
+                                                <select
+                                                    value={selectedCommunity}
+                                                    onChange={(e) => setSelectedCommunity(e.target.value)}
+                                                    className="w-full px-4 py-2 bg-muted text-muted-foreground text-sm font-medium rounded-lg hover:bg-muted/80 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring"
+                                                >
+                                                    <option value="">Select Community</option>
+                                                    {communities.map((community) => (
+                                                        <option key={community.id} value={community.id}>
+                                                            {community.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="flex-1 relative">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Post title..."
+                                                    value={newPostTitle}
+                                                    onChange={(e) => setNewPostTitle(e.target.value)}
+                                                    className="w-full px-4 py-2 bg-muted/50 border border-input rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder-muted-foreground"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-wrap gap-2">
+                                            {POST_TAGS.map((tag) => {
+                                                const isSelected = selectedTags.includes(tag.id);
+                                                return (
+                                                    <button
+                                                        key={tag.id}
+                                                        onClick={() => {
+                                                            if (isSelected) {
+                                                                setSelectedTags(prev => prev.filter(t => t !== tag.id));
+                                                            } else {
+                                                                setSelectedTags(prev => [...prev, tag.id]);
+                                                            }
+                                                        }}
+                                                        className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${isSelected
+                                                            ? `${tag.bgLight} ${tag.textColor} ring-1 ring-current`
+                                                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                                                            }`}
+                                                    >
+                                                        {tag.label}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        <div className="border border-input rounded-lg overflow-hidden min-h-[300px]">
+                                            <MarkdownEditor
+                                                value={newPostBody}
+                                                onChange={setNewPostBody}
+                                                placeholder="Write something amazing..."
+                                                className="min-h-[300px]"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Filter Bar */}
                         <div className="flex items-center gap-4 text-sm font-medium text-muted-foreground mb-2">

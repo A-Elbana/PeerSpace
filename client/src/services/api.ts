@@ -48,7 +48,6 @@ api.interceptors.response.use(
     async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-        // Skip auth redirect for login/register endpoints - let them handle their own errors
         const isAuthEndpoint = originalRequest.url?.includes('/auth/login') ||
             originalRequest.url?.includes('/auth/register');
 
@@ -78,7 +77,9 @@ api.interceptors.response.use(
                         }
                         return api(originalRequest);
                     })
-                    .catch(err => Promise.reject(err));
+                    .catch(err => {
+                        return Promise.reject(err);
+                    });
             }
 
             originalRequest._retry = true;
@@ -101,7 +102,6 @@ api.interceptors.response.use(
                 }
 
                 // Process queued requests
-                processQueue(null, accessToken);
 
                 // Retry the original request
                 return api(originalRequest);
