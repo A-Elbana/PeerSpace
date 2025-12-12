@@ -31,7 +31,7 @@ export const authenticateToken = (
 
     // Ensure it's an access token (not refresh token)
     if (decoded.type !== "access") {
-      return res.status(403).json({ message: "Invalid token type" });
+      return res.status(401).json({ message: "Invalid token type" });
     }
 
     // Attach user info to request object
@@ -43,14 +43,14 @@ export const authenticateToken = (
   } catch (error: any) {
     // Handle specific JWT errors
     if (error.name === "TokenExpiredError") {
-      return res.status(403).json({ message: "Token expired" });
+      return res.status(401).json({ message: "Token expired" });
     }
     if (error.name === "JsonWebTokenError") {
-      return res.status(403).json({ message: "Invalid token" });
+      return res.status(401).json({ message: "Invalid token" });
     }
 
     console.error("Token verification failed:", error);
-    return res.status(403).json({ message: "Authentication failed" });
+    return res.status(401).json({ message: "Authentication failed" });
   }
 };
 

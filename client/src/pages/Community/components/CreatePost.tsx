@@ -95,8 +95,8 @@ const CreatePost: React.FC<CreatePostProps> = ({
                     }
                   }}
                   className={`text-xs font-medium px-2 py-0.5 rounded-full transition-all ${isSelected
-                      ? `${tag.bgLight} ${tag.textColor} ring-1 ring-current`
-                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    ? `${tag.bgLight} ${tag.textColor} ring-1 ring-current`
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
                     }`}
                 >
                   {tag.label}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Sidebar as ProSidebar, Menu, MenuItem } from 'react-pro-sidebar';
 import {
@@ -51,6 +51,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(true);
   const { isDarkMode, toggleTheme } = useTheme();
+  const sidebarContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (collapsed && sidebarContainerRef.current) {
+      const container = sidebarContainerRef.current.querySelector('.ps-sidebar-container');
+      if (container) {
+        container.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+  }, [collapsed]);
 
   const isActive = (path?: string) => {
     if (!path) return false;
@@ -59,7 +69,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
 
   return (
     <div
-      className={`fixed left-0 top-0 h-screen z-50 border-r border-sidebar-border shadow-xl transition-all duration-300 ease-in-out ${collapsed ? 'w-20' : 'w-64'}`}
+      ref={sidebarContainerRef}
+      className={`fixed left-0 top-0 h-screen z-50 shadow-xl transition-all duration-300 ease-in-out ${collapsed ? 'w-20' : 'w-64'}`}
       onMouseEnter={() => setCollapsed(false)}
       onMouseLeave={() => setCollapsed(true)}
     >
@@ -74,10 +85,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
           borderRight: 'none',
           overflow: 'hidden',
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          '& .ps-sidebar-container': {
+            overflowY: 'auto',
+            scrollbarWidth: 'none', // Firefox
+            msOverflowStyle: 'none', // IE and Edge
+            '&::-webkit-scrollbar': {
+              display: 'none', // Chrome, Safari, Opera
+            },
+          },
         }}
       >
         {/* Logo */}
-        <div className={`flex items-center gap-2 px-5 py-5 border-b border-sidebar-border transition-all duration-300 ease-in-out ${collapsed ? 'justify-center' : ''}`}>
+        <div className="flex items-center gap-2 px-5 py-5 border-b border-sidebar-border transition-all duration-300 ease-in-out">
           <div className="w-7 h-7 flex items-center justify-center shrink-0 rounded-md overflow-hidden transition-transform duration-300">
             <img
               src={logo}
@@ -87,7 +106,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
             />
           </div>
           <span
-            className={`text-sidebar-foreground font-semibold text-base whitespace-nowrap transition-all duration-300 ease-in-out ${collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'
+            className={`text-sidebar-foreground font-semibold text-base whitespace-nowrap ${collapsed ? 'opacity-0 invisible absolute' : 'opacity-100 visible relative transition-all duration-300 ease-in-out'
               }`}
           >
             PeerSpace
@@ -102,10 +121,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
               color: active ? 'var(--sidebar-primary)' : 'var(--sidebar-foreground)',
               borderLeft: active ? '3px solid var(--sidebar-primary)' : '3px solid transparent',
               borderRadius: '0 8px 8px 0',
-              margin: collapsed ? '4px 12px' : '4px 12px 4px 0',
               padding: '10px 16px',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              justifyContent: collapsed ? 'center' : 'flex-start',
+              justifyContent: 'flex-start',
               transform: 'translateX(0) scale(1)',
               '&:hover': {
                 backgroundColor: 'var(--sidebar-accent)',
@@ -116,14 +134,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
             icon: ({ active }) => ({
               color: active ? 'var(--primary)' : 'var(--muted-foreground)',
               minWidth: '20px',
-              marginRight: collapsed ? '0' : '10px',
+              marginRight: '10px',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             }),
             label: {
               opacity: collapsed ? 0 : 1,
-              width: collapsed ? 0 : 'auto',
-              overflow: 'hidden',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              visibility: collapsed ? 'hidden' : 'visible',
+              whiteSpace: 'nowrap',
+              transition: collapsed ? 'none' : 'opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              position: collapsed ? 'absolute' : 'relative',
+              pointerEvents: collapsed ? 'none' : 'auto',
             },
           }}
         >
@@ -171,7 +191,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
               borderRadius: '8px',
               margin: '4px 12px',
               padding: '10px 16px',
-              justifyContent: collapsed ? 'center' : 'flex-start',
+              justifyContent: 'flex-start',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               transform: 'translateX(0) scale(1)',
               '&:hover': {
@@ -183,14 +203,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
             icon: {
               color: 'var(--muted-foreground)',
               minWidth: '20px',
-              marginRight: collapsed ? '0' : '10px',
+              marginRight: '10px',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             },
             label: {
               opacity: collapsed ? 0 : 1,
-              width: collapsed ? 0 : 'auto',
-              overflow: 'hidden',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              visibility: collapsed ? 'hidden' : 'visible',
+              whiteSpace: 'nowrap',
+              transition: collapsed ? 'none' : 'opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              position: collapsed ? 'absolute' : 'relative',
+              pointerEvents: collapsed ? 'none' : 'auto',
             },
           }}
         >
