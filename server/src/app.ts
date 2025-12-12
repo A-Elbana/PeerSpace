@@ -8,6 +8,7 @@ import userRoutes from "./routes/userRoutes";
 import postRoutes from "./routes/postRoutes";
 import communityRoutes from "./routes/communityRoutes";
 import assignmentRoutes from "./routes/assignmentRoutes";
+import submissionRoutes from "./routes/submissionRoutes";
 import { getCorsConfig } from "./config/corsConfig";
 import { generalLimiter } from "./middleware/rateLimitMiddleware";
 import { errorHandler, asyncHandler } from "./middleware/errorHandler";
@@ -40,6 +41,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/communities", communityRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/assignments", assignmentRoutes);
+app.use("/api/submissions", submissionRoutes);
 
 // 6. 404 handler for undefined routes
 app.use((req: Request, res: Response) => {

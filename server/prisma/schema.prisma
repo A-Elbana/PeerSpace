@@ -245,7 +245,7 @@ model StudentBadge {
 }
 
 model Submission {
-  id                       Int                        @id
+  id                       Int                        @id @default(autoincrement())
   subm_date                DateTime                   @db.Timestamp(6)
   grade                    Float?
   feedback                 String?                    @db.VarChar
