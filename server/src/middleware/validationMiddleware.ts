@@ -518,3 +518,44 @@ export const validateTaskStatusUpdate = [
     .isInt({ min: 0, max: 4 })
     .withMessage("Status must be an integer between 0 and 4"),
 ];
+
+/**
+ * Badge creation validation rules
+ */
+export const validateBadgeCreate = [
+  body("name")
+    .trim()
+    .notEmpty()
+    .withMessage("Badge name is required")
+    .isLength({ min: 1, max: 255 })
+    .withMessage("Badge name must be between 1 and 255 characters"),
+
+  body("icon_url")
+    .trim()
+    .notEmpty()
+    .withMessage("Icon URL is required")
+    .isURL()
+    .withMessage("Icon URL must be a valid URL"),
+];
+
+/**
+ * Badge update validation rules
+ */
+export const validateBadgeUpdate = [
+  body("name")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Badge name cannot be empty")
+    .isLength({ min: 1, max: 255 })
+    .withMessage("Badge name must be between 1 and 255 characters"),
+
+  body("icon_url")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Icon URL cannot be empty")
+    .isURL()
+    .withMessage("Icon URL must be a valid URL"),
+];
+

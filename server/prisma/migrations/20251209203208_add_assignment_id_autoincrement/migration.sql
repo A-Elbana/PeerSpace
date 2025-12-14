@@ -1,0 +1,2 @@
+-- Placeholder recreation: original SQL unavailable
+-- Intentionally left as a no-op to preserve migration history without altering schema

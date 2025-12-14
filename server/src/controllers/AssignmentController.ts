@@ -30,44 +30,70 @@ export const createAssignment = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Community not found" });
     }
 
-    const assignment = await prisma.assignment.create({
-      data: {
-        title: String(title).trim(),
-        description: description ? String(description).trim() : null,
-        cid: String(cid),
-        due_date: due_date ? new Date(due_date) : null,
-        max_points: max_points !== undefined ? parseFloat(max_points) : null,
-        canBeLate: canBeLate !== undefined ? Boolean(canBeLate) : true,
-        assigner_uid: userId,
-      },
-      include: {
-        Instructor: {
-          include: {
-            User: {
-              select: { id: true, fname: true, lname: true },
+    const assignment = await prisma.$transaction(async (tx) => {
+      const created = await tx.assignment.create({
+        data: {
+          title: String(title).trim(),
+          description: description ? String(description).trim() : null,
+          cid: String(cid),
+          due_date: due_date ? new Date(due_date) : null,
+          max_points: max_points !== undefined ? parseFloat(max_points) : null,
+          canBeLate: canBeLate !== undefined ? Boolean(canBeLate) : true,
+          assigner_uid: userId,
+        },
+        include: {
+          Instructor: {
+            include: {
+              User: {
+                select: { id: true, fname: true, lname: true },
+              },
             },
           },
+          Community: {
+            select: { id: true, name: true },
+          },
         },
-        Community: {
-          select: { id: true, name: true },
-        },
-      },
-    });
-
-    // Create file attachments if file_ids provided
-    if (file_ids && Array.isArray(file_ids) && file_ids.length > 0) {
-      await prisma.assignmentFileAttachment.createMany({
-        data: file_ids.map((fid: string) => ({
-          aid: assignment.id,
-          fid: String(fid),
-        })),
-        skipDuplicates: true,
       });
-    }
+
+      if (file_ids && Array.isArray(file_ids) && file_ids.length > 0) {
+        const fileIdStrings = file_ids.map((fid: string) => String(fid));
+        const existingFiles = await tx.file.findMany({
+          where: { id: { in: fileIdStrings } },
+          select: { id: true },
+        });
+
+        const missing = fileIdStrings.filter(
+          (fid) => !existingFiles.find((f) => f.id === fid)
+        );
+
+        if (missing.length > 0) {
+          const err: any = new Error("Invalid file_ids");
+          err.code = "INVALID_FILE_IDS";
+          err.missing = missing;
+          throw err;
+        }
+
+        await tx.assignmentFileAttachment.createMany({
+          data: fileIdStrings.map((fid: string) => ({
+            aid: created.id,
+            fid,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      return created;
+    });
 
     res.status(201).json(assignment);
   } catch (error) {
     console.error("Create Assignment Error:", error);
+    if ((error as any)?.code === "INVALID_FILE_IDS") {
+      return res.status(400).json({
+        message: "One or more file_ids are invalid",
+        missing: (error as any).missing,
+      });
+    }
     res.status(500).json({ message: "Failed to create assignment" });
   }
 };
