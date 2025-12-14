@@ -51,7 +51,10 @@ const router = express.Router();
  *               fileIds:
  *                 type: array
  *                 items:
- *                   type: integer
+ *                   type: string
+ *                   format: uuid
+ *                 description: Array of file UUIDs to attach to this submission
+ *                 example: ["550e8400-e29b-41d4-a716-446655440001"]
  *     responses:
  *       201:
  *         description: Submission created
@@ -90,6 +93,62 @@ router.post(
  *     responses:
  *       200:
  *         description: List submissions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 submissions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       aid:
+ *                         type: integer
+ *                       uid:
+ *                         type: integer
+ *                       feedback:
+ *                         type: string
+ *                       grade:
+ *                         type: number
+ *                       submitted_at:
+ *                         type: string
+ *                         format: date-time
+ *                       graded_at:
+ *                         type: string
+ *                         format: date-time
+ *                       SubmissionFileAttachment:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             subid:
+ *                               type: integer
+ *                             fid:
+ *                               type: string
+ *                               format: uuid
+ *                             File:
+ *                               type: object
+ *                               properties:
+ *                                 id:
+ *                                   type: string
+ *                                   format: uuid
+ *                                 secure_url:
+ *                                   type: string
+ *                                 resource_type:
+ *                                   type: string
+ *                                 format:
+ *                                   type: string
+ *                                 is_private:
+ *                                   type: boolean
+ *                 total:
+ *                   type: integer
+ *                 page:
+ *                   type: integer
+ *                 limit:
+ *                   type: integer
  */
 router.get("/", authenticateToken, getSubmissionsByAssignment);
 
@@ -104,6 +163,53 @@ router.get("/", authenticateToken, getSubmissionsByAssignment);
  *     responses:
  *       200:
  *         description: My submissions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                   aid:
+ *                     type: integer
+ *                   uid:
+ *                     type: integer
+ *                   feedback:
+ *                     type: string
+ *                   grade:
+ *                     type: number
+ *                   submitted_at:
+ *                     type: string
+ *                     format: date-time
+ *                   graded_at:
+ *                     type: string
+ *                     format: date-time
+ *                   SubmissionFileAttachment:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *                       properties:
+ *                         subid:
+ *                           type: integer
+ *                         fid:
+ *                           type: string
+ *                           format: uuid
+ *                         File:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: string
+ *                               format: uuid
+ *                             secure_url:
+ *                               type: string
+ *                             resource_type:
+ *                               type: string
+ *                             format:
+ *                               type: string
+ *                             is_private:
+ *                               type: boolean
  */
 router.get(
   "/mine",
@@ -129,6 +235,51 @@ router.get(
  *     responses:
  *       200:
  *         description: Submission details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 aid:
+ *                   type: integer
+ *                 uid:
+ *                   type: integer
+ *                 feedback:
+ *                   type: string
+ *                 grade:
+ *                   type: number
+ *                 submitted_at:
+ *                   type: string
+ *                   format: date-time
+ *                 graded_at:
+ *                   type: string
+ *                   format: date-time
+ *                 SubmissionFileAttachment:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       subid:
+ *                         type: integer
+ *                       fid:
+ *                         type: string
+ *                         format: uuid
+ *                       File:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                           secure_url:
+ *                             type: string
+ *                           resource_type:
+ *                             type: string
+ *                           format:
+ *                             type: string
+ *                           is_private:
+ *                             type: boolean
  */
 router.get("/:id", authenticateToken, loadSubmission, getSubmissionById);
 
@@ -156,7 +307,9 @@ router.get("/:id", authenticateToken, loadSubmission, getSubmissionById);
  *               fileIds:
  *                 type: array
  *                 items:
- *                   type: integer
+ *                   type: string
+ *                   format: uuid
+ *                 description: Array of file UUIDs - replaces all existing attachments
  *     responses:
  *       200:
  *         description: Updated submission

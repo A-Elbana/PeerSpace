@@ -7,7 +7,10 @@ import {
   getPostsByCommunity,
   togglePostResolved,
 } from "../controllers/PostController";
-import { authenticateToken, optionalAuthenticateToken } from "../middleware/authMiddleware";
+import {
+  authenticateToken,
+  optionalAuthenticateToken,
+} from "../middleware/authMiddleware";
 import {
   loadPost,
   authorizePostAccess,
@@ -58,6 +61,13 @@ const router = express.Router();
  *                 type: string
  *                 format: uuid
  *                 description: Community UUID
+ *               file_ids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: uuid
+ *                 description: Array of file UUIDs to attach to this post
+ *                 example: ["550e8400-e29b-41d4-a716-446655440001", "550e8400-e29b-41d4-a716-446655440002"]
  *     responses:
  *       201:
  *         description: Post created successfully
@@ -101,6 +111,59 @@ router.post("/", authenticateToken, requirePostMembership, createPost);
  *     responses:
  *       200:
  *         description: List of posts with pagination metadata
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       title:
+ *                         type: string
+ *                       type:
+ *                         type: string
+ *                       body:
+ *                         type: string
+ *                       post_date:
+ *                         type: string
+ *                         format: date-time
+ *                       PostFileAttachment:
+ *                         type: array
+ *                         description: Attached files
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             fid:
+ *                               type: string
+ *                               format: uuid
+ *                             File:
+ *                               type: object
+ *                               properties:
+ *                                 id:
+ *                                   type: string
+ *                                   format: uuid
+ *                                 secure_url:
+ *                                   type: string
+ *                                 resource_type:
+ *                                   type: string
+ *                                 format:
+ *                                   type: string
+ *                                 is_private:
+ *                                   type: boolean
+ *                 meta:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
  *       400:
  *         description: Invalid community ID format
  *       403:
@@ -129,7 +192,47 @@ router.get("/", optionalAuthenticateToken, getPostsByCommunity);
  *         description: Post ID
  *     responses:
  *       200:
- *         description: Post details with author information and comment count
+ *         description: Post details with author information, comment count, votes, and attached files
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 title:
+ *                   type: string
+ *                 body:
+ *                   type: string
+ *                 files:
+ *                   type: array
+ *                   description: Attached files
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         format: uuid
+ *                       secure_url:
+ *                         type: string
+ *                       resource_type:
+ *                         type: string
+ *                       format:
+ *                         type: string
+ *                       is_private:
+ *                         type: boolean
+ *                 votes:
+ *                   type: object
+ *                   properties:
+ *                     upvotes:
+ *                       type: integer
+ *                     downvotes:
+ *                       type: integer
+ *                     score:
+ *                       type: integer
+ *                     userVote:
+ *                       type: boolean
+ *                       nullable: true
  *       403:
  *         description: Private community requires authentication and membership
  *       404:
@@ -137,7 +240,13 @@ router.get("/", optionalAuthenticateToken, getPostsByCommunity);
  *       500:
  *         description: Server error
  */
-router.get("/:id", optionalAuthenticateToken, loadPost, authorizePostAccess, getPostById);
+router.get(
+  "/:id",
+  optionalAuthenticateToken,
+  loadPost,
+  authorizePostAccess,
+  getPostById
+);
 
 /**
  * @swagger
@@ -170,6 +279,13 @@ router.get("/:id", optionalAuthenticateToken, loadPost, authorizePostAccess, get
  *                 type: boolean
  *               type:
  *                 type: string
+ *               file_ids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: uuid
+ *                 description: Array of file UUIDs - replaces all existing attachments
+ *                 example: ["550e8400-e29b-41d4-a716-446655440001"]
  *     responses:
  *       200:
  *         description: Post updated successfully
@@ -207,7 +323,13 @@ router.put("/:id", authenticateToken, loadPost, authorizePostEdit, updatePost);
  *       500:
  *         description: Server error
  */
-router.patch("/:id/resolve", authenticateToken, loadPost, authorizePostEdit, togglePostResolved);
+router.patch(
+  "/:id/resolve",
+  authenticateToken,
+  loadPost,
+  authorizePostEdit,
+  togglePostResolved
+);
 
 /**
  * @swagger
@@ -235,6 +357,12 @@ router.patch("/:id/resolve", authenticateToken, loadPost, authorizePostEdit, tog
  *       500:
  *         description: Server error
  */
-router.delete("/:id", authenticateToken, loadPost, authorizePostEdit, deletePost);
+router.delete(
+  "/:id",
+  authenticateToken,
+  loadPost,
+  authorizePostEdit,
+  deletePost
+);
 
 export default router;

@@ -61,6 +61,13 @@ const router = express.Router();
  *                 type: integer
  *                 description: ID of the notebook to add this note to (optional)
  *                 example: 1
+ *               file_ids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: uuid
+ *                 description: Array of file UUIDs to attach to this note
+ *                 example: ["550e8400-e29b-41d4-a716-446655440001"]
  *     responses:
  *       201:
  *         description: Note created successfully
@@ -170,6 +177,29 @@ router.post(
  *                         type: integer
  *                       Notebook:
  *                         type: object
+ *                       NoteFileAttachment:
+ *                         type: array
+ *                         description: Attached files
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             fid:
+ *                               type: string
+ *                               format: uuid
+ *                             File:
+ *                               type: object
+ *                               properties:
+ *                                 id:
+ *                                   type: string
+ *                                   format: uuid
+ *                                 secure_url:
+ *                                   type: string
+ *                                 resource_type:
+ *                                   type: string
+ *                                 format:
+ *                                   type: string
+ *                                 is_private:
+ *                                   type: boolean
  *                 meta:
  *                   type: object
  *                   properties:
@@ -295,6 +325,12 @@ router.get(
  *                 type: integer
  *                 nullable: true
  *                 description: Notebook ID (set to null to remove from notebook)
+ *               file_ids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: uuid
+ *                 description: Array of file UUIDs - replaces all existing attachments
  *     responses:
  *       200:
  *         description: Note updated successfully
