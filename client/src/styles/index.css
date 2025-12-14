@@ -76,37 +76,39 @@
     --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     --shadow-glow: 0 0 20px rgba(124, 58, 237, 0.3);
     --radius: 0.625rem;
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.129 0.042 264.695);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.129 0.042 264.695);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.129 0.042 264.695);
-    --primary: oklch(0.208 0.042 265.755);
-    --primary-foreground: oklch(0.984 0.003 247.858);
-    --secondary: oklch(0.968 0.007 247.896);
-    --secondary-foreground: oklch(0.208 0.042 265.755);
-    --muted: oklch(0.968 0.007 247.896);
-    --muted-foreground: oklch(0.554 0.046 257.417);
-    --accent: oklch(0.968 0.007 247.896);
-    --accent-foreground: oklch(0.208 0.042 265.755);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.929 0.013 255.508);
-    --input: oklch(0.929 0.013 255.508);
-    --ring: oklch(0.704 0.04 256.788);
-    --chart-1: oklch(0.646 0.222 41.116);
-    --chart-2: oklch(0.6 0.118 184.704);
-    --chart-3: oklch(0.398 0.07 227.392);
-    --chart-4: oklch(0.828 0.189 84.429);
-    --chart-5: oklch(0.769 0.188 70.08);
-    --sidebar: oklch(0.984 0.003 247.858);
-    --sidebar-foreground: oklch(0.129 0.042 264.695);
-    --sidebar-primary: oklch(0.208 0.042 265.755);
-    --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-    --sidebar-accent: oklch(0.968 0.007 247.896);
-    --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-    --sidebar-border: oklch(0.929 0.013 255.508);
-    --sidebar-ring: oklch(0.704 0.04 256.788);
+    
+    /* Light Mode Theme - Using Custom Color Palette */
+    --background: var(--color-black-50);
+    --foreground: var(--color-black-900);
+    --card: #ffffff;
+    --card-foreground: var(--color-black-900);
+    --popover: #ffffff;
+    --popover-foreground: var(--color-black-900);
+    --primary: var(--color-tech-blue-500);
+    --primary-foreground: #ffffff;
+    --secondary: var(--color-black-100);
+    --secondary-foreground: var(--color-black-800);
+    --muted: var(--color-black-100);
+    --muted-foreground: var(--color-black-500);
+    --accent: var(--color-frosted-blue-100);
+    --accent-foreground: var(--color-tech-blue-700);
+    --destructive: var(--error);
+    --border: var(--color-black-200);
+    --input: var(--color-black-200);
+    --ring: var(--color-tech-blue-400);
+    --chart-1: var(--color-tech-blue-500);
+    --chart-2: var(--color-turf-green-500);
+    --chart-3: var(--color-royal-gold-500);
+    --chart-4: var(--color-frosted-blue-500);
+    --chart-5: var(--color-black-600);
+    --sidebar: #ffffff;
+    --sidebar-foreground: var(--color-black-700);
+    --sidebar-primary: var(--color-tech-blue-500);
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: var(--color-tech-blue-50);
+    --sidebar-accent-foreground: var(--color-tech-blue-700);
+    --sidebar-border: var(--color-black-200);
+    --sidebar-ring: var(--color-tech-blue-400);
 }
 
 *,
@@ -172,7 +174,7 @@ a {
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-ring: var(--sidebar-ring);
 
-    /* Custom Color Palette - Royal Gold */
+    /* Custom Color Palette - Royal Gold - Accent */
     --color-royal-gold-50: #fdf9e7;
     --color-royal-gold-100: #fcf2cf;
     --color-royal-gold-200: #f8e5a0;
@@ -185,7 +187,7 @@ a {
     --color-royal-gold-900: #302603;
     --color-royal-gold-950: #211b02;
 
-    /* Custom Color Palette - Turf Green */
+    /* Custom Color Palette - Turf Green - Secondary */
     --color-turf-green-50: #edf7ee;
     --color-turf-green-100: #dcefdd;
     --color-turf-green-200: #b9dfbb;
@@ -198,7 +200,7 @@ a {
     --color-turf-green-900: #102311;
     --color-turf-green-950: #0b190c;
 
-    /* Custom Color Palette - Tech Blue */
+    /* Custom Color Palette - Tech Blue - Primary */
     --color-tech-blue-50: #ebf1fa;
     --color-tech-blue-100: #d7e2f4;
     --color-tech-blue-200: #afc5e9;
@@ -211,7 +213,7 @@ a {
     --color-tech-blue-900: #0b1628;
     --color-tech-blue-950: #080f1c;
 
-    /* Custom Color Palette - Frosted Blue */
+    /* Custom Color Palette - Frosted Blue - Accent 2 */
     --color-frosted-blue-50: #ecf8f9;
     --color-frosted-blue-100: #d8f0f3;
     --color-frosted-blue-200: #b1e1e7;
@@ -291,9 +293,6 @@ a {
 }
 
 @layer base {
-    * {
-        @apply border-border outline-ring/50;
-    }
 
     body {
         @apply bg-background text-foreground;

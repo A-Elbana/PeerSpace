@@ -14,6 +14,8 @@ import FileAttachmentTest from './pages/FileTest';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 import Notes from './pages/Notes/Notes';
+import Tasks from './pages/Tasks/index.tsx';
+import TaskDetail from './pages/Tasks/TaskDetail';
 import './styles/App.css';
 import LandingPage from './pages/LandingPage';
 
@@ -101,6 +103,24 @@ function App() {
             element={
               <ProtectedRoute>
                 <Notes />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/tasks"
+            element={
+              <ProtectedRoute>
+                <Tasks onLogout={() => window.location.href = '/logout'} />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/tasks/:taskId"
+            element={
+              <ProtectedRoute>
+                <TaskDetail onLogout={() => window.location.href = '/logout'} />
               </ProtectedRoute>
             }
           />

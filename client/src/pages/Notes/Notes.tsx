@@ -3,7 +3,7 @@ import { Sidebar } from '../../components/dashboard';
 import type { Folder, Note } from './types';
 import { FolderCard } from './components/FolderCard';
 import { NoteCard } from './components/NoteCard';
-import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
+import { DeleteConfirmationModal } from '../../components/common/DeleteConfirmationModal';
 import { MarkdownEditor } from '../../components/MarkdownEditor';
 import {
     ChevronLeft,

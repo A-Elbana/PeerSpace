@@ -12,9 +12,12 @@ import {
   Moon,
   Megaphone,
   Book,
+  CheckSquare,
 } from 'lucide-react';
 import { useTheme } from '../../hooks/useTheme';
 import logo from '../../assets/peerspace-logo.png';
+
+type UserRole = 'student' | 'instructor' | 'admin';
 
 interface NavItem {
   id: string;
@@ -22,6 +25,7 @@ interface NavItem {
   icon: React.ElementType;
   path?: string;
   badge?: number;
+  roleRestriction?: UserRole[];
 }
 
 interface SidebarProps {
@@ -35,6 +39,7 @@ const mainNavItems: NavItem[] = [
   { id: 'resources', label: 'Resources', icon: FileText, path: '/resources' },
   { id: 'posts', label: 'Posts', icon: MessageSquare, path: '/posts' },
   { id: 'notes', label: 'Notes', icon: Book, path: '/notes' },
+  { id: 'tasks', label: 'Tasks', icon: CheckSquare, path: '/tasks', roleRestriction: ['student'] },
   { id: 'feedbacks', label: 'Feedbacks', icon: MessageSquare, path: '/feedbacks' },
 ];
 
@@ -49,6 +54,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
   const { isDarkMode, toggleTheme } = useTheme();
   const sidebarContainerRef = useRef<HTMLDivElement>(null);
 
+  // Assume student role for now as requested
+  const userRole: UserRole = 'student';
+
   useEffect(() => {
     if (collapsed && sidebarContainerRef.current) {
       const container = sidebarContainerRef.current.querySelector('.ps-sidebar-container');
@@ -61,6 +69,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
   const isActive = (path?: string) => {
     if (!path) return false;
     return location.pathname === path || location.pathname.startsWith(path + '/');
+  };
+
+  const shouldShowItem = (item: NavItem) => {
+    if (!item.roleRestriction) return true;
+    if (!userRole) return true;
+    return item.roleRestriction.includes(userRole);
   };
 
   return (
@@ -143,7 +157,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
             },
           }}
         >
-          {mainNavItems.map((item) => {
+          {mainNavItems.filter(shouldShowItem).map((item) => {
             const Icon = item.icon;
             return (
               <MenuItem
