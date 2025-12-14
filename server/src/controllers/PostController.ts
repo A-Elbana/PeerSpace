@@ -172,7 +172,7 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
             id: true,
             fname: true,
             lname: true,
-            avatar_url: true,
+            avatar_file_id: true,
           },
         },
         _count: {

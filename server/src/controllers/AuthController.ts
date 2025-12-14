@@ -252,7 +252,7 @@ export const loginUser = async (
         fname: user.fname,
         lname: user.lname,
         role: user.role,
-        avatar_url: user.avatar_url,
+        avatar_file_id: (user as any).avatar_file_id,
       },
     });
   } catch (error: any) {
@@ -301,7 +301,7 @@ export const getCurrentUser = async (req: Request, res: Response) => {
         fname: true,
         lname: true,
         role: true,
-        avatar_url: true,
+        avatar_file_id: true,
         activated: true,
         // Explicitly exclude: hashedPassword, token_hash
       },

@@ -37,7 +37,7 @@ export const loadPost = async (
             id: true,
             fname: true,
             lname: true,
-            avatar_url: true,
+            avatar_file_id: true,
           },
         },
       },

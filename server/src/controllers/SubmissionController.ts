@@ -13,11 +13,9 @@ export const createSubmission = async (req: Request, res: Response) => {
 
   const aidNum = Number(aid);
   if (!aid || Number.isNaN(aidNum)) {
-    return res
-      .status(400)
-      .json({
-        message: "Assignment id (aid) is required and must be a number",
-      });
+    return res.status(400).json({
+      message: "Assignment id (aid) is required and must be a number",
+    });
   }
 
   try {
@@ -31,21 +29,17 @@ export const createSubmission = async (req: Request, res: Response) => {
       },
     });
 
-    // Optional file attachments
-    if (fileIds && fileIds.length) {
-      for (const fidRaw of fileIds) {
-        const fid = Number(fidRaw);
-        if (!Number.isNaN(fid)) {
-          await prisma.submissionFileAttachment.create({
-            data: { subid: submission.id, fid },
-          });
-        }
-      }
-    }
+    // TODO: File attachments now use context/context_id approach
+    // Create File records with context=SUBMISSION, context_id=submission.id
+    // if (fileIds && fileIds.length) {
+    //   for (const fidRaw of fileIds) {
+    //     // Create File record with context and context_id
+    //   }
+    // }
 
     const result = await prisma.submission.findUnique({
       where: { id: submission.id },
-      include: { SubmissionFileAttachment: { include: { File: true } } },
+      // include: { // SubmissionFileAttachment: { include: { File: true } } },
     });
 
     res.status(201).json({ success: true, data: result });
@@ -80,19 +74,17 @@ export const getSubmissionsByAssignment = async (
       take: limit,
       orderBy: { subm_date: "desc" },
       include: {
-        SubmissionFileAttachment: { include: { File: true } },
+        // SubmissionFileAttachment: { include: { File: true } },
         Student: { include: { User: true } },
       },
     });
     const total = await prisma.submission.count({ where });
 
-    res
-      .status(200)
-      .json({
-        success: true,
-        data: submissions,
-        meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
-      });
+    res.status(200).json({
+      success: true,
+      data: submissions,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    });
   } catch (error) {
     console.error("Get Submissions Error:", error);
     res.status(500).json({ message: "Failed to fetch submissions" });
@@ -117,19 +109,17 @@ export const getMySubmissions = async (req: Request, res: Response) => {
       take: limit,
       orderBy: { subm_date: "desc" },
       include: {
-        SubmissionFileAttachment: { include: { File: true } },
+        // SubmissionFileAttachment: { include: { File: true } },
         Assignment: true,
       },
     });
     const total = await prisma.submission.count({ where });
 
-    res
-      .status(200)
-      .json({
-        success: true,
-        data: submissions,
-        meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
-      });
+    res.status(200).json({
+      success: true,
+      data: submissions,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    });
   } catch (error) {
     console.error("Get My Submissions Error:", error);
     res.status(500).json({ message: "Failed to fetch submissions" });
@@ -143,7 +133,7 @@ export const getSubmissionById = async (req: Request, res: Response) => {
     const submission = await prisma.submission.findUnique({
       where: { id: Number(id) },
       include: {
-        SubmissionFileAttachment: { include: { File: true } },
+        // // SubmissionFileAttachment: { include: { File: true } },
         Assignment: true,
         Student: { include: { User: true } },
       },
@@ -170,21 +160,16 @@ export const updateSubmission = async (req: Request, res: Response) => {
       data: { feedback: feedback ?? null },
     });
 
-    // Replace files if provided
-    if (fileIds) {
-      await prisma.submissionFileAttachment.deleteMany({
-        where: { subid: submission.id },
-      });
-      for (const fid of fileIds) {
-        await prisma.submissionFileAttachment.create({
-          data: { subid: submission.id, fid },
-        });
-      }
-    }
+    // TODO: File replacement now uses context/context_id approach
+    // Delete old files for this submission, create new ones
+    // if (fileIds) {
+    //   // Delete existing files: prisma.file.deleteMany({ where: { context: SUBMISSION, context_id: submission.id } })
+    //   // Create new files with context and context_id
+    // }
 
     const result = await prisma.submission.findUnique({
       where: { id: submission.id },
-      include: { SubmissionFileAttachment: { include: { File: true } } },
+      // include: { // SubmissionFileAttachment: { include: { File: true } } },
     });
 
     res.status(200).json({ success: true, data: result });

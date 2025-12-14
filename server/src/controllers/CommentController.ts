@@ -37,22 +37,18 @@ export const createComment = async (req: Request, res: Response) => {
           where: { iid_cid: { iid: userId, cid: post.cid } },
         });
         if (!manages) {
-          return res
-            .status(403)
-            .json({
-              message: "Instructor must manage this community to comment",
-            });
+          return res.status(403).json({
+            message: "Instructor must manage this community to comment",
+          });
         }
       } else {
         const enrolled = await prisma.enrollment.findUnique({
           where: { cid_sid: { cid: post.cid, sid: userId } },
         });
         if (!enrolled) {
-          return res
-            .status(403)
-            .json({
-              message: "Enrollment required to comment in this community",
-            });
+          return res.status(403).json({
+            message: "Enrollment required to comment in this community",
+          });
         }
       }
     }
@@ -85,7 +81,7 @@ export const createComment = async (req: Request, res: Response) => {
       },
       include: {
         User: {
-          select: { id: true, fname: true, lname: true, avatar_url: true },
+          select: { id: true, fname: true, lname: true, avatar_file_id: true },
         },
         other_Comment: true,
       },
@@ -146,7 +142,7 @@ export const getCommentsByPost = async (req: Request, res: Response) => {
       orderBy,
       include: {
         User: {
-          select: { id: true, fname: true, lname: true, avatar_url: true },
+          select: { id: true, fname: true, lname: true, avatar_file_id: true },
         },
         other_Comment: includeReplies
           ? {
@@ -157,7 +153,7 @@ export const getCommentsByPost = async (req: Request, res: Response) => {
                     id: true,
                     fname: true,
                     lname: true,
-                    avatar_url: true,
+                    avatar_file_id: true,
                   },
                 },
               },
@@ -193,14 +189,19 @@ export const getCommentById = async (req: Request, res: Response) => {
       where: { id: commentId },
       include: {
         User: {
-          select: { id: true, fname: true, lname: true, avatar_url: true },
+          select: { id: true, fname: true, lname: true, avatar_file_id: true },
         },
         Post: { select: { id: true, owner_uid: true } },
         other_Comment: {
           orderBy: { comment_date: "asc" },
           include: {
             User: {
-              select: { id: true, fname: true, lname: true, avatar_url: true },
+              select: {
+                id: true,
+                fname: true,
+                lname: true,
+                avatar_file_id: true,
+              },
             },
           },
         },
@@ -238,12 +239,17 @@ export const updateComment = async (req: Request, res: Response) => {
       data: { content: content.trim() },
       include: {
         User: {
-          select: { id: true, fname: true, lname: true, avatar_url: true },
+          select: { id: true, fname: true, lname: true, avatar_file_id: true },
         },
         other_Comment: {
           include: {
             User: {
-              select: { id: true, fname: true, lname: true, avatar_url: true },
+              select: {
+                id: true,
+                fname: true,
+                lname: true,
+                avatar_file_id: true,
+              },
             },
           },
         },
@@ -298,7 +304,7 @@ export const approveByInstructor = async (req: Request, res: Response) => {
       data: { approved_by_inst: true, approved_at_inst: now },
       include: {
         User: {
-          select: { id: true, fname: true, lname: true, avatar_url: true },
+          select: { id: true, fname: true, lname: true, avatar_file_id: true },
         },
       },
     });
@@ -326,7 +332,7 @@ export const approveByOriginalPoster = async (req: Request, res: Response) => {
       data: { approved_by_op: true, approved_at_op: now },
       include: {
         User: {
-          select: { id: true, fname: true, lname: true, avatar_url: true },
+          select: { id: true, fname: true, lname: true, avatar_file_id: true },
         },
       },
     });
@@ -373,12 +379,17 @@ export const getUnapprovedComments = async (req: Request, res: Response) => {
       orderBy: { comment_date: "asc" },
       include: {
         User: {
-          select: { id: true, fname: true, lname: true, avatar_url: true },
+          select: { id: true, fname: true, lname: true, avatar_file_id: true },
         },
         other_Comment: {
           include: {
             User: {
-              select: { id: true, fname: true, lname: true, avatar_url: true },
+              select: {
+                id: true,
+                fname: true,
+                lname: true,
+                avatar_file_id: true,
+              },
             },
           },
         },

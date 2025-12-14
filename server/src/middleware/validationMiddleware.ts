@@ -113,10 +113,10 @@ export const validateUserUpdate = [
       "Last name can only contain letters, spaces, hyphens, and apostrophes"
     ),
 
-  body("avatar_url")
+  body("avatar_file_id")
     .optional()
-    .isURL()
-    .withMessage("Invalid avatar URL format"),
+    .isUUID()
+    .withMessage("avatar_file_id must be a valid UUID"),
 
   body("password")
     .optional()
@@ -271,6 +271,44 @@ export const validateAssignmentUpdate = [
     .optional()
     .isBoolean()
     .withMessage("canBeLate must be a boolean value"),
+];
+
+/**
+ * Cloudinary upload signature validation rules
+ */
+export const validateUploadSign = [
+  body("context")
+    .isIn([
+      "POST",
+      "SUBMISSION",
+      "NOTE",
+      "ASSIGNMENT",
+      "COMMUNITY_BANNER",
+      "USER_AVATAR",
+    ])
+    .withMessage(
+      "context must be one of POST, SUBMISSION, NOTE, ASSIGNMENT, COMMUNITY_BANNER, USER_AVATAR"
+    ),
+
+  body("context_id")
+    .isInt({ min: 1 })
+    .withMessage("context_id must be a positive integer"),
+
+  body("is_private")
+    .optional()
+    .isBoolean()
+    .withMessage("is_private must be a boolean"),
+
+  body("folder")
+    .optional()
+    .isString()
+    .isLength({ max: 255 })
+    .withMessage("folder must be a string up to 255 characters"),
+
+  body("resource_type")
+    .optional()
+    .isIn(["auto", "image", "video", "raw"])
+    .withMessage("resource_type must be one of auto, image, video, raw"),
 ];
 
 /**
