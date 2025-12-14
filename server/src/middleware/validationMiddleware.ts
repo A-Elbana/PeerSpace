@@ -153,11 +153,6 @@ export const validateCommunityCreate = [
     .trim()
     .isLength({ max: 500 })
     .withMessage("Description cannot exceed 500 characters"),
-
-  body("banner_url")
-    .optional()
-    .isURL()
-    .withMessage("Invalid banner URL format"),
 ];
 
 /**
@@ -182,11 +177,6 @@ export const validateCommunityUpdate = [
     .trim()
     .isLength({ max: 500 })
     .withMessage("Description cannot exceed 500 characters"),
-
-  body("banner_url")
-    .optional()
-    .isURL()
-    .withMessage("Invalid banner URL format"),
 ];
 
 /**

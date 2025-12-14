@@ -110,10 +110,6 @@ router.get("/", optionalAuthenticateToken, getCommunities);
  *                 type: string
  *                 maxLength: 255
  *                 description: Community description
- *               banner_url:
- *                 type: string
- *                 format: uri
- *                 description: URL to community banner image
  *     responses:
  *       201:
  *         description: Community created successfully (returns UUID id)
@@ -206,9 +202,6 @@ router.get(
  *               description:
  *                 type: string
  *                 maxLength: 255
- *               banner_url:
- *                 type: string
- *                 format: uri
  *     responses:
  *       200:
  *         description: Community updated successfully

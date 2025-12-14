@@ -27,7 +27,7 @@ interface InstructorDashboardProps {
     fname: string;
     lname: string;
     role: 'student' | 'instructor' | 'admin';
-    avatar_url?: string;
+    avatar_file_id?: string;
   };
   onLogout: () => void;
 }

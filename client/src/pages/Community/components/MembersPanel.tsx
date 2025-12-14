@@ -7,7 +7,7 @@ interface Member {
   id: number;
   fname: string;
   lname: string;
-  avatar_url: string | null;
+  avatar_file_id: string | null;
   role: string;
 }
 
@@ -72,9 +72,9 @@ const MembersPanel: React.FC<MembersPanelProps> = ({
           <div className="space-y-2">
             {instructors.map((instructor) => (
               <div key={instructor.id} className="flex items-center gap-3 py-2">
-                {instructor.avatar_url ? (
+                {instructor.avatar_file_id ? (
                   <img
-                    src={instructor.avatar_url}
+                    src={instructor.avatar_file_id}
                     alt={`${instructor.fname} ${instructor.lname}`}
                     className="w-8 h-8 rounded-full object-cover"
                   />

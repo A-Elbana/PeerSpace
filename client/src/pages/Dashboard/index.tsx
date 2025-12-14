@@ -16,7 +16,7 @@ interface UserData {
   fname: string;
   lname: string;
   role: UserRole;
-  avatar_url?: string;
+  avatar_file_id?: string;
 }
 
 /**

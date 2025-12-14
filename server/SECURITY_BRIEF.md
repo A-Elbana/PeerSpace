@@ -136,7 +136,7 @@ const user = await prisma.user.findUnique({
     fname: true,
     lname: true,
     role: true,
-    avatar_url: true,
+    avatar_file_id: true,
     activated: true,
     // Explicitly exclude: hashedPassword, token_hash
   },

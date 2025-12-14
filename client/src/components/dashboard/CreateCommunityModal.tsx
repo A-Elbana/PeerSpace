@@ -8,7 +8,6 @@ export interface CreateCommunityData {
   name: string;
   description: string;
   type: 'PUBLIC' | 'PRIVATE';
-  banner_url?: string;
 }
 
 interface CreateCommunityModalProps {
@@ -27,7 +26,6 @@ const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
-  const [bannerUrl, setBannerUrl] = useState('');
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -49,13 +47,11 @@ const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
         name: name.trim(),
         description: description.trim(),
         type,
-        banner_url: bannerUrl.trim() || undefined,
       });
       // Reset form on success
       setName('');
       setDescription('');
       setType('PUBLIC');
-      setBannerUrl('');
       onClose();
     } catch (err: any) {
       setError(err.message || 'Failed to create community');
@@ -187,22 +183,6 @@ const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
                 </div>
               </button>
             </div>
-          </div>
-
-          {/* Banner URL (Optional) */}
-          <div className="space-y-2">
-            <Label htmlFor="bannerUrl" className="text-foreground">
-              Banner Image URL <span className="text-muted-foreground text-xs">(Optional)</span>
-            </Label>
-            <Input
-              id="bannerUrl"
-              type="url"
-              placeholder="https://example.com/banner.jpg"
-              value={bannerUrl}
-              onChange={(e) => setBannerUrl(e.target.value)}
-              className="w-full"
-              disabled={isLoading}
-            />
           </div>
 
           {/* Actions */}

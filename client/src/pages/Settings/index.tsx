@@ -39,7 +39,7 @@ interface UserData {
   fname: string;
   lname: string;
   role: UserRole;
-  avatar_url?: string;
+  avatar_file_id?: string;
 }
 
 const Settings: React.FC = () => {
@@ -90,7 +90,7 @@ const Settings: React.FC = () => {
       setFname(data.fname || '');
       setLname(data.lname || '');
       setEmail(data.email || '');
-      setAvatarUrl(data.avatar_url || '');
+      setAvatarUrl(data.avatar_file_id || '');
     } catch (error) {
       console.error('Failed to fetch user data:', error);
       removeTokens();
@@ -132,13 +132,10 @@ const Settings: React.FC = () => {
     setMessage(null);
 
     try {
-      const updateData: { fname?: string; lname?: string; avatar_url?: string } = {};
+      const updateData: { fname?: string; lname?: string } = {};
 
       if (fname && fname !== user.fname) updateData.fname = fname;
       if (lname && lname !== user.lname) updateData.lname = lname;
-      if (avatarUrl && avatarUrl !== user.avatar_url && avatarUrl.startsWith('http')) {
-        updateData.avatar_url = avatarUrl;
-      }
 
       if (Object.keys(updateData).length === 0) {
         setMessage({ type: 'error', text: 'No changes to save' });
@@ -151,7 +148,7 @@ const Settings: React.FC = () => {
       setUser(prev => prev ? { ...prev, ...data.user } : null);
       setFname(data.user.fname || fname);
       setLname(data.user.lname || lname);
-      setAvatarUrl(data.user.avatar_url || '');
+      setAvatarUrl(data.user.avatar_file_id || '');
       setAvatarPreview(null);
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
     } catch (error: any) {

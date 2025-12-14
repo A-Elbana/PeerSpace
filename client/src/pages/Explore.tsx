@@ -26,7 +26,7 @@ interface UserData {
     fname: string;
     lname: string;
     role: UserRole;
-    avatar_url?: string;
+    avatar_file_id?: string;
 }
 
 interface CommunityWithMeta extends CommunityResponse {
@@ -239,7 +239,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                     id: user!.id,
                     fname: user!.fname,
                     lname: user!.lname,
-                    avatar_url: user!.avatar_url || null,
+                    avatar_file_id: user!.avatar_file_id || null,
                 },
                 _count: { Comment: 0 },
             }, ...prev]);

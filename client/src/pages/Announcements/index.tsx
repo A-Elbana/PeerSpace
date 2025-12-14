@@ -28,7 +28,7 @@ interface UserData {
   fname: string;
   lname: string;
   role: UserRole;
-  avatar_url?: string;
+  avatar_file_id?: string;
 }
 
 export interface Announcement {
@@ -147,7 +147,7 @@ const AnnouncementsPage = () => {
               communityName: community.name,
               owner_uid: post.owner_uid,
               ownerName: `${post.User.fname} ${post.User.lname}`,
-              ownerAvatar: post.User.avatar_url || undefined,
+              ownerAvatar: post.User.avatar_file_id || undefined,
               commentCount: post._count?.Comment || 0,
             }));
 
@@ -269,7 +269,7 @@ const AnnouncementsPage = () => {
         communityName: community?.name || '',
         owner_uid: response.owner_uid,
         ownerName: `${user?.fname} ${user?.lname}`,
-        ownerAvatar: user?.avatar_url,
+        ownerAvatar: user?.avatar_file_id,
         commentCount: 0,
       };
 

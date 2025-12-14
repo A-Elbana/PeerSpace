@@ -1,14 +1,14 @@
 import express from "express";
 import {
-    getAllUsers,
-    getUserById,
-    updateUser,
-    deleteUser,
+  getAllUsers,
+  getUserById,
+  updateUser,
+  deleteUser,
 } from "../controllers/UserController";
 import { authenticateToken, authorizeRole } from "../middleware/authMiddleware";
 import {
-    handleValidationErrors,
-    validateUserUpdate,
+  handleValidationErrors,
+  validateUserUpdate,
 } from "../middleware/validationMiddleware";
 
 const router = express.Router();
@@ -42,12 +42,7 @@ const router = express.Router();
  *       500:
  *         description: Server error
  */
-router.get(
-    "/",
-    authenticateToken,
-    authorizeRole(["ADMIN"]),
-    getAllUsers
-);
+router.get("/", authenticateToken, authorizeRole(["ADMIN"]), getAllUsers);
 
 /**
  * @swagger
@@ -106,10 +101,6 @@ router.get("/:id", authenticateToken, getUserById);
  *                 minLength: 2
  *                 maxLength: 50
  *                 description: Last name (letters, spaces, hyphens, apostrophes only)
- *               avatar_url:
- *                 type: string
- *                 format: uri
- *                 description: Avatar URL
  *               password:
  *                 type: string
  *                 minLength: 8
@@ -133,11 +124,11 @@ router.get("/:id", authenticateToken, getUserById);
  *         description: Server error
  */
 router.put(
-    "/:id",
-    authenticateToken,
-    validateUserUpdate,
-    handleValidationErrors,
-    updateUser
+  "/:id",
+  authenticateToken,
+  validateUserUpdate,
+  handleValidationErrors,
+  updateUser
 );
 
 /**

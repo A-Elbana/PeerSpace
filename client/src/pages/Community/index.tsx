@@ -15,14 +15,14 @@ interface UserData {
   fname: string;
   lname: string;
   role: UserRole;
-  avatar_url?: string;
+  avatar_file_id?: string;
 }
 
 interface Member {
   id: number;
   fname: string;
   lname: string;
-  avatar_url: string | null;
+  avatar_file_id: string | null;
   role: string;
 }
 
@@ -215,7 +215,7 @@ const Community: React.FC = () => {
                   userFirstName={user.fname}
                   userId={user.id}
                   userLastName={user.lname}
-                  userAvatarUrl={user.avatar_url}
+                  userAvatarUrl={user.avatar_file_id}
                   onPostCreated={handlePostCreated}
                 />
               )}

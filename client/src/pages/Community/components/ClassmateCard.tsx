@@ -5,7 +5,7 @@ interface Member {
   id: number;
   fname: string;
   lname: string;
-  avatar_url: string | null;
+  avatar_file_id: string | null;
   role: string;
 }
 
@@ -30,9 +30,9 @@ const ClassmateCard: React.FC<ClassmateCardProps> = ({
     <div className="flex items-center justify-between py-2">
       <div className="flex items-center gap-3">
         {/* Avatar */}
-        {member.avatar_url ? (
+        {member.avatar_file_id ? (
           <img
-            src={member.avatar_url}
+            src={member.avatar_file_id}
             alt={`${member.fname} ${member.lname}`}
             className="w-8 h-8 rounded-full object-cover"
           />

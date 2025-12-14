@@ -61,7 +61,6 @@ const router = express.Router();
  */
 router.post(
   "/register",
-  authLimiter,
   validateRegister,
   handleValidationErrors,
   registerUser
@@ -98,13 +97,7 @@ router.post(
  *       500:
  *         description: Server error
  */
-router.post(
-  "/login",
-  authLimiter,
-  validateLogin,
-  handleValidationErrors,
-  loginUser
-);
+router.post("/login", validateLogin, handleValidationErrors, loginUser);
 
 /**
  * @swagger

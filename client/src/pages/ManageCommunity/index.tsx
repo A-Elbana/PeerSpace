@@ -15,7 +15,7 @@ interface User {
   fname: string;
   lname: string;
   role: 'student' | 'instructor' | 'admin';
-  avatar_url?: string;
+  avatar_file_id?: string;
 }
 
 const ManageCommunity: React.FC = () => {
@@ -53,7 +53,7 @@ const ManageCommunity: React.FC = () => {
           fname: payload.fname,
           lname: payload.lname,
           role: payload.role,
-          avatar_url: payload.avatar_url,
+          avatar_file_id: payload.avatar_file_id,
         });
       } catch {
         navigate('/login');

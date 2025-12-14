@@ -5,7 +5,7 @@ interface PostAuthor {
   id: number;
   fname: string;
   lname: string;
-  avatar_url: string | null;
+  avatar_file_id: string | null;
 }
 
 interface Post {
@@ -86,9 +86,9 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               {/* Author Avatar */}
-              {post.User.avatar_url ? (
+              {post.User.avatar_file_id ? (
                 <img
-                  src={post.User.avatar_url}
+                  src={post.User.avatar_file_id}
                   alt={`${post.User.fname} ${post.User.lname}`}
                   className="w-8 h-8 rounded-full object-cover"
                 />

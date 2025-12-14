@@ -51,7 +51,7 @@ const CreatePost: React.FC<CreatePostProps> = ({
           id: userId,
           fname: userFirstName,
           lname: userLastName,
-          avatar_url: userAvatarUrl || null,
+          avatar_file_id: userAvatarUrl || null,
         },
         _count: { Comment: 0 },
       });

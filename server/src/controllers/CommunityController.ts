@@ -8,7 +8,7 @@ const communitySelect = {
   name: true,
   description: true,
   type: true,
-  banner_url: true,
+  banner_file_id: true,
 };
 
 // Helper to sanitize strings
@@ -64,7 +64,7 @@ const isUserMemberOfCommunity = async (
  * Only INSTRUCTOR and ADMIN can create communities
  */
 export const createCommunity = async (req: Request, res: Response) => {
-  const { name, description, type, banner_url } = req.body;
+  const { name, description, type } = req.body;
   const userId = (req as any).userId;
   const userRole = (req as any).role;
 
@@ -95,8 +95,7 @@ export const createCommunity = async (req: Request, res: Response) => {
         name: sanitizeString(name),
         description: description ? sanitizeString(description) : null,
         type: type.toUpperCase() as CommunityType,
-        banner_url: banner_url || null,
-      } as any,
+      },
       select: communitySelect,
     });
 
@@ -279,7 +278,7 @@ export const getCommunityById = async (req: Request, res: Response) => {
  */
 export const updateCommunity = async (req: Request, res: Response) => {
   const community = (req as any).community;
-  const { name, description, banner_url, type } = req.body;
+  const { name, description, type } = req.body;
 
   try {
     // Build update data
@@ -287,7 +286,6 @@ export const updateCommunity = async (req: Request, res: Response) => {
     if (name) updateData.name = sanitizeString(name);
     if (description !== undefined)
       updateData.description = description ? sanitizeString(description) : null;
-    if (banner_url !== undefined) updateData.banner_url = banner_url || null;
     if (type && ["PUBLIC", "PRIVATE"].includes(type.toUpperCase())) {
       updateData.type = type.toUpperCase();
     }
