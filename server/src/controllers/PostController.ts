@@ -64,7 +64,7 @@ const canAccessCommunity = async (
  * req.community is set by requirePostMembership
  */
 export const createPost = async (req: PostRequest, res: Response) => {
-  const { title, type, body, cid } = req.body;
+  const { title, type, body, cid, file_ids } = req.body;
   const userId = (req as any).userId;
 
   // Validation already done by middleware, community exists and user is member
@@ -80,6 +80,18 @@ export const createPost = async (req: PostRequest, res: Response) => {
         is_resolved: false,
       },
     });
+
+    // Create file attachments if file_ids provided
+    if (file_ids && Array.isArray(file_ids) && file_ids.length > 0) {
+      await prisma.postFileAttachment.createMany({
+        data: file_ids.map((fid: string) => ({
+          pid: post.id,
+          fid: String(fid),
+        })),
+        skipDuplicates: true,
+      });
+    }
+
     res.status(201).json(post);
   } catch (error) {
     console.error("Create Post Error:", error);
@@ -193,6 +205,20 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
             avatar_file_id: true,
           },
         },
+        PostFileAttachment: {
+          include: {
+            File: {
+              select: {
+                id: true,
+                public_id: true,
+                secure_url: true,
+                resource_type: true,
+                format: true,
+                is_private: true,
+              },
+            },
+          },
+        },
         _count: {
           select: { Comment: true },
         },
@@ -260,7 +286,7 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
  * req.post is set by loadPost, authorization done by authorizePostEdit
  */
 export const updatePost = async (req: PostRequest, res: Response) => {
-  const { title, body, is_resolved, type } = req.body;
+  const { title, body, is_resolved, type, file_ids } = req.body;
 
   try {
     const updatedPost = await prisma.post.update({
@@ -272,6 +298,26 @@ export const updatePost = async (req: PostRequest, res: Response) => {
         type,
       },
     });
+
+    // Update file attachments if file_ids provided
+    if (file_ids !== undefined && Array.isArray(file_ids)) {
+      // Delete existing attachments
+      await prisma.postFileAttachment.deleteMany({
+        where: { pid: req.post.id },
+      });
+
+      // Create new attachments
+      if (file_ids.length > 0) {
+        await prisma.postFileAttachment.createMany({
+          data: file_ids.map((fid: string) => ({
+            pid: req.post.id,
+            fid: String(fid),
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
     res.status(200).json(updatedPost);
   } catch (error) {
     console.error("Update Post Error:", error);
