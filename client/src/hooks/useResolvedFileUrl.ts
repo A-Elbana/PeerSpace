@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
-import api from '@/services/api';
+import { useEffect, useState } from "react";
+import api from "@/services/api";
 
 const cache = new Map<string, string | null>();
 
 const isHttpUrl = (value?: string | null) =>
-  !!value && (value.startsWith('http://') || value.startsWith('https://'));
+  !!value && (value.startsWith("http://") || value.startsWith("https://"));
 
 /**
  * Resolve a file reference (direct URL or File id) to a usable URL, with simple in-memory caching.
