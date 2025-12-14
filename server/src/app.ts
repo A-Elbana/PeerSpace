@@ -14,6 +14,7 @@ import noteRoutes from "./routes/noteRoutes";
 import notebookRoutes from "./routes/notebookRoutes";
 import voteRoutes from "./routes/voteRoutes";
 import uploadRoutes from "./routes/uploadRoutes";
+import fileRoutes from "./routes/fileRoutes";
 import { getCorsConfig } from "./config/corsConfig";
 import { generalLimiter } from "./middleware/rateLimitMiddleware";
 import { errorHandler, asyncHandler } from "./middleware/errorHandler";
@@ -52,6 +53,7 @@ app.use("/api/notes", noteRoutes);
 app.use("/api/notebooks", notebookRoutes);
 app.use("/api/votes", voteRoutes);
 app.use("/api/uploads", uploadRoutes);
+app.use("/api/files", fileRoutes);
 
 // 6. 404 handler for undefined routes
 app.use((req: Request, res: Response) => {

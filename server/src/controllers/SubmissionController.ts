@@ -133,14 +133,37 @@ export const getSubmissionById = async (req: Request, res: Response) => {
     const submission = await prisma.submission.findUnique({
       where: { id: Number(id) },
       include: {
-        // // SubmissionFileAttachment: { include: { File: true } },
         Assignment: true,
         Student: { include: { User: true } },
       },
     });
     if (!submission)
       return res.status(404).json({ message: "Submission not found" });
-    res.status(200).json({ success: true, data: submission });
+
+    // Get attached files
+    const files = await prisma.file.findMany({
+      where: {
+        context: "SUBMISSION",
+        context_id: submission.id,
+      },
+      select: {
+        id: true,
+        public_id: true,
+        secure_url: true,
+        resource_type: true,
+        format: true,
+        is_private: true,
+        created_at: true,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        ...submission,
+        files,
+      },
+    });
   } catch (error) {
     console.error("Get Submission Error:", error);
     res.status(500).json({ message: "Failed to fetch submission" });
@@ -183,9 +206,42 @@ export const updateSubmission = async (req: Request, res: Response) => {
 export const deleteSubmission = async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
+    // Delete associated files from Cloudinary and database
+    const files = await prisma.file.findMany({
+      where: {
+        context: "SUBMISSION",
+        context_id: Number(id),
+      },
+    });
+
+    // Delete from Cloudinary
+    const cloudinary = require("../config/cloudinary").default;
+    for (const file of files) {
+      try {
+        await cloudinary.uploader.destroy(file.public_id);
+      } catch (error) {
+        console.error(
+          `Failed to delete file from Cloudinary: ${file.public_id}`,
+          error
+        );
+        // Continue with deletion even if Cloudinary fails
+      }
+    }
+
+    // Delete files from database
+    await prisma.file.deleteMany({
+      where: {
+        context: "SUBMISSION",
+        context_id: Number(id),
+      },
+    });
+
+    // Delete deprecated file attachments
     await prisma.submissionFileAttachment.deleteMany({
       where: { subid: Number(id) },
     });
+
+    // Delete the submission
     await prisma.submission.delete({ where: { id: Number(id) } });
     res.status(200).json({ success: true });
   } catch (error) {

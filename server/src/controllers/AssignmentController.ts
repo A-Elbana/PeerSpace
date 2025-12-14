@@ -152,8 +152,28 @@ export const getAssignmentById = async (
   req: AssignmentRequest,
   res: Response
 ) => {
+  // Get attached files
+  const files = await prisma.file.findMany({
+    where: {
+      context: "ASSIGNMENT",
+      context_id: req.assignment.id,
+    },
+    select: {
+      id: true,
+      public_id: true,
+      secure_url: true,
+      resource_type: true,
+      format: true,
+      is_private: true,
+      created_at: true,
+    },
+  });
+
   // Assignment already loaded and access authorized by middleware
-  res.status(200).json(req.assignment);
+  res.status(200).json({
+    ...req.assignment,
+    files,
+  });
 };
 
 /**
@@ -250,12 +270,75 @@ export const deleteAssignment = async (
     // Delete related records first (file attachments, submissions, etc.)
     // Using transaction to ensure atomicity
     await prisma.$transaction(async (tx) => {
-      // Delete assignment file attachments
+      // Delete assignment files from Cloudinary and database
+      const files = await tx.file.findMany({
+        where: {
+          context: "ASSIGNMENT",
+          context_id: assignment.id,
+        },
+      });
+
+      // Delete from Cloudinary
+      const cloudinary = require("../config/cloudinary").default;
+      for (const file of files) {
+        try {
+          await cloudinary.uploader.destroy(file.public_id);
+        } catch (error) {
+          console.error(
+            `Failed to delete file from Cloudinary: ${file.public_id}`,
+            error
+          );
+          // Continue with deletion even if Cloudinary fails
+        }
+      }
+
+      // Delete assignment file attachments (deprecated table)
       await tx.assignmentFileAttachment.deleteMany({
         where: { aid: assignment.id },
       });
 
-      // Delete submissions for this assignment
+      // Delete files from database
+      await tx.file.deleteMany({
+        where: {
+          context: "ASSIGNMENT",
+          context_id: assignment.id,
+        },
+      });
+
+      // Delete submissions for this assignment (including their files)
+      const submissions = await tx.submission.findMany({
+        where: { aid: assignment.id },
+        select: { id: true },
+      });
+
+      for (const submission of submissions) {
+        // Delete submission files
+        const submissionFiles = await tx.file.findMany({
+          where: {
+            context: "SUBMISSION",
+            context_id: submission.id,
+          },
+        });
+
+        for (const file of submissionFiles) {
+          try {
+            await cloudinary.uploader.destroy(file.public_id);
+          } catch (error) {
+            console.error(
+              `Failed to delete file from Cloudinary: ${file.public_id}`,
+              error
+            );
+          }
+        }
+
+        await tx.file.deleteMany({
+          where: {
+            context: "SUBMISSION",
+            context_id: submission.id,
+          },
+        });
+      }
+
       await tx.submission.deleteMany({
         where: { aid: assignment.id },
       });

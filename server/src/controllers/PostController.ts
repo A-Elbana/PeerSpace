@@ -121,9 +121,27 @@ export const getPostById = async (req: PostRequest, res: Response) => {
       }
     }
 
+    // Get attached files
+    const files = await prisma.file.findMany({
+      where: {
+        context: "POST",
+        context_id: postId,
+      },
+      select: {
+        id: true,
+        public_id: true,
+        secure_url: true,
+        resource_type: true,
+        format: true,
+        is_private: true,
+        created_at: true,
+      },
+    });
+
     // Post already loaded and access authorized by middleware
     res.status(200).json({
       ...req.post,
+      files,
       votes: {
         upvotes,
         downvotes,
@@ -268,6 +286,37 @@ export const updatePost = async (req: PostRequest, res: Response) => {
  */
 export const deletePost = async (req: PostRequest, res: Response) => {
   try {
+    // Delete associated files from Cloudinary and database
+    const files = await prisma.file.findMany({
+      where: {
+        context: "POST",
+        context_id: req.post.id,
+      },
+    });
+
+    // Delete from Cloudinary
+    const cloudinary = require("../config/cloudinary").default;
+    for (const file of files) {
+      try {
+        await cloudinary.uploader.destroy(file.public_id);
+      } catch (error) {
+        console.error(
+          `Failed to delete file from Cloudinary: ${file.public_id}`,
+          error
+        );
+        // Continue with deletion even if Cloudinary fails
+      }
+    }
+
+    // Delete files from database
+    await prisma.file.deleteMany({
+      where: {
+        context: "POST",
+        context_id: req.post.id,
+      },
+    });
+
+    // Delete the post
     await prisma.post.delete({ where: { id: req.post.id } });
     res.status(200).json({ message: "Post deleted successfully" });
   } catch (error) {

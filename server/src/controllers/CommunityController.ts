@@ -328,12 +328,105 @@ export const deleteCommunity = async (req: Request, res: Response) => {
 
   try {
     // Delete all associated data first to avoid constraint violations
-    await prisma.post.deleteMany({ where: { cid: community.id } });
-    await prisma.enrollment.deleteMany({ where: { cid: community.id } });
-    await prisma.manages.deleteMany({ where: { cid: community.id } });
+    // Using transaction for atomicity
+    await prisma.$transaction(async (tx) => {
+      // Delete banner file if exists
+      if (community.banner_file_id) {
+        try {
+          const bannerFile = await tx.file.findUnique({
+            where: { id: community.banner_file_id },
+          });
 
-    // Delete the community
-    await prisma.community.delete({ where: { id: community.id } });
+          if (bannerFile) {
+            const cloudinary = require("../config/cloudinary").default;
+            try {
+              await cloudinary.uploader.destroy(bannerFile.public_id);
+            } catch (error) {
+              console.error(
+                `Failed to delete banner from Cloudinary: ${bannerFile.public_id}`,
+                error
+              );
+            }
+
+            await tx.file.delete({
+              where: { id: community.banner_file_id },
+            });
+          }
+        } catch (error) {
+          console.error("Error deleting banner file:", error);
+        }
+      }
+
+      // Delete all community files
+      const communityFiles = await tx.file.findMany({
+        where: {
+          context: "COMMUNITY_BANNER",
+          context_id: parseInt(community.id),
+        },
+      });
+
+      const cloudinary = require("../config/cloudinary").default;
+      for (const file of communityFiles) {
+        try {
+          await cloudinary.uploader.destroy(file.public_id);
+        } catch (error) {
+          console.error(
+            `Failed to delete file from Cloudinary: ${file.public_id}`,
+            error
+          );
+        }
+      }
+
+      await tx.file.deleteMany({
+        where: {
+          context: "COMMUNITY_BANNER",
+          context_id: parseInt(community.id),
+        },
+      });
+
+      // Delete posts and their files
+      const posts = await tx.post.findMany({
+        where: { cid: community.id },
+        select: { id: true },
+      });
+
+      for (const post of posts) {
+        const postFiles = await tx.file.findMany({
+          where: {
+            context: "POST",
+            context_id: post.id,
+          },
+        });
+
+        for (const file of postFiles) {
+          try {
+            await cloudinary.uploader.destroy(file.public_id);
+          } catch (error) {
+            console.error(
+              `Failed to delete file from Cloudinary: ${file.public_id}`,
+              error
+            );
+          }
+        }
+
+        await tx.file.deleteMany({
+          where: {
+            context: "POST",
+            context_id: post.id,
+          },
+        });
+      }
+
+      // Delete posts
+      await tx.post.deleteMany({ where: { cid: community.id } });
+
+      // Delete enrollment and manages relations
+      await tx.enrollment.deleteMany({ where: { cid: community.id } });
+      await tx.manages.deleteMany({ where: { cid: community.id } });
+
+      // Delete the community
+      await tx.community.delete({ where: { id: community.id } });
+    });
 
     res.status(200).json({
       success: true,

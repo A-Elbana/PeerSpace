@@ -106,17 +106,55 @@ export const updateUser = async (req: Request, res: Response) => {
     const updateData: any = {};
     if (fname) updateData.fname = sanitizeString(fname);
     if (lname) updateData.lname = sanitizeString(lname);
-    if (avatar_file_id) updateData.avatar_file_id = avatar_file_id;
+
+    // Handle avatar file update (delete old avatar if changing)
+    if (avatar_file_id) {
+      // Get current user to check if they have an old avatar
+      const currentUser = await prisma.user.findUnique({
+        where: { id: targetUserId },
+        select: { avatar_file_id: true },
+      });
+
+      if (
+        currentUser?.avatar_file_id &&
+        currentUser.avatar_file_id !== avatar_file_id
+      ) {
+        // Delete old avatar file
+        try {
+          const oldFile = await prisma.file.findUnique({
+            where: { id: currentUser.avatar_file_id },
+          });
+
+          if (oldFile) {
+            const cloudinary = require("../config/cloudinary").default;
+            try {
+              await cloudinary.uploader.destroy(oldFile.public_id);
+            } catch (error) {
+              console.error(
+                `Failed to delete old avatar from Cloudinary: ${oldFile.public_id}`,
+                error
+              );
+            }
+
+            await prisma.file.delete({
+              where: { id: currentUser.avatar_file_id },
+            });
+          }
+        } catch (error) {
+          console.error("Error deleting old avatar file:", error);
+        }
+      }
+
+      updateData.avatar_file_id = avatar_file_id;
+    }
 
     // Handle password update with secure hashing
     if (password) {
       // Require current password to change password
       if (!currentPassword) {
-        return res
-          .status(400)
-          .json({
-            message: "Current password is required to set a new password",
-          });
+        return res.status(400).json({
+          message: "Current password is required to set a new password",
+        });
       }
 
       // Fetch the user's current hashed password
@@ -185,14 +223,71 @@ export const deleteUser = async (req: Request, res: Response) => {
   }
 
   try {
-    // We should probably delete related records first or rely on cascade?
-    // The schema shows some relations. User has `onDelete: Cascade` in `Student` model relation:
-    // `User User @relation(fields: [uid], references: [id], onDelete: Cascade, onUpdate: Cascade)`
-    // But others might be NoAction.
-    // e.g. ActivityLog: onDelete: NoAction
-    // This might cause FK constraint errors if we just delete the user.
-    // However, for now, let's try a simple delete. If it fails, we handle the error.
+    // Get user to check for avatar file
+    const user = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { avatar_file_id: true },
+    });
 
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Delete avatar file if exists
+    if (user.avatar_file_id) {
+      try {
+        const avatarFile = await prisma.file.findUnique({
+          where: { id: user.avatar_file_id },
+        });
+
+        if (avatarFile) {
+          const cloudinary = require("../config/cloudinary").default;
+          try {
+            await cloudinary.uploader.destroy(avatarFile.public_id);
+          } catch (error) {
+            console.error(
+              `Failed to delete avatar from Cloudinary: ${avatarFile.public_id}`,
+              error
+            );
+          }
+
+          await prisma.file.delete({
+            where: { id: user.avatar_file_id },
+          });
+        }
+      } catch (error) {
+        console.error("Error deleting avatar file:", error);
+      }
+    }
+
+    // Delete all user avatar files (context=USER_AVATAR)
+    const userFiles = await prisma.file.findMany({
+      where: {
+        context: "USER_AVATAR",
+        context_id: targetUserId,
+      },
+    });
+
+    const cloudinary = require("../config/cloudinary").default;
+    for (const file of userFiles) {
+      try {
+        await cloudinary.uploader.destroy(file.public_id);
+      } catch (error) {
+        console.error(
+          `Failed to delete file from Cloudinary: ${file.public_id}`,
+          error
+        );
+      }
+    }
+
+    await prisma.file.deleteMany({
+      where: {
+        context: "USER_AVATAR",
+        context_id: targetUserId,
+      },
+    });
+
+    // Delete the user
     await prisma.user.delete({
       where: { id: targetUserId },
     });
@@ -204,11 +299,9 @@ export const deleteUser = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "User not found" });
     }
     if (error.code === "P2003") {
-      return res
-        .status(409)
-        .json({
-          message: "Cannot delete user because they have associated records.",
-        });
+      return res.status(409).json({
+        message: "Cannot delete user because they have associated records.",
+      });
     }
     res.status(500).json({ message: "Failed to delete user" });
   }
