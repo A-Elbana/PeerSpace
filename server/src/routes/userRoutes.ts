@@ -4,11 +4,13 @@ import {
   getUserById,
   updateUser,
   deleteUser,
+  createAdmin,
 } from "../controllers/UserController";
 import { authenticateToken, authorizeRole } from "../middleware/authMiddleware";
 import {
   handleValidationErrors,
   validateUserUpdate,
+  validateAdminCreate,
 } from "../middleware/validationMiddleware";
 
 const router = express.Router();
@@ -157,5 +159,94 @@ router.put(
  *         description: Server error
  */
 router.delete("/:id", authenticateToken, deleteUser);
+
+/**
+ * @swagger
+ * /api/users/admin:
+ *   post:
+ *     summary: Create a new admin user (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     description: |
+ *       Create a new user with admin privileges.
+ *       Only existing admins can create new admins.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - fname
+ *               - lname
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Admin email address
+ *                 example: "admin@peerspace.com"
+ *               password:
+ *                 type: string
+ *                 minLength: 8
+ *                 maxLength: 128
+ *                 description: Password (min 8 chars, must contain letter and number)
+ *                 example: "SecurePass123"
+ *               fname:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 50
+ *                 description: First name
+ *                 example: "John"
+ *               lname:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 50
+ *                 description: Last name
+ *                 example: "Doe"
+ *     responses:
+ *       201:
+ *         description: Admin created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Admin created successfully"
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     email:
+ *                       type: string
+ *                     fname:
+ *                       type: string
+ *                     lname:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *                       example: "ADMIN"
+ *       400:
+ *         description: Validation failed
+ *       403:
+ *         description: Only admins can create other admins
+ *       409:
+ *         description: Email already registered
+ *       500:
+ *         description: Server error
+ */
+router.post(
+  "/admin",
+  authenticateToken,
+  authorizeRole(["ADMIN"]),
+  validateAdminCreate,
+  handleValidationErrors,
+  createAdmin
+);
 
 export default router;

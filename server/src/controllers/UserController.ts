@@ -306,3 +306,62 @@ export const deleteUser = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Failed to delete user" });
   }
 };
+
+/**
+ * Create a new admin user.
+ * Only existing admins can create new admins.
+ * Creates both User record and Admin record.
+ */
+export const createAdmin = async (req: Request, res: Response) => {
+  const { email, password, fname, lname } = req.body;
+
+  try {
+    // Check if email already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+    });
+
+    if (existingUser) {
+      return res.status(409).json({ message: "Email already registered" });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+    // Create user and admin record in a transaction
+    const newAdmin = await prisma.$transaction(async (tx) => {
+      // Create the user with ADMIN role
+      const user = await tx.user.create({
+        data: {
+          email: email.toLowerCase().trim(),
+          hashedPassword: hashedPassword,
+          fname: sanitizeString(fname),
+          lname: sanitizeString(lname),
+          role: Role.ADMIN,
+          activated: true,
+        },
+        select: userSelect,
+      });
+
+      // Create the Admin record
+      await tx.admin.create({
+        data: {
+          uid: user.id,
+        },
+      });
+
+      return user;
+    });
+
+    return res.status(201).json({
+      message: "Admin created successfully",
+      user: newAdmin,
+    });
+  } catch (error: any) {
+    console.error("Create Admin Error:", error);
+    if (error.code === "P2002") {
+      return res.status(409).json({ message: "Email already registered" });
+    }
+    return res.status(500).json({ message: "Failed to create admin" });
+  }
+};

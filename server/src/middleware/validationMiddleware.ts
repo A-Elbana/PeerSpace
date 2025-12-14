@@ -66,6 +66,41 @@ export const validateRegister = [
 ];
 
 /**
+ * Admin creation validation rules (same as register, but no role field)
+ */
+export const validateAdminCreate = [
+  body("email").isEmail().normalizeEmail().withMessage("Invalid email format"),
+
+  body("password")
+    .isLength({ min: 8, max: 128 })
+    .withMessage("Password must be between 8 and 128 characters")
+    .matches(/^(?=.*[A-Za-z])(?=.*\d)/)
+    .withMessage("Password must contain at least one letter and one number"),
+
+  body("fname")
+    .trim()
+    .notEmpty()
+    .withMessage("First name is required")
+    .isLength({ min: 2, max: 50 })
+    .withMessage("First name must be between 2 and 50 characters")
+    .matches(/^[a-zA-Z\s'-]+$/)
+    .withMessage(
+      "First name can only contain letters, spaces, hyphens, and apostrophes"
+    ),
+
+  body("lname")
+    .trim()
+    .notEmpty()
+    .withMessage("Last name is required")
+    .isLength({ min: 2, max: 50 })
+    .withMessage("Last name must be between 2 and 50 characters")
+    .matches(/^[a-zA-Z\s'-]+$/)
+    .withMessage(
+      "Last name can only contain letters, spaces, hyphens, and apostrophes"
+    ),
+];
+
+/**
  * Login validation rules
  */
 export const validateLogin = [
@@ -380,4 +415,106 @@ export const validateNotebookUpdate = [
     .optional()
     .isString()
     .withMessage("Description must be a string"),
+];
+
+/**
+ * Task creation validation rules
+ */
+export const validateTaskCreate = [
+  body("title")
+    .trim()
+    .notEmpty()
+    .withMessage("Task title is required")
+    .isLength({ min: 1, max: 255 })
+    .withMessage("Title must be between 1 and 255 characters"),
+
+  body("description")
+    .optional()
+    .isString()
+    .withMessage("Description must be a string"),
+
+  body("priority")
+    .optional()
+    .isInt({ min: 0, max: 10 })
+    .withMessage("Priority must be an integer between 0 and 10"),
+
+  body("start_date")
+    .optional()
+    .isISO8601()
+    .withMessage("Start date must be a valid ISO 8601 date"),
+
+  body("end_date")
+    .optional()
+    .isISO8601()
+    .withMessage("End date must be a valid ISO 8601 date"),
+
+  body("status")
+    .notEmpty()
+    .withMessage("Status is required")
+    .isInt({ min: 0, max: 4 })
+    .withMessage("Status must be an integer between 0 and 4 (0: Not Started, 1: In Progress, 2: Completed, 3: On Hold, 4: Cancelled)"),
+
+  body("parent_task")
+    .optional({ nullable: true })
+    .isInt({ min: 1 })
+    .withMessage("parent_task must be a positive integer"),
+
+  body("assignment_id")
+    .optional({ nullable: true })
+    .isInt({ min: 1 })
+    .withMessage("assignment_id must be a positive integer"),
+];
+
+/**
+ * Task update validation rules
+ */
+export const validateTaskUpdate = [
+  body("title")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Title cannot be empty")
+    .isLength({ min: 1, max: 255 })
+    .withMessage("Title must be between 1 and 255 characters"),
+
+  body("description")
+    .optional()
+    .isString()
+    .withMessage("Description must be a string"),
+
+  body("priority")
+    .optional({ nullable: true })
+    .isInt({ min: 0, max: 10 })
+    .withMessage("Priority must be an integer between 0 and 10"),
+
+  body("start_date")
+    .optional({ nullable: true })
+    .isISO8601()
+    .withMessage("Start date must be a valid ISO 8601 date"),
+
+  body("end_date")
+    .optional({ nullable: true })
+    .isISO8601()
+    .withMessage("End date must be a valid ISO 8601 date"),
+
+  body("status")
+    .optional()
+    .isInt({ min: 0, max: 4 })
+    .withMessage("Status must be an integer between 0 and 4"),
+
+  body("parent_task")
+    .optional({ nullable: true })
+    .isInt({ min: 1 })
+    .withMessage("parent_task must be a positive integer"),
+];
+
+/**
+ * Task status update validation rules
+ */
+export const validateTaskStatusUpdate = [
+  body("status")
+    .notEmpty()
+    .withMessage("Status is required")
+    .isInt({ min: 0, max: 4 })
+    .withMessage("Status must be an integer between 0 and 4"),
 ];
