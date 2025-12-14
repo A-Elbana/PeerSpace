@@ -9,8 +9,6 @@ import {
     Circle,
     Edit2,
     Trash2,
-    Upload,
-    File as FileIcon,
     Loader2,
     Clock,
     Tag,
@@ -25,6 +23,7 @@ import { Button } from '../../components/ui/button';
 import { DeleteConfirmationModal } from '../../components/common/DeleteConfirmationModal';
 import { MarkdownEditor, MarkdownPreview } from '../../components/MarkdownEditor';
 import api from '../../services/api';
+import { toast } from 'sonner';
 
 type UserRole = 'student' | 'instructor' | 'admin';
 
@@ -166,35 +165,21 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
     const [task, setTask] = useState<Task | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [editedTask, setEditedTask] = useState<Task | null>(null);
-    const [files, setFiles] = useState<File[]>([]);
-    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [deleteModal, setDeleteModal] = useState({
         isOpen: false,
     });
 
-    const [attachmentDeleteModal, setAttachmentDeleteModal] = useState<{
-        isOpen: boolean;
-        attachment: TaskFile | null;
-    }>({
-        isOpen: false,
-        attachment: null,
-    });
+    // attachmentDeleteModal removed: attachments are not supported on Task details
 
     // Assignment relation dropdown state
     const [isRelationDropdownOpen, setIsRelationDropdownOpen] = useState(false);
     const [relationSearchQuery, setRelationSearchQuery] = useState('');
     const relationDropdownRef = useRef<HTMLDivElement>(null);
 
-    // Dummy assignments for dropdown (will be replaced with API data later)
-    const DUMMY_ASSIGNMENTS = [
-        { id: '1', name: 'Database Systems - Final Project', community: 'Database Systems' },
-        { id: '2', name: 'Algorithms - Midterm Exam', community: 'Algorithms' },
-        { id: '3', name: 'Operating Systems - Lab Assignment', community: 'Operating Systems' },
-        { id: '4', name: 'Software Engineering - Sprint Review', community: 'Software Engineering' },
-        { id: '5', name: 'Computer Networks - Packet Analysis', community: 'Computer Networks' },
-        { id: '6', name: 'Machine Learning - Model Training', community: 'Machine Learning' },
-    ];
+    // Assignments pulled from the server (user's communities)
+    const [assignments, setAssignments] = useState<Array<{ id: number; title: string; community: string }>>([]);
+    const [assignmentsLoading, setAssignmentsLoading] = useState<boolean>(false);
 
     useEffect(() => {
         document.title = task ? `PeerSpace - ${task.title}` : 'PeerSpace - Task';
@@ -222,10 +207,44 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
                 };
                 setUser(userData);
 
-                // Load dummy task
-                if (taskId && DUMMY_TASKS[taskId]) {
-                    setTask(DUMMY_TASKS[taskId]);
-                    setEditedTask(DUMMY_TASKS[taskId]);
+                // Fetch task from backend
+                if (taskId) {
+                    try {
+                        const res = await api.get(`/tasks/${taskId}`);
+                        const backendTask = res.data;
+                        const mapped = mapBackendTask(backendTask);
+                        setTask(mapped);
+                        setEditedTask(mapped);
+                    } catch (err) {
+                        console.error('Failed to fetch task:', err);
+                        // keep behavior of showing not found
+                    }
+                }
+
+                // Fetch user's communities and assignments for relation dropdown
+                try {
+                    setAssignmentsLoading(true);
+                    // fetch communities (showing public + user's private memberships)
+                    const commRes = await api.get('/communities', { params: { limit: 100 } });
+                    const communities = commRes.data?.data || [];
+
+                    // Fetch assignments for each community in parallel
+                    const assignmentPromises = communities.map((c: any) =>
+                        api.get('/assignments', { params: { cid: c.id, limit: 100 } }).then(r => ({ community: c, assignments: r.data?.data || [] })).catch(() => ({ community: c, assignments: [] }))
+                    );
+
+                    const settled = await Promise.all(assignmentPromises);
+                    const merged: Array<{ id: number; title: string; community: string }> = [];
+                    settled.forEach((s: any) => {
+                        s.assignments.forEach((a: any) => {
+                            merged.push({ id: a.id, title: a.title, community: s.community.name });
+                        });
+                    });
+                    setAssignments(merged);
+                } catch (err) {
+                    console.error('Failed to load assignments for relation dropdown:', err);
+                } finally {
+                    setAssignmentsLoading(false);
                 }
             } catch (error) {
                 console.error('Failed to fetch data:', error);
@@ -237,68 +256,150 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
         initData();
     }, [taskId]);
 
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            setFiles([...files, ...Array.from(e.target.files)]);
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+
+    // file upload handlers removed (attachments disabled)
+
+    const toggleStatus = async () => {
+        if (!task) return;
+        if (isUpdatingStatus) return;
+
+        const newCompleted = !task.status;
+        const desiredStatus = newCompleted ? 2 : 1; // backend status codes
+
+        // Optimistic update
+        setTask(prev => prev ? { ...prev, status: newCompleted } : prev);
+        setIsUpdatingStatus(true);
+        try {
+            await api.patch(`/tasks/${Number(task.id)}/status`, { status: desiredStatus });
+            toast.success(`Task marked ${newCompleted ? 'complete' : 'incomplete'}`);
+        } catch (err) {
+            console.error('Failed to update task status:', err);
+            // Revert
+            setTask(prev => prev ? { ...prev, status: !newCompleted } : prev);
+            toast.error('Failed to update task status');
+        } finally {
+            setIsUpdatingStatus(false);
         }
     };
 
-    const removeFile = (index: number) => {
-        setFiles(files.filter((_, i) => i !== index));
-    };
-
-    const toggleStatus = () => {
-        if (task) {
-            setTask({ ...task, status: !task.status });
+    const priorityToNumber = (p: Task['priority']) => {
+        switch (p) {
+            case 'low':
+                return 2;
+            case 'medium':
+                return 5;
+            case 'high':
+                return 9;
+            default:
+                return 5;
         }
     };
 
-    const handleSave = () => {
-        if (editedTask) {
-            // Add new files to task (dummy - just names)
-            const newFiles: TaskFile[] = files.map((f, i) => ({
-                id: `new-${Date.now()}-${i}`,
-                name: f.name,
-                url: '#',
-                type: f.type.split('/')[0] || 'file',
+    const mapBackendTask = (t: any): Task => {
+        // Assignees
+        let assignees: Assignee[] = [];
+        if (Array.isArray(t.TaskAssignees) && t.TaskAssignees.length > 0) {
+            assignees = t.TaskAssignees.map((a: any) => ({
+                id: a.user_id ?? a.uid ?? a.User?.id ?? 0,
+                fname: a.Student?.User?.fname ?? a.User?.fname ?? a.fname ?? 'Unknown',
+                lname: a.Student?.User?.lname ?? a.User?.lname ?? a.lname ?? '',
+                avatar_url: a.Student?.User?.avatar_file_id ?? a.User?.avatar_file_id ?? null,
             }));
+        } else if (t.Student) {
+            if (Array.isArray(t.Student)) {
+                assignees = t.Student.map((s: any) => ({ id: s.User?.id ?? 0, fname: s.User?.fname ?? 'Unknown', lname: s.User?.lname ?? '', avatar_url: s.User?.avatar_file_id ?? null }));
+            } else if (t.Student.User) {
+                assignees = [{ id: t.Student.User.id, fname: t.Student.User.fname, lname: t.Student.User.lname, avatar_url: t.Student.User.avatar_file_id ?? null }];
+            }
+        }
 
-            setTask({
-                ...editedTask,
-                files: [...editedTask.files, ...newFiles],
-            });
-            setFiles([]);
+        let assignmentRelation = null;
+        if (t.TaskAssignmentRelation) {
+            if (Array.isArray(t.TaskAssignmentRelation)) {
+                assignmentRelation = t.TaskAssignmentRelation[0]?.Assignment?.title ?? null;
+            } else {
+                assignmentRelation = t.TaskAssignmentRelation.Assignment?.title ?? null;
+            }
+        }
+
+        const dueDate = t.end_date ? new Date(t.end_date).toLocaleDateString() : null;
+        const startDate = t.start_date ? new Date(t.start_date).toLocaleDateString() : null;
+
+        const p = t.priority;
+        let priority: Task['priority'] = 'low';
+        if (p === null || p === undefined) priority = 'low';
+        else if (p <= 3) priority = 'low';
+        else if (p <= 7) priority = 'medium';
+        else priority = 'high';
+
+        const tags = Array.isArray(t.TaskTag) ? t.TaskTag.map((tag: any) => tag.tag) : [];
+
+        return {
+            id: String(t.id),
+            title: t.title ?? t.name ?? 'Untitled',
+            description: t.description ?? '',
+            assignees,
+            startDate,
+            dueDate,
+            priority,
+            status: t.status === 2,
+            assignmentRelation,
+            tags,
+            files: Array.isArray(t.File) ? t.File.map((f: any) => ({ id: String(f.id), name: f.name, url: f.secure_url ?? f.url ?? '', type: f.resource_type ?? 'file' })) : [],
+            parentTask: t.Task?.title ?? null,
+        };
+    };
+
+    const handleSave = async () => {
+        if (!editedTask || !task) return;
+        if (isSaving) return;
+
+        setIsSaving(true);
+        try {
+            const payload: any = {
+                title: editedTask.title,
+                description: editedTask.description || null,
+                priority: priorityToNumber(editedTask.priority),
+                start_date: editedTask.startDate ? new Date(editedTask.startDate).toISOString() : null,
+                end_date: editedTask.dueDate ? new Date(editedTask.dueDate).toISOString() : null,
+                status: editedTask.status ? 2 : 1,
+            };
+
+            const res = await api.patch(`/tasks/${Number(task.id)}`, payload);
+            const updated = res.data?.task ?? res.data;
+            const mapped = mapBackendTask(updated);
+            setTask(mapped);
+            setEditedTask(mapped);
             setIsEditing(false);
+            toast.success('Task updated');
+        } catch (err) {
+            console.error('Failed to save task:', err);
+            toast.error('Failed to save task');
+        } finally {
+            setIsSaving(false);
         }
     };
 
     const handleCancel = () => {
         setEditedTask(task);
-        setFiles([]);
         setIsEditing(false);
     };
 
-    const handleDelete = () => {
-        // Navigate back to tasks list
-        navigate('/tasks');
+    const handleDelete = async () => {
+        if (!task) return;
+        try {
+            await api.delete(`/tasks/${Number(task.id)}`);
+            toast.success('Task deleted');
+            navigate('/tasks');
+        } catch (err) {
+            console.error('Failed to delete task:', err);
+            toast.error('Failed to delete task');
+        }
     };
 
-    const handleDeleteAttachment = () => {
-        if (attachmentDeleteModal.attachment && editedTask) {
-            setEditedTask({
-                ...editedTask,
-                files: editedTask.files.filter(f => f.id !== attachmentDeleteModal.attachment?.id)
-            });
-            // Also update the main task state to reflect immediately
-            if (task) {
-                setTask({
-                    ...task,
-                    files: task.files.filter(f => f.id !== attachmentDeleteModal.attachment?.id)
-                });
-            }
-        }
-        setAttachmentDeleteModal({ isOpen: false, attachment: null });
-    };
+    // attachment deletion removed (attachments disabled)
 
     const getPriorityColor = (priority: string) => {
         switch (priority) {
@@ -388,7 +489,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
                                         type="text"
                                         value={editedTask?.title || ''}
                                         onChange={(e) => setEditedTask(editedTask ? { ...editedTask, title: e.target.value } : null)}
-                                        className="text-2xl font-bold bg-transparent border-b border-input focus:outline-none focus:border-primary w-full"
+                                        className="text-2xl font-bold bg-transparent border-b border-input focus:outline-none focus:border-primary w-full mr-4"
                                     />
                                 ) : (
                                     <h1 className={`text-2xl font-bold ${task.status ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
@@ -442,37 +543,39 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
                                                         No assignment relation
                                                     </button>
 
-                                                    {DUMMY_ASSIGNMENTS
-                                                        .filter(a => 
-                                                            a.name.toLowerCase().includes(relationSearchQuery.toLowerCase()) ||
-                                                            a.community.toLowerCase().includes(relationSearchQuery.toLowerCase())
-                                                        )
-                                                        .map((assignment) => (
-                                                            <button
-                                                                key={assignment.id}
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    setEditedTask(editedTask ? { ...editedTask, assignmentRelation: assignment.name } : null);
-                                                                    setIsRelationDropdownOpen(false);
-                                                                    setRelationSearchQuery('');
-                                                                }}
-                                                                className={`w-full px-3 py-2 text-left hover:bg-muted/50 transition-colors ${
-                                                                    editedTask?.assignmentRelation === assignment.name ? 'bg-primary/10' : ''
-                                                                }`}
-                                                            >
-                                                                <div className="text-sm font-medium truncate">{assignment.name}</div>
-                                                                <div className="text-xs text-muted-foreground">{assignment.community}</div>
-                                                            </button>
-                                                        ))
-                                                    }
+                                                    {assignmentsLoading ? (
+                                                        <div className="px-3 py-4 text-center text-sm text-muted-foreground">Loading assignments...</div>
+                                                    ) : (
+                                                        (() => {
+                                                            const filtered = assignments.filter(a =>
+                                                                a.title.toLowerCase().includes(relationSearchQuery.toLowerCase()) ||
+                                                                a.community.toLowerCase().includes(relationSearchQuery.toLowerCase())
+                                                            );
 
-                                                    {DUMMY_ASSIGNMENTS.filter(a => 
-                                                        a.name.toLowerCase().includes(relationSearchQuery.toLowerCase()) ||
-                                                        a.community.toLowerCase().includes(relationSearchQuery.toLowerCase())
-                                                    ).length === 0 && relationSearchQuery && (
-                                                        <div className="px-3 py-4 text-center text-sm text-muted-foreground">
-                                                            No assignments found
-                                                        </div>
+                                                            if (filtered.length === 0 && relationSearchQuery) {
+                                                                return (
+                                                                    <div className="px-3 py-4 text-center text-sm text-muted-foreground">No assignments found</div>
+                                                                );
+                                                            }
+
+                                                            return filtered.map((assignment) => (
+                                                                <button
+                                                                    key={assignment.id}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setEditedTask(editedTask ? { ...editedTask, assignmentRelation: assignment.title } : null);
+                                                                        setIsRelationDropdownOpen(false);
+                                                                        setRelationSearchQuery('');
+                                                                    }}
+                                                                    className={`w-full px-3 py-2 text-left hover:bg-muted/50 transition-colors ${
+                                                                        editedTask?.assignmentRelation === assignment.title ? 'bg-primary/10' : ''
+                                                                    }`}
+                                                                >
+                                                                    <div className="text-sm font-medium truncate">{assignment.title}</div>
+                                                                    <div className="text-xs text-muted-foreground">{assignment.community}</div>
+                                                                </button>
+                                                            ));
+                                                        })()
                                                     )}
                                                 </div>
                                             </div>
@@ -522,9 +625,20 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
                                             size="sm"
                                             onClick={handleSave}
                                             className="min-w-[100px]"
+                                            disabled={isSaving}
+                                            aria-busy={isSaving}
                                         >
-                                            <Save className="w-4 h-4 mr-2" />
-                                            Save
+                                            {isSaving ? (
+                                                <>
+                                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                    Saving...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Save className="w-4 h-4 mr-2" />
+                                                    Save
+                                                </>
+                                            )}
                                         </Button>
                                     </>
                                 )}
@@ -674,88 +788,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
                         )}
                     </div>
 
-                    {/* Attachments */}
-                    <div className="bg-card border border-border rounded-xl p-6">
-                        <h2 className="text-lg font-semibold mb-4">Attachments</h2>
-
-                        {/* Existing Files */}
-                        {task.files.length > 0 && (
-                            <div className="space-y-2 mb-4">
-                                {task.files.map((file) => (
-                                    <div
-                                        key={file.id}
-                                        className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors group"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <FileIcon className="w-5 h-5 text-primary" />
-                                            <span className="text-sm font-medium">{file.name}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            {isEditing && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setAttachmentDeleteModal({ isOpen: true, attachment: file })}
-                                                    className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
-                                                    title="Delete attachment"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            )}
-                                            <Button variant="ghost" size="sm">
-                                                Download
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                        {/* Upload Area (only in edit mode) */}
-                        {isEditing && (
-                            <>
-                                <div
-                                    className="border-2 border-dashed border-input rounded-lg p-6 text-center hover:bg-muted/50 transition-colors cursor-pointer"
-                                    onClick={() => fileInputRef.current?.click()}
-                                >
-                                    <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                                    <p className="text-sm text-muted-foreground">Click to upload files</p>
-                                    <input
-                                        type="file"
-                                        ref={fileInputRef}
-                                        onChange={handleFileSelect}
-                                        multiple
-                                        className="hidden"
-                                    />
-                                </div>
-
-                                {/* New Files to Upload */}
-                                {files.length > 0 && (
-                                    <div className="mt-4 space-y-2">
-                                        <p className="text-sm font-medium text-muted-foreground">New files to upload:</p>
-                                        {files.map((file, index) => (
-                                            <div key={index} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
-                                                <div className="flex items-center gap-2 overflow-hidden">
-                                                    <FileIcon className="w-4 h-4 text-primary flex-shrink-0" />
-                                                    <span className="text-sm truncate">{file.name}</span>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeFile(index)}
-                                                    className="p-1 text-muted-foreground hover:text-destructive transition-colors"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </>
-                        )}
-
-                        {!isEditing && task.files.length === 0 && (
-                            <p className="text-sm text-muted-foreground">No attachments</p>
-                        )}
-                    </div>
+                    {/* Attachments removed from Task details per request */}
                 </div>
 
                 <DeleteConfirmationModal
@@ -767,14 +800,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
                     itemType="task"
                 />
 
-                <DeleteConfirmationModal
-                    isOpen={attachmentDeleteModal.isOpen}
-                    onClose={() => setAttachmentDeleteModal({ isOpen: false, attachment: null })}
-                    onConfirm={handleDeleteAttachment}
-                    title="Delete Attachment"
-                    description={`Are you sure you want to delete "${attachmentDeleteModal.attachment?.name}"? This action cannot be undone.`}
-                    itemType="file"
-                />
+                {/* Attachments removed - no attachment modal */}
             </main>
         </div>
     );

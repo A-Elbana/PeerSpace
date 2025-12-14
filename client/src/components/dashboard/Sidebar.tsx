@@ -15,6 +15,7 @@ import {
   CheckSquare,
 } from 'lucide-react';
 import { useTheme } from '../../hooks/useTheme';
+import api from '../../services/api';
 import logo from '../../assets/peerspace-logo.png';
 
 type UserRole = 'student' | 'instructor' | 'admin';
@@ -54,8 +55,27 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
   const { isDarkMode, toggleTheme } = useTheme();
   const sidebarContainerRef = useRef<HTMLDivElement>(null);
 
-  // Assume student role for now as requested
-  const userRole: UserRole = 'student';
+  // Fetch current user role to respect roleRestricted nav items
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [userLoading, setUserLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchUser = async () => {
+      try {
+        const res = await api.get('/auth/me');
+        const role = (res.data.role || '').toLowerCase() as UserRole;
+        if (mounted) setUserRole(role);
+      } catch (err) {
+        // unauthenticated or failed - treat as no role
+        if (mounted) setUserRole(null);
+      } finally {
+        if (mounted) setUserLoading(false);
+      }
+    };
+    fetchUser();
+    return () => { mounted = false; };
+  }, []);
 
   useEffect(() => {
     if (collapsed && sidebarContainerRef.current) {
@@ -73,7 +93,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
 
   const shouldShowItem = (item: NavItem) => {
     if (!item.roleRestriction) return true;
-    if (!userRole) return true;
+    // If user role is still loading, hide restricted items until resolved
+    if (userLoading) return false;
+    if (!userRole) return false;
     return item.roleRestriction.includes(userRole);
   };
 

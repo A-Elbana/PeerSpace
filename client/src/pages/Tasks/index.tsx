@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Plus, Flag, Calendar, Users, Trash2, Search, Filter, CheckCircle, Circle } from 'lucide-react';
+import { Loader2, Plus, Flag, Calendar, Users, Trash2, Search, Filter, CheckCircle, Circle, Link } from 'lucide-react';
 import { Sidebar } from '../../components/dashboard';
 import api from '../../services/api';
+import { toast } from 'sonner';
 import { Button } from '../../components/ui/button';
 import { DeleteConfirmationModal } from '../../components/common/DeleteConfirmationModal';
 import { CreateTaskModal } from './CreateTaskModal';
@@ -40,69 +41,13 @@ interface TasksProps {
     onLogout?: () => void;
 }
 
-// Dummy data
-const DUMMY_TASKS: Task[] = [
-    {
-        id: '1',
-        name: 'Complete Database Project Report',
-        assignees: [
-            { id: 1, fname: 'John', lname: 'Doe' },
-            { id: 2, fname: 'Jane', lname: 'Smith' },
-        ],
-        dueDate: '12/20/2024',
-        priority: 'high',
-        assignmentRelation: 'Database Systems',
-        completed: false,
-    },
-    {
-        id: '2',
-        name: 'Study for Algorithms Exam',
-        assignees: [{ id: 1, fname: 'John', lname: 'Doe' }],
-        dueDate: '12/18/2024',
-        priority: 'high',
-        assignmentRelation: 'Algorithms',
-        completed: false,
-    },
-    {
-        id: '3',
-        name: 'Review lecture notes',
-        assignees: [],
-        dueDate: '12/15/2024',
-        priority: 'medium',
-        assignmentRelation: '',
-        completed: false,
-    },
-    {
-        id: '4',
-        name: 'Submit homework assignment',
-        assignees: [{ id: 3, fname: 'Alice', lname: 'Johnson' }],
-        dueDate: '12/22/2024',
-        priority: 'low',
-        assignmentRelation: 'Operating Systems',
-        completed: true,
-    },
-    {
-        id: '5',
-        name: 'Group project meeting',
-        assignees: [
-            { id: 1, fname: 'John', lname: 'Doe' },
-            { id: 2, fname: 'Jane', lname: 'Smith' },
-            { id: 3, fname: 'Alice', lname: 'Johnson' },
-            { id: 4, fname: 'Bob', lname: 'Wilson' },
-            { id: 5, fname: 'Charlie', lname: 'Brown' },
-        ],
-        dueDate: null,
-        priority: 'medium',
-        assignmentRelation: 'Software Engineering',
-        completed: true,
-    },
-];
+// We'll load tasks from the backend for real users
 
 const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
     const navigate = useNavigate();
     const [user, setUser] = useState<UserData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [tasks, setTasks] = useState<Task[]>(DUMMY_TASKS);
+    const [tasks, setTasks] = useState<Task[]>([]);
 
     // Search and Filter State
     const [searchQuery, setSearchQuery] = useState('');
@@ -120,6 +65,12 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
     });
 
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [updatingTaskIds, setUpdatingTaskIds] = useState<string[]>([]);
+    const [page, setPage] = useState<number>(1);
+    const [limit] = useState<number>(5);
+    const [totalPages, setTotalPages] = useState<number>(1);
+    const [totalTasks, setTotalTasks] = useState<number>(0);
+    const [isFetchingTasks, setIsFetchingTasks] = useState<boolean>(false);
 
     // Set page title
     useEffect(() => {
@@ -136,8 +87,23 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
                     role: userRes.data.role?.toLowerCase() as UserRole,
                 };
                 setUser(userData);
+                // Redirect non-students away from Tasks page
+                if (userData.role !== 'student') {
+                    toast.error('Access denied: Tasks are available to students only');
+                    navigate('/explore');
+                    return;
+                }
+                // Fetch tasks for this student from backend (start on page 1)
+                try {
+                    await fetchTasks(1, limit, searchQuery, priorityFilter === 'all' ? undefined : priorityFilter);
+                } catch (err) {
+                    console.error('Failed to fetch tasks from backend:', err);
+                }
             } catch (error) {
                 console.error('Failed to fetch user:', error);
+                // If fetching user failed assume not authorized
+                toast.error('Access denied: please login as a student');
+                navigate('/login');
             } finally {
                 setIsLoading(false);
             }
@@ -145,6 +111,85 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
 
         initData();
     }, [navigate]);
+
+    // Debounce search and priority filter changes to avoid spamming the server
+    useEffect(() => {
+        const t = setTimeout(() => {
+            // reset to first page on new search/filter
+            fetchTasks(1, limit, searchQuery, priorityFilter === 'all' ? undefined : priorityFilter).catch((e) => console.error(e));
+        }, 300);
+        return () => clearTimeout(t);
+    }, [searchQuery, priorityFilter]);
+
+    // Helper: map backend task objects to frontend Task
+    const mapBackendTasks = (backendTasks: any[]): Task[] => {
+        return backendTasks.map((t: any) => {
+            let assignees: Assignee[] = [];
+            if (Array.isArray(t.TaskAssignees) && t.TaskAssignees.length > 0) {
+                assignees = t.TaskAssignees.map((a: any) => ({
+                    id: a.user_id ?? a.uid ?? a.User?.id ?? 0,
+                    fname: a.User?.fname ?? a.fname ?? 'Unknown',
+                    lname: a.User?.lname ?? a.lname ?? '',
+                    avatar_url: a.User?.avatar_file_id ?? null,
+                }));
+            } else if (t.Student) {
+                if (Array.isArray(t.Student)) {
+                    assignees = t.Student.map((s: any) => ({ id: s.User?.id ?? 0, fname: s.User?.fname ?? 'Unknown', lname: s.User?.lname ?? '', avatar_url: s.User?.avatar_file_id ?? null }));
+                } else if (t.Student.User) {
+                    assignees = [{ id: t.Student.User.id, fname: t.Student.User.fname, lname: t.Student.User.lname, avatar_url: t.Student.User.avatar_file_id ?? null }];
+                }
+            }
+
+            let assignmentRelation = '';
+            if (t.TaskAssignmentRelation) {
+                if (Array.isArray(t.TaskAssignmentRelation)) {
+                    assignmentRelation = t.TaskAssignmentRelation[0]?.Assignment?.title ?? '';
+                } else {
+                    assignmentRelation = t.TaskAssignmentRelation.Assignment?.title ?? '';
+                }
+            }
+
+            const dueDate = t.end_date ? new Date(t.end_date).toLocaleDateString() : null;
+
+            const p = t.priority;
+            let priority: Task['priority'] = 'low';
+            if (p === null || p === undefined) priority = 'low';
+            else if (p <= 3) priority = 'low';
+            else if (p <= 7) priority = 'medium';
+            else priority = 'high';
+
+            return {
+                id: String(t.id),
+                name: t.title ?? t.name ?? 'Untitled',
+                assignees,
+                dueDate,
+                priority,
+                assignmentRelation,
+                completed: t.status === 2 || t.completed === true,
+            } as Task;
+        });
+    };
+
+    // Fetch tasks from backend and set state, handle pagination meta
+    const fetchTasks = async (p = 1, l = limit, q?: string, priority?: string) => {
+        setIsFetchingTasks(true);
+        try {
+            const params: any = { page: p, limit: l };
+            if (q && q.trim() !== '') params.q = q.trim();
+            if (priority && priority !== 'all') params.priority = priority;
+
+            const tasksRes = await api.get('/tasks', { params });
+            const backendTasks = tasksRes.data?.data || [];
+            const mapped = mapBackendTasks(backendTasks);
+            setTasks(mapped);
+            const meta = tasksRes.data?.meta;
+            setTotalPages(meta?.totalPages ?? 1);
+            setTotalTasks(meta?.total ?? mapped.length);
+            setPage(meta?.page ?? p);
+        } finally {
+            setIsFetchingTasks(false);
+        }
+    };
 
     const handleDeleteClick = (task: Task) => {
         setDeleteModal({
@@ -159,15 +204,36 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
         setDeleteModal({ ...deleteModal, isOpen: false });
     };
 
-    const toggleTaskCompletion = (task: Task) => {
-        const updatedTasks = tasks.map(t =>
-            t.id === task.id ? { ...t, completed: !t.completed } : t
-        );
-        setTasks(updatedTasks);
+    const toggleTaskCompletion = async (task: Task) => {
+        // Prevent concurrent updates for same task
+        if (updatingTaskIds.includes(task.id)) return;
+
+        const newCompleted = !task.completed;
+        const desiredStatus = newCompleted ? 2 : 1; // 2 = Completed, 1 = Not Complete
+
+        // Optimistic update
+        setTasks(prev => prev.map(t => (t.id === task.id ? { ...t, completed: newCompleted } : t)));
+        setUpdatingTaskIds(prev => [...prev, task.id]);
+
+        try {
+            await api.patch(`/tasks/${Number(task.id)}/status`, { status: desiredStatus });
+            toast.success(`Task marked ${newCompleted ? 'complete' : 'incomplete'}`);
+        } catch (err) {
+            console.error('Failed to update task status:', err);
+            // Revert optimistic update
+            setTasks(prev => prev.map(t => (t.id === task.id ? { ...t, completed: task.completed } : t)));
+            toast.error('Failed to update task status. Please try again.');
+        } finally {
+            setUpdatingTaskIds(prev => prev.filter(id => id !== task.id));
+        }
     };
 
-    const handleTaskCreated = (newTask: Task) => {
-        setTasks([newTask, ...tasks]);
+    const handleTaskCreated = async () => {
+        try {
+            await fetchTasks(page, limit, searchQuery, priorityFilter === 'all' ? undefined : priorityFilter);
+        } catch (err) {
+            console.error('Failed to reload tasks after creation:', err);
+        }
     };
 
     const getPriorityColor = (priority: Task['priority']) => {
@@ -227,6 +293,7 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
                 <span className="text-sm font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
                     {taskList.length}
                 </span>
+                {isFetchingTasks && <Loader2 className="w-4 h-4 text-muted-foreground animate-spin ml-2" />}
             </h2>
             <div className="bg-card rounded-xl border border-border overflow-hidden">
                 <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-6 py-4 bg-muted/30 border-b border-border text-sm font-medium text-muted-foreground">
@@ -257,7 +324,7 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
                                     </div>
                                     <div className="flex items-center gap-2 mt-1">
                                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded-full ${task.completed ? 'opacity-50' : ''}`}>
-                                            <Users className="w-3 h-3" />
+                                            <Link className="w-3 h-3" />
                                             {task.assignmentRelation || 'No Relation'}
                                         </span>
                                     </div>
@@ -311,13 +378,18 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
                                 <div className="w-12 flex items-center justify-center">
                                     <button
                                         onClick={(e) => { e.stopPropagation(); toggleTaskCompletion(task); }}
+                                        disabled={updatingTaskIds.includes(task.id)}
                                         className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${task.completed
                                             ? 'text-green-500 hover:text-green-600 bg-green-500/10'
                                             : 'text-muted-foreground hover:text-green-500 hover:bg-green-500/10'
                                             }`}
                                         title={task.completed ? "Mark as incomplete" : "Mark as complete"}
                                     >
-                                        {task.completed ? <CheckCircle className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
+                                        {updatingTaskIds.includes(task.id) ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            task.completed ? <CheckCircle className="w-5 h-5" /> : <Circle className="w-5 h-5" />
+                                        )}
                                     </button>
                                 </div>
 
@@ -383,12 +455,12 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
                                         <Filter className="w-4 h-4 text-muted-foreground" />
                                         <span className="capitalize">{priorityFilter === 'all' ? 'All Priorities' : priorityFilter}</span>
                                     </button>
-                                    <div className="absolute right-0 top-full mt-2 w-40 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                                    <div className="absolute right-0 top-full mt-2 w-40 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 overflow-hidden">
                                         {['all', 'high', 'medium', 'low'].map((p) => (
                                             <button
                                                 key={p}
                                                 onClick={() => setPriorityFilter(p as any)}
-                                                className={`w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors capitalize ${priorityFilter === p ? 'bg-muted font-medium' : ''}`}
+                                                className={`w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors capitalize ${priorityFilter === p ? 'bg-muted font-medium' : ''} first:rounded-t-lg last:rounded-b-lg focus:outline-none`}
                                             >
                                                 {p}
                                             </button>
@@ -401,9 +473,37 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
 
                     <TaskTable taskList={ongoingTasks} title="Ongoing Tasks" />
 
-                    {(completedTasks.length > 0 || searchQuery !== '' || priorityFilter !== 'all') && (
-                        <TaskTable taskList={completedTasks} title="Completed Tasks" />
-                    )}
+                    <TaskTable taskList={completedTasks} title="Completed Tasks" />
+
+                    {/* Pagination controls (server-driven) */}
+                    <div className="flex justify-end mt-6">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span className="mr-4">Total: {totalTasks}</span>
+                            <button
+                                onClick={async () => {
+                                    if (page <= 1) return;
+                                    const newPage = page - 1;
+                                    await fetchTasks(newPage, limit, searchQuery, priorityFilter === 'all' ? undefined : priorityFilter);
+                                }}
+                                disabled={page <= 1 || isFetchingTasks}
+                                className="px-3 py-1 bg-card border border-input rounded hover:bg-muted disabled:opacity-50"
+                            >
+                                Prev
+                            </button>
+                            <span className="px-3">Page {page} of {totalPages}</span>
+                            <button
+                                onClick={async () => {
+                                    if (page >= totalPages) return;
+                                    const newPage = page + 1;
+                                    await fetchTasks(newPage, limit, searchQuery, priorityFilter === 'all' ? undefined : priorityFilter);
+                                }}
+                                disabled={page >= totalPages || isFetchingTasks}
+                                className="px-3 py-1 bg-card border border-input rounded hover:bg-muted disabled:opacity-50"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <DeleteConfirmationModal

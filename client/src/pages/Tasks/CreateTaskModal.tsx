@@ -1,21 +1,15 @@
-import React, { useState, useRef } from 'react';
-import { X, Upload, Loader2, File as FileIcon, Trash2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Loader2 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
-
-interface Task {
-    id: string;
-    name: string;
-    assignees: { id: number; fname: string; lname: string; avatar_url?: string }[];
-    dueDate: string | null;
-    priority: 'low' | 'medium' | 'high';
-    assignmentRelation: string;
-    completed: boolean;
-}
+import { MarkdownEditor } from '../../components/MarkdownEditor';
+import api from '../../services/api';
+import { toast } from 'sonner';
 
 interface CreateTaskModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onTaskCreated: (task: Task) => void;
+    // Called after successful creation; parent should reload tasks
+    onTaskCreated: () => void;
 }
 
 export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
@@ -27,54 +21,94 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     const [description, setDescription] = useState('');
     const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
     const [dueDate, setDueDate] = useState('');
-    const [files, setFiles] = useState<File[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    
 
     if (!isOpen) return null;
 
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            setFiles([...files, ...Array.from(e.target.files)]);
-        }
+    const formatDateTimeLocal = (d: Date) => {
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     };
 
-    const removeFile = (index: number) => {
-        setFiles(files.filter((_, i) => i !== index));
-    };
+    const now = new Date();
+    const maxDate = new Date(now);
+    maxDate.setFullYear(maxDate.getFullYear() + 10);
+    const minDateTime = formatDateTimeLocal(now);
+    const maxDateTime = formatDateTimeLocal(maxDate);
+
+
 
     const resetForm = () => {
         setTitle('');
         setDescription('');
         setPriority('medium');
         setDueDate('');
-        setFiles([]);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!title.trim()) return;
+        if (!title.trim()) {
+            toast.error('Title is required');
+            return;
+        }
 
+        if (!description || description.trim().length === 0) {
+            toast.error('Description is required');
+            return;
+        }
+
+        // Validate due date if provided: must be future and within 10 years
+        if (dueDate) {
+            const selected = new Date(dueDate);
+            if (isNaN(selected.getTime())) {
+                toast.error('Invalid due date');
+                return;
+            }
+            const nowCheck = new Date();
+            const maxCheck = new Date(nowCheck);
+            maxCheck.setFullYear(maxCheck.getFullYear() + 10);
+            if (selected <= nowCheck) {
+                toast.error('Due date must be in the future');
+                return;
+            }
+            if (selected > maxCheck) {
+                toast.error('Due date must be within 10 years');
+                return;
+            }
+        }
         setIsSubmitting(true);
-        
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 500));
 
-        // Create dummy task
-        const newTask: Task = {
-            id: String(Date.now()),
-            name: title,
-            assignees: [],
-            dueDate: dueDate ? new Date(dueDate).toLocaleDateString() : null,
-            priority: priority,
-            assignmentRelation: '',
-            completed: false,
-        };
+        try {
+            // Map frontend priority to numeric value expected by backend (0-10)
+            const priorityMap: Record<string, number> = { low: 2, medium: 5, high: 8 };
 
-        onTaskCreated(newTask);
-        resetForm();
-        onClose();
-        setIsSubmitting(false);
+            const payload: any = {
+                title: title.trim(),
+                description: description ? description.trim() : null,
+                priority: priorityMap[priority],
+                end_date: dueDate ? new Date(dueDate).toISOString() : undefined,
+                status: 1, // default to not-complete (1)
+            };
+
+            // Create task first so we have an ID to attach files to
+            await api.post('/tasks', payload);
+
+            // attachments removed for tasks — no upload step
+
+            toast.success('Task created');
+
+            // Let parent reload the list (after uploads)
+            onTaskCreated();
+
+            resetForm();
+            onClose();
+        } catch (err) {
+            console.error('Failed to create task:', err);
+            toast.error('Failed to create task. Please try again.');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -101,14 +135,13 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                         />
                     </div>
 
-                    {/* Description */}
+                    {/* Description (Markdown) */}
                     <div>
                         <label className="block text-sm font-medium text-foreground mb-1">Description</label>
-                        <textarea
+                        <MarkdownEditor
                             value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            className="w-full px-3 py-2 bg-muted/50 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 min-h-[100px] resize-none"
-                            placeholder="Details about the task..."
+                            onChange={setDescription}
+                            placeholder="Describe the task in detail..."
                         />
                     </div>
 
@@ -129,55 +162,19 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
                         {/* Due Date */}
                         <div>
-                            <label className="block text-sm font-medium text-foreground mb-1">Due Date</label>
+                            <label className="block text-sm font-medium text-foreground mb-1">Due Date &amp; Time</label>
                             <input
-                                type="date"
+                                type="datetime-local"
                                 value={dueDate}
+                                min={minDateTime}
+                                max={maxDateTime}
                                 onChange={(e) => setDueDate(e.target.value)}
                                 className="w-full px-3 py-2 bg-muted/50 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
                             />
                         </div>
                     </div>
 
-                    {/* File Upload */}
-                    <div>
-                        <label className="block text-sm font-medium text-foreground mb-1">Attachments</label>
-                        <div
-                            className="border-2 border-dashed border-input rounded-lg p-6 text-center hover:bg-muted/50 transition-colors cursor-pointer"
-                            onClick={() => fileInputRef.current?.click()}
-                        >
-                            <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                            <p className="text-sm text-muted-foreground">Click to upload files</p>
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                onChange={handleFileSelect}
-                                multiple
-                                className="hidden"
-                            />
-                        </div>
-
-                        {/* File List */}
-                        {files.length > 0 && (
-                            <div className="mt-4 space-y-2">
-                                {files.map((file, index) => (
-                                    <div key={index} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
-                                        <div className="flex items-center gap-2 overflow-hidden">
-                                            <FileIcon className="w-4 h-4 text-primary flex-shrink-0" />
-                                            <span className="text-sm truncate">{file.name}</span>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => removeFile(index)}
-                                            className="p-1 text-muted-foreground hover:text-destructive transition-colors"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                    
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-border">
                         <Button type="button" variant="ghost" onClick={onClose}>

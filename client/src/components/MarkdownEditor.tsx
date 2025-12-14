@@ -30,6 +30,57 @@ function cn(...inputs: (string | undefined | null | false)[]) {
     return inputs.filter(Boolean).join(' ');
 }
 
+// Ensure link styling is injected once so tiptap-rendered anchors pick up our color.
+const LINK_STYLE_ID = 'md-editor-link-style';
+function ensureLinkStyle() {
+    if (typeof document === 'undefined') return;
+    if (document.getElementById(LINK_STYLE_ID)) return;
+    const s = document.createElement('style');
+    s.id = LINK_STYLE_ID;
+    s.innerHTML = `
+        .markdown-links a { color: #2563eb !important; text-decoration: underline !important; cursor: pointer !important; position: relative !important; }
+        .markdown-links a:hover { color: #1d4ed8 !important; }
+        /* Tooltip showing target URL */
+        .markdown-links a[data-href]::after {
+            content: attr(data-href);
+            position: absolute;
+            left: 50%;
+            bottom: calc(100% + 8px);
+            transform: translateX(-50%);
+            background: rgba(17,24,39,0.95);
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 120ms ease-in-out;
+            z-index: 9999;
+        }
+        .markdown-links a[data-href]:hover::after { opacity: 1; }
+    `;
+    document.head.appendChild(s);
+}
+
+// Annotate anchors with a data-href attribute and title so tooltip CSS can show the target URL
+function annotateLinks() {
+    if (typeof document === 'undefined') return;
+    const nodes = document.querySelectorAll('.markdown-links a');
+    nodes.forEach((n) => {
+        const a = n as HTMLAnchorElement;
+        try {
+            const href = a.getAttribute('href') || a.href || '';
+            if (href) {
+                a.setAttribute('data-href', href);
+                if (!a.getAttribute('title')) a.setAttribute('title', href);
+            }
+        } catch (e) {
+            // ignore
+        }
+    });
+}
+
 // Fallback for cn if it doesn't exist
 
 
@@ -219,7 +270,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                     '[&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-4',
                     '[&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:font-mono [&_code]:text-sm',
                     '[&_pre]:bg-muted [&_pre]:p-4 [&_pre]:rounded-lg [&_pre]:my-4 [&_pre_code]:bg-transparent [&_pre_code]:p-0',
-                    className
+                    className,
+                    'markdown-links'
                 ),
             },
         },
@@ -231,6 +283,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
     // Update editor content if value changes externally
     useEffect(() => {
+        // inject link style so anchors inside tiptap get the correct color
+        ensureLinkStyle();
         if (editor && value !== (editor.storage as any).markdown.getMarkdown()) {
             // We use standard setContent, trusting that Markdown extension patches it or we might need a workaround if not.
             // But typically with tiptap-markdown, we might need to parse, but let's try setContent first.
@@ -238,6 +292,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             // If parent resets value, value != getMarkdown(). setContent(value).
             editor.commands.setContent(value);
         }
+        // annotate any anchors rendered by tiptap so tooltip shows
+        annotateLinks();
     }, [value, editor]);
 
     if (!editor) {
@@ -281,18 +337,8 @@ export const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, class
             attributes: {
                 class: cn(
                     'prose prose-sm sm:prose-base dark:prose-invert max-w-none',
-                    '[&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mb-3',
-                    '[&_h2]:text-xl [&_h2]:font-bold [&_h2]:mb-2',
-                    '[&_h3]:text-lg [&_h3]:font-bold [&_h3]:mb-2',
-                    '[&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3',
-                    '[&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-3',
-                    '[&_li]:mb-1',
-                    '[&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-3',
-                    '[&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:font-mono [&_code]:text-sm',
-                    '[&_pre]:bg-muted [&_pre]:p-4 [&_pre]:rounded-lg [&_pre]:my-3 [&_pre_code]:bg-transparent [&_pre_code]:p-0',
-                    '[&_p]:mb-3 [&_p]:leading-relaxed',
-                    '[&_strong]:font-bold [&_em]:italic',
-                    className
+                    className,
+                    'markdown-links'
                 ),
             },
         },
@@ -300,9 +346,11 @@ export const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, class
 
     // Update content when it changes
     useEffect(() => {
+        ensureLinkStyle();
         if (editor && content !== editor.getText()) {
             editor.commands.setContent(content);
         }
+        annotateLinks();
     }, [content, editor]);
 
     if (!editor) {
