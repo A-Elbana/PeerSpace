@@ -93,8 +93,48 @@ export const createPost = async (req: PostRequest, res: Response) => {
  * req.post is set by loadPost
  */
 export const getPostById = async (req: PostRequest, res: Response) => {
-  // Post already loaded and access authorized by middleware
-  res.status(200).json(req.post);
+  const userId = (req as any).userId;
+  const postId = req.post.id;
+
+  try {
+    // Get vote counts
+    const upvotes = await prisma.voted.count({
+      where: { pid: postId, voteType: true },
+    });
+
+    const downvotes = await prisma.voted.count({
+      where: { pid: postId, voteType: false },
+    });
+
+    // Get current user's vote if authenticated and is a student
+    let userVote = null;
+    if (userId) {
+      const student = await prisma.student.findUnique({
+        where: { uid: userId },
+      });
+
+      if (student) {
+        const vote = await prisma.voted.findUnique({
+          where: { sid_pid: { sid: student.uid, pid: postId } },
+        });
+        userVote = vote ? vote.voteType : null;
+      }
+    }
+
+    // Post already loaded and access authorized by middleware
+    res.status(200).json({
+      ...req.post,
+      votes: {
+        upvotes,
+        downvotes,
+        score: upvotes - downvotes,
+        userVote,
+      },
+    });
+  } catch (error) {
+    console.error("Get Post By ID Error:", error);
+    res.status(500).json({ message: "Failed to fetch post" });
+  }
 };
 
 /**
@@ -141,10 +181,48 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
       },
     });
 
+    // Get vote counts for all posts
+    const postsWithVotes = await Promise.all(
+      posts.map(async (post) => {
+        const upvotes = await prisma.voted.count({
+          where: { pid: post.id, voteType: true },
+        });
+
+        const downvotes = await prisma.voted.count({
+          where: { pid: post.id, voteType: false },
+        });
+
+        // Get current user's vote if authenticated and is a student
+        let userVote = null;
+        if (userId) {
+          const student = await prisma.student.findUnique({
+            where: { uid: userId },
+          });
+
+          if (student) {
+            const vote = await prisma.voted.findUnique({
+              where: { sid_pid: { sid: student.uid, pid: post.id } },
+            });
+            userVote = vote ? vote.voteType : null;
+          }
+        }
+
+        return {
+          ...post,
+          votes: {
+            upvotes,
+            downvotes,
+            score: upvotes - downvotes,
+            userVote,
+          },
+        };
+      })
+    );
+
     const total = await prisma.post.count({ where: { cid } });
 
     res.status(200).json({
-      data: posts,
+      data: postsWithVotes,
       meta: {
         total,
         page,
