@@ -24,6 +24,15 @@ enum CommunityType {
   PRIVATE
 }
 
+enum FileContext {
+  POST
+  SUBMISSION
+  NOTE
+  ASSIGNMENT
+  COMMUNITY_BANNER
+  USER_AVATAR
+}
+
 model ActivityLog {
   id             Int        @id @default(autoincrement())
   date           DateTime?  @db.Timestamp(6)
@@ -58,7 +67,7 @@ model Assignment {
 
 model AssignmentFileAttachment {
   aid        Int?
-  fid        Int         @id
+  fid        String      @id @db.Uuid
   Assignment Assignment? @relation(fields: [aid], references: [id], onDelete: Cascade, onUpdate: Cascade)
   File       File        @relation(fields: [fid], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
@@ -89,17 +98,18 @@ model Comment {
 }
 
 model Community {
-  id          String        @id @default(uuid()) @db.Uuid
-  name        String        @db.VarChar
-  description String?       @db.VarChar
-  type        CommunityType
-  banner_url  String?       @db.VarChar
-  ActivityLog ActivityLog[]
-  Assignment  Assignment[]
-  Enrollment  Enrollment[]
-  Manages     Manages[]
-  Post        Post[]
-  Session     Session?
+  id             String        @id @default(uuid()) @db.Uuid
+  name           String        @db.VarChar
+  description    String?       @db.VarChar
+  type           CommunityType
+  banner_file_id String?       @db.Uuid
+  ActivityLog    ActivityLog[]
+  Assignment     Assignment[]
+  BannerFile     File?         @relation("CommunityBanner", fields: [banner_file_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  Enrollment     Enrollment[]
+  Manages        Manages[]
+  Post           Post[]
+  Session        Session?
 }
 
 model Enrollment {
@@ -112,16 +122,34 @@ model Enrollment {
 }
 
 model File {
-  id                       Int                       @id @default(autoincrement())
-  name                     String                    @db.VarChar
-  storage_url              String                    @db.VarChar
-  type                     String                    @db.VarChar
-  description              String?                   @db.VarChar
-  size                     Float
-  AssignmentFileAttachment AssignmentFileAttachment?
-  NoteFileAttachment       NoteFileAttachment?
-  PostFileAttachment       PostFileAttachment?
-  SubmissionFileAttachment SubmissionFileAttachment?
+  id          String @id @default(uuid()) @db.Uuid
+  uploader_id Int?
+
+  // Context (Where does this belong?)
+  context    FileContext
+  context_id Int
+
+  // Cloudinary Data
+  public_id     String // e.g., "peerspace/private/courses/101/homework_1"
+  resource_type String // 'image', 'video', 'raw' (for PDFs/Docs)
+  secure_url    String // The standard link
+  format        String? // 'jpg', 'pdf', 'mp4'
+
+  // Privacy Flag (Helps frontend know if it needs to ask for a signed link)
+  is_private Boolean @default(false)
+
+  created_at DateTime @default(now()) @db.Timestamp(6)
+
+  // Relations
+  User                      User?                      @relation("FileUploader", fields: [uploader_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  CommunityBanner           Community[]                @relation("CommunityBanner")
+  UserAvatar                User[]                     @relation("UserAvatar")
+  assignmentFileAttachments AssignmentFileAttachment[]
+  noteFileAttachments       NoteFileAttachment[]
+  postFileAttachments       PostFileAttachment[]
+  submissionFileAttachments SubmissionFileAttachment[]
+
+  @@index([context, context_id], name: "idx_file_context")
 }
 
 model Instructor {
@@ -159,9 +187,9 @@ model Note {
 
 model NoteFileAttachment {
   nid  Int?
-  fid  Int   @id
-  File File  @relation(fields: [fid], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  Note Note? @relation(fields: [nid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  fid  String @id @db.Uuid
+  File File   @relation(fields: [fid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  Note Note?  @relation(fields: [nid], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
 model Notebook {
@@ -195,9 +223,9 @@ model Post {
 
 model PostFileAttachment {
   pid  Int?
-  fid  Int   @id
-  File File  @relation(fields: [fid], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  Post Post? @relation(fields: [pid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  fid  String @id @db.Uuid
+  File File   @relation(fields: [fid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  Post Post?  @relation(fields: [pid], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
 model PostNoteAttachment {
@@ -260,7 +288,7 @@ model Submission {
 
 model SubmissionFileAttachment {
   subid      Int?
-  fid        Int         @id
+  fid        String      @id @db.Uuid
   File       File        @relation(fields: [fid], references: [id], onDelete: Cascade, onUpdate: Cascade)
   Submission Submission? @relation(fields: [subid], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
@@ -316,10 +344,12 @@ model User {
   hashedPassword String        @db.VarChar
   role           Role?         @default(STUDENT)
   token_hash     String?       @db.VarChar
-  avatar_url     String?       @db.VarChar
+  avatar_file_id String?       @db.Uuid
   ActivityLog    ActivityLog[]
   Admin          Admin?
+  AvatarFile     File?         @relation("UserAvatar", fields: [avatar_file_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
   Comment        Comment[]
+  File           File[]        @relation("FileUploader")
   Instructor     Instructor?
   Note           Note[]
   Notebook       Notebook[]
