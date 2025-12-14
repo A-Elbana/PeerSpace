@@ -211,6 +211,12 @@ export const validateAssignmentCreate = [
     .isLength({ min: 1, max: 255 })
     .withMessage("Title must be between 1 and 255 characters"),
 
+  body("description")
+    .optional()
+    .trim()
+    .isLength({ max: 2000 })
+    .withMessage("Description cannot exceed 2000 characters"),
+
   body("cid")
     .notEmpty()
     .withMessage("Community ID (cid) is required")
@@ -226,6 +232,11 @@ export const validateAssignmentCreate = [
     .optional()
     .isFloat({ min: 0 })
     .withMessage("max_points must be a non-negative number"),
+
+  body("canBeLate")
+    .optional()
+    .isBoolean()
+    .withMessage("canBeLate must be a boolean value"),
 ];
 
 /**
@@ -240,6 +251,12 @@ export const validateAssignmentUpdate = [
     .isLength({ min: 1, max: 255 })
     .withMessage("Title must be between 1 and 255 characters"),
 
+  body("description")
+    .optional()
+    .trim()
+    .isLength({ max: 2000 })
+    .withMessage("Description cannot exceed 2000 characters"),
+
   body("due_date")
     .optional()
     .isISO8601()
@@ -249,6 +266,11 @@ export const validateAssignmentUpdate = [
     .optional()
     .isFloat({ min: 0 })
     .withMessage("max_points must be a non-negative number"),
+
+  body("canBeLate")
+    .optional()
+    .isBoolean()
+    .withMessage("canBeLate must be a boolean value"),
 ];
 
 /**
@@ -262,10 +284,7 @@ export const validateNoteCreate = [
     .isLength({ min: 1, max: 255 })
     .withMessage("Title must be between 1 and 255 characters"),
 
-  body("body")
-    .optional()
-    .isString()
-    .withMessage("Body must be a string"),
+  body("body").optional().isString().withMessage("Body must be a string"),
 
   body("notebook_id")
     .optional({ nullable: true })
@@ -285,10 +304,7 @@ export const validateNoteUpdate = [
     .isLength({ min: 1, max: 255 })
     .withMessage("Title must be between 1 and 255 characters"),
 
-  body("body")
-    .optional()
-    .isString()
-    .withMessage("Body must be a string"),
+  body("body").optional().isString().withMessage("Body must be a string"),
 
   body("notebook_id")
     .optional({ nullable: true })

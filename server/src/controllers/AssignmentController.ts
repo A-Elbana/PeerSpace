@@ -16,7 +16,7 @@ interface AssignmentRequest extends Request {
  * Requires: authenticateToken + validateAssignmentCreate + requireInstructorManagesCommunity middleware
  */
 export const createAssignment = async (req: Request, res: Response) => {
-  const { title, cid, due_date, max_points } = req.body;
+  const { title, description, cid, due_date, max_points, canBeLate } = req.body;
   const userId = (req as any).userId;
 
   try {
@@ -32,9 +32,11 @@ export const createAssignment = async (req: Request, res: Response) => {
     const assignment = await prisma.assignment.create({
       data: {
         title: String(title).trim(),
+        description: description ? String(description).trim() : null,
         cid: String(cid),
         due_date: due_date ? new Date(due_date) : null,
         max_points: max_points !== undefined ? parseFloat(max_points) : null,
+        canBeLate: canBeLate !== undefined ? Boolean(canBeLate) : true,
         assigner_uid: userId,
       },
       include: {
@@ -63,7 +65,10 @@ export const createAssignment = async (req: Request, res: Response) => {
  * Expects: cid (query param), page (optional), limit (optional)
  * Requires: authenticateToken + community membership check
  */
-export const getAssignmentsByCommunity = async (req: Request, res: Response) => {
+export const getAssignmentsByCommunity = async (
+  req: Request,
+  res: Response
+) => {
   const cid = req.query.cid as string;
   const userId = (req as any).userId;
   const userRole = (req as any).role;
@@ -73,7 +78,9 @@ export const getAssignmentsByCommunity = async (req: Request, res: Response) => 
 
   // Validate cid
   if (!cid || !isValidUUID(cid)) {
-    return res.status(400).json({ message: "Valid community ID (cid) is required" });
+    return res
+      .status(400)
+      .json({ message: "Valid community ID (cid) is required" });
   }
 
   try {
@@ -141,7 +148,10 @@ export const getAssignmentsByCommunity = async (req: Request, res: Response) => 
  * Requires: authenticateToken + loadAssignment + authorizeAssignmentAccess middleware
  * req.assignment is set by loadAssignment middleware
  */
-export const getAssignmentById = async (req: AssignmentRequest, res: Response) => {
+export const getAssignmentById = async (
+  req: AssignmentRequest,
+  res: Response
+) => {
   // Assignment already loaded and access authorized by middleware
   res.status(200).json(req.assignment);
 };
@@ -152,19 +162,29 @@ export const getAssignmentById = async (req: AssignmentRequest, res: Response) =
  * Requires: authenticateToken + loadAssignment + authorizeAssignmentManage middleware
  * req.assignment is set by loadAssignment middleware
  */
-export const updateAssignment = async (req: AssignmentRequest, res: Response) => {
+export const updateAssignment = async (
+  req: AssignmentRequest,
+  res: Response
+) => {
   const assignment = req.assignment;
-  const { title, due_date, max_points } = req.body;
+  const { title, description, due_date, max_points, canBeLate } = req.body;
 
   // Build update data object with only provided fields
   const updateData: {
     title?: string;
+    description?: string | null;
     due_date?: Date | null;
     max_points?: number | null;
+    canBeLate?: boolean;
   } = {};
 
   if (title !== undefined) {
     updateData.title = String(title).trim();
+  }
+
+  if (description !== undefined) {
+    updateData.description =
+      description !== null ? String(description).trim() : null;
   }
 
   if (due_date !== undefined) {
@@ -175,6 +195,10 @@ export const updateAssignment = async (req: AssignmentRequest, res: Response) =>
   if (max_points !== undefined) {
     // Allow setting max_points to null by passing null
     updateData.max_points = max_points !== null ? parseFloat(max_points) : null;
+  }
+
+  if (canBeLate !== undefined) {
+    updateData.canBeLate = Boolean(canBeLate);
   }
 
   // Check if there's anything to update
@@ -216,7 +240,10 @@ export const updateAssignment = async (req: AssignmentRequest, res: Response) =>
  * Requires: authenticateToken + loadAssignment + authorizeAssignmentManage middleware
  * req.assignment is set by loadAssignment middleware
  */
-export const deleteAssignment = async (req: AssignmentRequest, res: Response) => {
+export const deleteAssignment = async (
+  req: AssignmentRequest,
+  res: Response
+) => {
   const assignment = req.assignment;
 
   try {

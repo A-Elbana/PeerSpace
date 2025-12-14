@@ -43,8 +43,10 @@ model Admin {
 model Assignment {
   id                       Int                        @id @default(autoincrement())
   title                    String                     @db.VarChar
+  description              String?                    @db.VarChar
   due_date                 DateTime?                  @db.Timestamp(6)
   max_points               Float?
+  canBeLate                Boolean                    @default(true)
   assigner_uid             Int
   cid                      String                     @db.Uuid
   Instructor               Instructor                 @relation(fields: [assigner_uid], references: [uid], onDelete: Cascade, onUpdate: Cascade)

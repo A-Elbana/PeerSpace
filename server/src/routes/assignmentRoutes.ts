@@ -55,6 +55,10 @@ const router = express.Router();
  *                 maxLength: 255
  *                 description: Assignment title
  *                 example: "Week 1 Homework"
+ *               description:
+ *                 type: string
+ *                 description: Detailed description of the assignment (optional)
+ *                 example: "Complete exercises 1-10 from chapter 3"
  *               cid:
  *                 type: string
  *                 format: uuid
@@ -70,6 +74,10 @@ const router = express.Router();
  *                 minimum: 0
  *                 description: Maximum points for the assignment (optional)
  *                 example: 100
+ *               canBeLate:
+ *                 type: boolean
+ *                 description: Whether late submissions are allowed (defaults to true)
+ *                 example: true
  *     responses:
  *       201:
  *         description: Assignment created successfully
@@ -82,11 +90,18 @@ const router = express.Router();
  *                   type: integer
  *                 title:
  *                   type: string
+ *                 description:
+ *                   type: string
+ *                   nullable: true
  *                 due_date:
  *                   type: string
  *                   format: date-time
+ *                   nullable: true
  *                 max_points:
  *                   type: number
+ *                   nullable: true
+ *                 canBeLate:
+ *                   type: boolean
  *                 assigner_uid:
  *                   type: integer
  *                 cid:
@@ -159,11 +174,18 @@ router.post(
  *                         type: integer
  *                       title:
  *                         type: string
+ *                       description:
+ *                         type: string
+ *                         nullable: true
  *                       due_date:
  *                         type: string
  *                         format: date-time
+ *                         nullable: true
  *                       max_points:
  *                         type: number
+ *                         nullable: true
+ *                       canBeLate:
+ *                         type: boolean
  *                       assigner_uid:
  *                         type: integer
  *                       cid:
@@ -220,11 +242,18 @@ router.get("/", authenticateToken, getAssignmentsByCommunity);
  *                   type: integer
  *                 title:
  *                   type: string
+ *                 description:
+ *                   type: string
+ *                   nullable: true
  *                 due_date:
  *                   type: string
  *                   format: date-time
+ *                   nullable: true
  *                 max_points:
  *                   type: number
+ *                   nullable: true
+ *                 canBeLate:
+ *                   type: boolean
  *                 assigner_uid:
  *                   type: integer
  *                 cid:
@@ -283,6 +312,9 @@ router.get(
  *                 type: string
  *                 maxLength: 255
  *                 description: Assignment title
+ *               description:
+ *                 type: string
+ *                 description: Detailed description of the assignment
  *               due_date:
  *                 type: string
  *                 format: date-time
@@ -291,6 +323,9 @@ router.get(
  *                 type: number
  *                 minimum: 0
  *                 description: Maximum points for the assignment
+ *               canBeLate:
+ *                 type: boolean
+ *                 description: Whether late submissions are allowed
  *     responses:
  *       200:
  *         description: Assignment updated successfully
