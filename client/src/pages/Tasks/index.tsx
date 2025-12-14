@@ -67,7 +67,7 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [updatingTaskIds, setUpdatingTaskIds] = useState<string[]>([]);
     const [page, setPage] = useState<number>(1);
-    const [limit] = useState<number>(5);
+    const [limit] = useState<number>(10);
     const [totalPages, setTotalPages] = useState<number>(1);
     const [totalTasks, setTotalTasks] = useState<number>(0);
     const [isFetchingTasks, setIsFetchingTasks] = useState<boolean>(false);
@@ -179,7 +179,16 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
             if (priority && priority !== 'all') params.priority = priority;
 
             const tasksRes = await api.get('/tasks', { params });
-            const backendTasks = tasksRes.data?.data || [];
+            let backendTasks = tasksRes.data?.data || [];
+            // sort by end_date: put null/undefined first, then ascending dates
+            backendTasks = backendTasks.slice().sort((a: any, b: any) => {
+                const ad = a.end_date ? new Date(a.end_date).getTime() : null;
+                const bd = b.end_date ? new Date(b.end_date).getTime() : null;
+                if (ad === null && bd === null) return 0;
+                if (ad === null) return -1;
+                if (bd === null) return 1;
+                return ad - bd;
+            });
             const mapped = mapBackendTasks(backendTasks);
             setTasks(mapped);
             const meta = tasksRes.data?.meta;
@@ -275,16 +284,13 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
         );
     }
 
-    // Filter logic
+    // Filter logic (client-side filtering on server-returned list)
     const filteredTasks = tasks.filter(task => {
         const matchesSearch = task.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             task.assignmentRelation.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
         return matchesSearch && matchesPriority;
     });
-
-    const ongoingTasks = filteredTasks.filter(t => !t.completed);
-    const completedTasks = filteredTasks.filter(t => t.completed);
 
     const TaskTable = ({ taskList, title }: { taskList: Task[], title: string }) => (
         <div className="mb-8">
@@ -471,9 +477,7 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
                         </div>
                     </div>
 
-                    <TaskTable taskList={ongoingTasks} title="Ongoing Tasks" />
-
-                    <TaskTable taskList={completedTasks} title="Completed Tasks" />
+                    <TaskTable taskList={filteredTasks} title="Tasks" />
 
                     {/* Pagination controls (server-driven) */}
                     <div className="flex justify-end mt-6">
