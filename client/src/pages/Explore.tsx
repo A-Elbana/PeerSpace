@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Sidebar } from '../components/dashboard';
-import { Flame, Clock, Filter, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, MoreHorizontal, Loader2, Sparkles, Users, BookOpen, Rocket, Send, Megaphone, Lock, Search, X, Tag, Maximize2, Minimize2 } from 'lucide-react';
+import { Flame, Clock, Filter, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, MoreHorizontal, Loader2, Sparkles, Users, BookOpen, Rocket, Send, Megaphone, Lock, Search, X, Tag, Maximize2 } from 'lucide-react';
 import api, { communityApi, postApi, type CommunityResponse, type PostResponse } from '../services/api';
 import { removeTokens } from '../utils/auth';
 import { MarkdownEditor } from '../components/MarkdownEditor';
@@ -78,21 +78,18 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
 
         setIsLoadingMore(true);
 
-        // Simulate a small delay for smooth UX
-        setTimeout(() => {
-            const currentLength = displayedPosts.length;
-            const nextPosts = posts.slice(currentLength, currentLength + POSTS_PER_PAGE);
+        const currentLength = displayedPosts.length;
+        const nextPosts = posts.slice(currentLength, currentLength + POSTS_PER_PAGE);
 
-            if (nextPosts.length > 0) {
-                setDisplayedPosts(prev => [...prev, ...nextPosts]);
-            }
+        if (nextPosts.length > 0) {
+            setDisplayedPosts(prev => [...prev, ...nextPosts]);
+        }
 
-            if (currentLength + nextPosts.length >= posts.length) {
-                setHasMore(false);
-            }
+        if (currentLength + nextPosts.length >= posts.length) {
+            setHasMore(false);
+        }
 
-            setIsLoadingMore(false);
-        }, 300);
+        setIsLoadingMore(false);
     }, [displayedPosts.length, posts, isLoadingMore, hasMore]);
 
     // Intersection Observer for infinite scroll
@@ -307,13 +304,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
         return community?.name || 'Unknown';
     };
 
-    if (isLoading || !user) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-background">
-                <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
-            </div>
-        );
-    }
+    // Render the page immediately and show skeletons for backend-driven parts while loading.
 
     return (
         <div className="flex min-h-screen bg-background text-foreground font-sans">
@@ -331,7 +322,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                             <div className="relative">
                                 <div className="flex items-center gap-2 mb-1">
                                     <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-                                        Welcome back, {user.fname}!
+                                        Welcome back, {user?.fname || 'there'}!
                                     </h1>
                                     <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse" />
                                 </div>
@@ -346,7 +337,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
 
                             <div className="flex items-start gap-3 relative">
                                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-lg shadow-blue-500/20">
-                                    {user.fname[0]}
+                                    {user?.fname?.[0] ?? 'U'}
                                 </div>
                                 <div className="flex-1 bg-muted/50 border border-input rounded-md flex flex-col overflow-hidden focus-within:border-ring transition-colors">
                                     <div className="flex border-b border-input">
@@ -421,7 +412,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                 </div>
                                 <button
                                     onClick={handleCreatePost}
-                                    disabled={!selectedCommunity || !newPostTitle.trim() || !newPostBody.trim() || isCreatingPost}
+                                    disabled={!user || !selectedCommunity || !newPostTitle.trim() || !newPostBody.trim() || isCreatingPost}
                                     className="p-2.5 bg-frosted-blue-500 hover:bg-frosted-blue-600 rounded-full text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 group/btn mt-1"
                                 >
                                     {isCreatingPost ? (
@@ -447,14 +438,14 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                     <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
                                         <h3 className="font-semibold text-lg flex items-center gap-2">
                                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold shadow-md">
-                                                {user.fname[0]}
+                                                {user?.fname?.[0] ?? 'U'}
                                             </div>
                                             Create Post
                                         </h3>
                                         <div className="flex items-center gap-2">
                                             <button
                                                 onClick={handleCreatePost}
-                                                disabled={!selectedCommunity || !newPostTitle.trim() || !newPostBody.trim() || isCreatingPost}
+                                                disabled={!user || !selectedCommunity || !newPostTitle.trim() || !newPostBody.trim() || isCreatingPost}
                                                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                             >
                                                 {isCreatingPost ? (
@@ -627,7 +618,22 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                         )}
 
                         {/* Posts List */}
-                        {(postTitleSearch ? posts.filter(p => p.title.toLowerCase().includes(postTitleSearch.toLowerCase())).length === 0 : posts.length === 0) ? (
+                        {isLoading ? (
+                            <>
+                                {[1,2,3].map(i => (
+                                    <div key={i} className="bg-card rounded-xl border border-border p-4 mb-3 animate-pulse">
+                                        <div className="flex gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-muted/30" />
+                                            <div className="flex-1">
+                                                <div className="h-4 bg-muted/30 rounded w-1/3 mb-2" />
+                                                <div className="h-3 bg-muted/30 rounded w-1/2 mb-2" />
+                                                <div className="h-3 bg-muted/30 rounded w-full" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </>
+                        ) : (postTitleSearch ? posts.filter(p => p.title.toLowerCase().includes(postTitleSearch.toLowerCase())).length === 0 : posts.length === 0) ? (
                             <div className="bg-card rounded-xl border border-border p-12 text-center relative overflow-hidden">
                                 {/* Decorative background elements */}
                                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -662,7 +668,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                     <span>{postTitleSearch ? 'Clear the search to see all posts' : 'Select a community above and start a conversation'}</span>
                                 </div>
                             </div>
-                        ) : (
+                            ) : (
                             <>
                                 {displayedPosts
                                     .filter(post => !postTitleSearch || post.title.toLowerCase().includes(postTitleSearch.toLowerCase()))
@@ -773,14 +779,17 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                             )}
 
                             <div className="space-y-4">
-                                {communities.filter(c => c.name.toLowerCase().includes(communityFilterSearch.toLowerCase())).length === 0 ? (
-                                    <div className="text-center py-6">
-                                        <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center">
-                                            <Users className="w-8 h-8 text-muted-foreground" />
-                                        </div>
-                                        <p className="text-sm text-muted-foreground">
-                                            {communityFilterSearch ? 'No communities match your search.' : 'No public communities found.'}
-                                        </p>
+                                {isLoading ? (
+                                    <div className="space-y-3">
+                                        {[1,2,3].map(i => (
+                                            <div key={i} className="flex items-center gap-3 p-2">
+                                                <div className="w-8 h-8 rounded-full bg-muted/30" />
+                                                <div className="flex-1">
+                                                    <div className="h-3 bg-muted/30 rounded w-2/3 mb-2" />
+                                                    <div className="h-2 bg-muted/30 rounded w-1/2" />
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 ) : (
                                     communities
@@ -795,7 +804,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                                 color={['bg-blue-500', 'bg-green-500', 'bg-red-500', 'bg-yellow-500', 'bg-purple-500'][index % 5]}
                                                 isJoining={joiningCommunityId === community.id}
                                                 onJoin={() => handleJoinCommunity(community.id)}
-                                                isStudent={user.role === 'student'}
+                                                isStudent={user?.role === 'student'}
                                                 isEnrolled={enrolledCommunityIds.has(community.id)}
                                                 onNavigate={(id: string) => navigate(`/community/${id}`)}
                                             />
@@ -819,13 +828,17 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                 Private Communities
                             </h3>
                             <div className="space-y-4">
-                                {privateCommunities.length === 0 ? (
-                                    <div className="text-center py-6">
-                                        <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full flex items-center justify-center">
-                                            <Lock className="w-8 h-8 text-muted-foreground" />
-                                        </div>
-                                        <p className="text-sm text-muted-foreground">No private communities yet.</p>
-                                        <p className="text-xs text-muted-foreground mt-1">Join or create one to see it here.</p>
+                                {isLoading ? (
+                                    <div className="space-y-3">
+                                        {[1,2,3].map(i => (
+                                            <div key={i} className="flex items-center gap-3 p-2">
+                                                <div className="w-8 h-8 rounded-full bg-muted/30" />
+                                                <div className="flex-1">
+                                                    <div className="h-3 bg-muted/30 rounded w-2/3 mb-2" />
+                                                    <div className="h-2 bg-muted/30 rounded w-1/2" />
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 ) : (
                                     privateCommunities.slice(0, 5).map((community, index) => (
@@ -837,7 +850,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                             color={['bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-violet-500', 'bg-fuchsia-500'][index % 5]}
                                             isJoining={joiningCommunityId === community.id}
                                             onJoin={() => handleJoinCommunity(community.id)}
-                                            isStudent={user.role === 'student'}
+                                            isStudent={user?.role === 'student'}
                                             isPrivate
                                             isEnrolled={enrolledCommunityIds.has(community.id)}
                                             onNavigate={(id: string) => navigate(`/community/${id}`)}
@@ -859,10 +872,10 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
 
                             <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider flex items-center gap-2">
                                 <Clock className="w-4 h-4 text-purple-500" />
-                                {user.role === 'instructor' ? 'Pending Actions' : 'Upcoming Deadlines'}
+                                {user?.role === 'instructor' ? 'Pending Actions' : 'Upcoming Deadlines'}
                             </h3>
                             <div className="space-y-3">
-                                {user.role === 'instructor' ? (
+                                {user?.role === 'instructor' ? (
                                     <>
                                         <DeadlineItem course="Database" task="Grade Phase 3 Reports" due="12 pending" isInstructor />
                                         <DeadlineItem course="Algorithms" task="Review Midterm Questions" due="Today" isInstructor />
