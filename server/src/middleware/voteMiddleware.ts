@@ -69,7 +69,8 @@ export const validateVoteRequest = (
   // Validate voteType
   if (voteType === undefined || typeof voteType !== "boolean") {
     return res.status(400).json({
-      message: "voteType is required and must be a boolean (true for upvote, false for downvote)",
+      message:
+        "voteType is required and must be a boolean (true for upvote, false for downvote)",
     });
   }
 

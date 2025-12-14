@@ -29,7 +29,9 @@ export const votePost = async (req: VoteRequest, res: Response) => {
   if (typeof voteType !== "boolean") {
     return res
       .status(400)
-      .json({ message: "voteType must be a boolean (true=upvote, false=downvote)" });
+      .json({
+        message: "voteType must be a boolean (true=upvote, false=downvote)",
+      });
   }
 
   try {
