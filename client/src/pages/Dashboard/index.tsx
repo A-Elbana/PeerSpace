@@ -7,6 +7,7 @@ import { removeTokens } from '../../utils/auth';
 // Role-specific Dashboards
 import StudentDashboard from './StudentDashboard';
 import InstructorDashboard from './InstructorDashboard';
+import AdminDashboard from './AdminDashboard';
 
 type UserRole = 'student' | 'instructor' | 'admin';
 
@@ -77,9 +78,7 @@ const Dashboard: React.FC = () => {
     case 'instructor':
       return <InstructorDashboard user={user} onLogout={handleLogout} />;
     case 'admin':
-      // For now, admins see the instructor dashboard
-      // TODO: Create AdminDashboard component
-      return <InstructorDashboard user={user} onLogout={handleLogout} />;
+      return <AdminDashboard user={user} onLogout={handleLogout} />;
     case 'student':
     default:
       return <StudentDashboard user={user} onLogout={handleLogout} />;
