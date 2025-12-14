@@ -144,7 +144,7 @@ export const getSubmissionById = async (req: Request, res: Response) => {
     const files = await prisma.file.findMany({
       where: {
         context: "SUBMISSION",
-        context_id: submission.id,
+        context_id: String(submission.id),
       },
       select: {
         id: true,
@@ -210,7 +210,7 @@ export const deleteSubmission = async (req: Request, res: Response) => {
     const files = await prisma.file.findMany({
       where: {
         context: "SUBMISSION",
-        context_id: Number(id),
+        context_id: String(id),
       },
     });
 
@@ -232,7 +232,7 @@ export const deleteSubmission = async (req: Request, res: Response) => {
     await prisma.file.deleteMany({
       where: {
         context: "SUBMISSION",
-        context_id: Number(id),
+        context_id: String(id),
       },
     });
 

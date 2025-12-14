@@ -264,7 +264,7 @@ export const deleteUser = async (req: Request, res: Response) => {
     const userFiles = await prisma.file.findMany({
       where: {
         context: "USER_AVATAR",
-        context_id: targetUserId,
+        context_id: String(targetUserId),
       },
     });
 
@@ -283,7 +283,7 @@ export const deleteUser = async (req: Request, res: Response) => {
     await prisma.file.deleteMany({
       where: {
         context: "USER_AVATAR",
-        context_id: targetUserId,
+        context_id: String(targetUserId),
       },
     });
 

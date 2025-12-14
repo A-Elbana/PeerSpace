@@ -139,6 +139,7 @@ export interface CommunityResponse {
   description: string | null;
   type: "PUBLIC" | "PRIVATE";
   banner_file_id: string | null;
+  banner_url?: string | null;
   _count?: {
     Enrollment: number;
     Post: number;
@@ -189,6 +190,7 @@ export const communityApi = {
     name: string;
     description?: string;
     type: "PUBLIC" | "PRIVATE";
+    banner_file_id?: string;
   }): Promise<{
     success: boolean;
     message: string;
@@ -221,6 +223,7 @@ export const communityApi = {
     id: string,
     data: {
       name?: string;
+      banner_file_id?: string;
       description?: string;
       type?: "PUBLIC" | "PRIVATE";
     }
@@ -363,6 +366,45 @@ export const announcementApi = {
 
   delete: async (id: number): Promise<{ message: string }> => {
     const response = await api.delete(`/posts/${id}`);
+    return response.data;
+  },
+};
+
+// File API calls
+export const fileApi = {
+  create: async (data: {
+    public_id: string;
+    secure_url: string;
+    resource_type: string;
+    format?: string;
+    context:
+      | "POST"
+      | "SUBMISSION"
+      | "NOTE"
+      | "ASSIGNMENT"
+      | "COMMUNITY_BANNER"
+      | "USER_AVATAR";
+    context_id: string;
+    is_private?: boolean;
+  }) => {
+    const response = await api.post("/files", data);
+    return response.data;
+  },
+
+  getByContext: async (context: string, contextId: string) => {
+    const response = await api.get("/files", {
+      params: { context, context_id: contextId },
+    });
+    return response.data;
+  },
+
+  getById: async (id: string) => {
+    const response = await api.get(`/files/${id}`);
+    return response.data;
+  },
+
+  delete: async (id: string) => {
+    const response = await api.delete(`/files/${id}`);
     return response.data;
   },
 };

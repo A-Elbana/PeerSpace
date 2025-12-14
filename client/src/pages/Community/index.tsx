@@ -201,6 +201,7 @@ const Community: React.FC = () => {
             type={community.type}
             memberCount={community._count?.Enrollment || 0}
             postCount={community._count?.Post || 0}
+            bannerUrl={community.banner_url ?? community.banner_file_id}
             isInstructor={isInstructorOfCommunity}
           />
 

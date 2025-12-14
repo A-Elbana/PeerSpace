@@ -18,6 +18,8 @@ export const createFile = async (req: Request, res: Response) => {
     is_private = false,
   } = req.body;
 
+  const contextId = String(context_id);
+
   try {
     const file = await prisma.file.create({
       data: {
@@ -26,7 +28,7 @@ export const createFile = async (req: Request, res: Response) => {
         resource_type,
         format: format || null,
         context: context as FileContext,
-        context_id: parseInt(context_id),
+        context_id: contextId,
         is_private: Boolean(is_private),
         uploader_id: userId,
       },
@@ -51,16 +53,18 @@ export const getFilesByContext = async (req: Request, res: Response) => {
       .json({ message: "context and context_id are required" });
   }
 
-  const contextIdNum = parseInt(context_id as string);
-  if (isNaN(contextIdNum)) {
-    return res.status(400).json({ message: "context_id must be a number" });
+  const contextId = String(context_id);
+  if (!contextId.trim()) {
+    return res
+      .status(400)
+      .json({ message: "context_id must be a non-empty string" });
   }
 
   try {
     const files = await prisma.file.findMany({
       where: {
         context: context as FileContext,
-        context_id: contextIdNum,
+        context_id: contextId,
       },
       orderBy: { created_at: "desc" },
       select: {
@@ -210,16 +214,18 @@ export const deleteFilesByContext = async (req: Request, res: Response) => {
       .json({ message: "context and context_id are required" });
   }
 
-  const contextIdNum = parseInt(context_id);
-  if (isNaN(contextIdNum)) {
-    return res.status(400).json({ message: "context_id must be a number" });
+  const contextId = String(context_id);
+  if (!contextId.trim()) {
+    return res
+      .status(400)
+      .json({ message: "context_id must be a non-empty string" });
   }
 
   try {
     const files = await prisma.file.findMany({
       where: {
         context: context as FileContext,
-        context_id: contextIdNum,
+        context_id: contextId,
       },
     });
 
@@ -244,7 +250,7 @@ export const deleteFilesByContext = async (req: Request, res: Response) => {
     const result = await prisma.file.deleteMany({
       where: {
         context: context as FileContext,
-        context_id: contextIdNum,
+        context_id: contextId,
         OR: [
           { uploader_id: userId },
           userRole === "ADMIN" ? {} : { uploader_id: userId }, // Admin can delete all

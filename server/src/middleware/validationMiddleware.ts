@@ -177,6 +177,11 @@ export const validateCommunityUpdate = [
     .trim()
     .isLength({ max: 500 })
     .withMessage("Description cannot exceed 500 characters"),
+
+  body("banner_file_id")
+    .optional()
+    .isUUID()
+    .withMessage("banner_file_id must be a valid UUID"),
 ];
 
 /**
@@ -281,8 +286,10 @@ export const validateUploadSign = [
     ),
 
   body("context_id")
-    .isInt({ min: 1 })
-    .withMessage("context_id must be a positive integer"),
+    .isString()
+    .trim()
+    .isLength({ min: 1, max: 128 })
+    .withMessage("context_id must be a non-empty string up to 128 characters"),
 
   body("is_private")
     .optional()

@@ -301,7 +301,7 @@ export const deleteAssignment = async (
       await tx.file.deleteMany({
         where: {
           context: "ASSIGNMENT",
-          context_id: assignment.id,
+          context_id: String(assignment.id),
         },
       });
 
@@ -316,7 +316,7 @@ export const deleteAssignment = async (
         const submissionFiles = await tx.file.findMany({
           where: {
             context: "SUBMISSION",
-            context_id: submission.id,
+            context_id: String(submission.id),
           },
         });
 
@@ -334,7 +334,7 @@ export const deleteAssignment = async (
         await tx.file.deleteMany({
           where: {
             context: "SUBMISSION",
-            context_id: submission.id,
+            context_id: String(submission.id),
           },
         });
       }

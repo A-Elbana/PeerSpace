@@ -39,8 +39,10 @@ const validateFileCreate = [
     ])
     .withMessage("Invalid context"),
   body("context_id")
-    .isInt({ min: 1 })
-    .withMessage("context_id must be a positive integer"),
+    .isString()
+    .trim()
+    .isLength({ min: 1, max: 128 })
+    .withMessage("context_id must be a non-empty string up to 128 characters"),
   body("is_private")
     .optional()
     .isBoolean()
@@ -81,7 +83,8 @@ const validateFileCreate = [
  *                 type: string
  *                 enum: [POST, SUBMISSION, NOTE, ASSIGNMENT, COMMUNITY_BANNER, USER_AVATAR]
  *               context_id:
- *                 type: integer
+ *                 type: string
+ *                 maxLength: 128
  *               is_private:
  *                 type: boolean
  *     responses:
@@ -119,7 +122,8 @@ router.post(
  *         name: context_id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           maxLength: 128
  *     responses:
  *       200:
  *         description: List of files
@@ -150,7 +154,8 @@ router.get("/", authenticateToken, getFilesByContext);
  *                 type: string
  *                 enum: [POST, SUBMISSION, NOTE, ASSIGNMENT, COMMUNITY_BANNER, USER_AVATAR]
  *               context_id:
- *                 type: integer
+ *                 type: string
+ *                 maxLength: 128
  *     responses:
  *       200:
  *         description: Files deleted successfully

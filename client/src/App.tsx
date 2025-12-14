@@ -10,6 +10,7 @@ import Notifications from './pages/Notifications';
 import Announcements from './pages/Announcements';
 import Community from './pages/Community';
 import ManageCommunity from './pages/ManageCommunity';
+import FileAttachmentTest from './pages/FileTest';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 import Notes from './pages/Notes/Notes';
@@ -136,6 +137,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <ManageCommunity />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/file-test"
+            element={
+              <ProtectedRoute>
+                <FileAttachmentTest />
               </ProtectedRoute>
             }
           />

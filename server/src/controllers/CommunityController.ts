@@ -64,7 +64,7 @@ const isUserMemberOfCommunity = async (
  * Only INSTRUCTOR and ADMIN can create communities
  */
 export const createCommunity = async (req: Request, res: Response) => {
-  const { name, description, type } = req.body;
+  const { name, description, type, banner_file_id } = req.body;
   const userId = (req as any).userId;
   const userRole = (req as any).role;
 
@@ -223,11 +223,43 @@ export const getCommunities = async (req: Request, res: Response) => {
       },
     });
 
+    // Resolve banner URLs
+    const communitiesWithBanner = await Promise.all(
+      communities.map(async (c) => {
+        let banner_url: string | null = null;
+        if (c.banner_file_id) {
+          try {
+            const file = await prisma.file.findUnique({
+              where: { id: c.banner_file_id },
+            });
+            if (file) {
+              if (file.is_private) {
+                banner_url =
+                  require("../config/cloudinary").default.utils.private_download_url(
+                    file.public_id,
+                    file.resource_type,
+                    {
+                      expires_at: Math.floor(Date.now() / 1000) + 3600,
+                      attachment: false,
+                    }
+                  );
+              } else {
+                banner_url = file.secure_url;
+              }
+            }
+          } catch (e) {
+            banner_url = null;
+          }
+        }
+        return { ...c, banner_url };
+      })
+    );
+
     const total = await prisma.community.count({ where: whereClause });
 
     res.status(200).json({
       success: true,
-      data: communities,
+      data: communitiesWithBanner,
       meta: {
         total,
         page,
@@ -264,7 +296,32 @@ export const getCommunityById = async (req: Request, res: Response) => {
 
     res.status(200).json({
       success: true,
-      data: communityDetails,
+      data: {
+        ...communityDetails,
+        banner_url: communityDetails?.banner_file_id
+          ? await (async () => {
+              try {
+                const file = await prisma.file.findUnique({
+                  where: { id: communityDetails!.banner_file_id! },
+                });
+                if (!file) return null;
+                if (file.is_private) {
+                  return require("../config/cloudinary").default.utils.private_download_url(
+                    file.public_id,
+                    file.resource_type,
+                    {
+                      expires_at: Math.floor(Date.now() / 1000) + 3600,
+                      attachment: false,
+                    }
+                  );
+                }
+                return file.secure_url;
+              } catch {
+                return null;
+              }
+            })()
+          : null,
+      },
     });
   } catch (error: any) {
     console.error("Get Community Error:", error);
@@ -278,7 +335,7 @@ export const getCommunityById = async (req: Request, res: Response) => {
  */
 export const updateCommunity = async (req: Request, res: Response) => {
   const community = (req as any).community;
-  const { name, description, type } = req.body;
+  const { name, description, type, banner_file_id } = req.body;
 
   try {
     // Build update data
@@ -288,6 +345,20 @@ export const updateCommunity = async (req: Request, res: Response) => {
       updateData.description = description ? sanitizeString(description) : null;
     if (type && ["PUBLIC", "PRIVATE"].includes(type.toUpperCase())) {
       updateData.type = type.toUpperCase();
+    }
+
+    if (banner_file_id !== undefined) {
+      // Allow clearing banner by sending null or empty string
+      if (banner_file_id === null || banner_file_id === "") {
+        updateData.banner_file_id = null;
+      } else if (
+        typeof banner_file_id === "string" &&
+        isValidUUID(banner_file_id)
+      ) {
+        updateData.banner_file_id = banner_file_id;
+      } else {
+        return res.status(400).json({ message: "Invalid banner_file_id" });
+      }
     }
 
     if (Object.keys(updateData).length === 0) {
@@ -359,7 +430,7 @@ export const deleteCommunity = async (req: Request, res: Response) => {
       const communityFiles = await tx.file.findMany({
         where: {
           context: "COMMUNITY_BANNER",
-          context_id: parseInt(community.id),
+          context_id: String(community.id),
         },
       });
 
@@ -378,7 +449,7 @@ export const deleteCommunity = async (req: Request, res: Response) => {
       await tx.file.deleteMany({
         where: {
           context: "COMMUNITY_BANNER",
-          context_id: parseInt(community.id),
+          context_id: String(community.id),
         },
       });
 
@@ -392,7 +463,7 @@ export const deleteCommunity = async (req: Request, res: Response) => {
         const postFiles = await tx.file.findMany({
           where: {
             context: "POST",
-            context_id: post.id,
+            context_id: String(post.id),
           },
         });
 
@@ -410,7 +481,7 @@ export const deleteCommunity = async (req: Request, res: Response) => {
         await tx.file.deleteMany({
           where: {
             context: "POST",
-            context_id: post.id,
+            context_id: String(post.id),
           },
         });
       }

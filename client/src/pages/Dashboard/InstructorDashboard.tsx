@@ -12,7 +12,7 @@ import {
   CreateCommunityModal,
 } from '../../components/dashboard';
 import { Button } from '../../components/ui/button';
-import { communityApi, type CommunityResponse } from '../../services/api';
+import api, { communityApi, type CommunityResponse } from '../../services/api';
 
 // Types
 import type { ManagedCourse } from '../../components/dashboard/ManageCourses';
@@ -90,7 +90,69 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
   const handleCreateCommunity = async (data: CreateCommunityData) => {
     setIsCreatingCommunity(true);
     try {
-      await communityApi.create(data);
+      // Create community first without banner
+      const response = await communityApi.create({
+        name: data.name,
+        description: data.description,
+        type: data.type,
+      });
+      
+      const communityId = response.data.id;
+      
+      // If there's a banner file, upload it with the correct community ID
+      if (data.bannerFile) {
+        try {
+          // Step 1: Get upload signature
+          const signResponse = await api.post('/uploads/sign', {
+            context: 'COMMUNITY_BANNER',
+            context_id: communityId,
+            is_private: false,
+            resource_type: 'auto',
+          });
+
+          const { timestamp, signature, folder, cloudName, apiKey } = signResponse.data;
+
+          // Step 2: Upload to Cloudinary
+          const formData = new FormData();
+          formData.append('file', data.bannerFile);
+          formData.append('timestamp', timestamp.toString());
+          formData.append('signature', signature);
+          formData.append('api_key', apiKey);
+          formData.append('folder', folder);
+
+          const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
+          const uploadResponse = await fetch(uploadUrl, {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (uploadResponse.ok) {
+            const cloudinaryData = await uploadResponse.json();
+
+            // Step 3: Save file record in backend
+            const fileResponse = await api.post('/files', {
+              public_id: cloudinaryData.public_id,
+              secure_url: cloudinaryData.secure_url,
+              resource_type: cloudinaryData.resource_type,
+              format: cloudinaryData.format,
+              context: 'COMMUNITY_BANNER',
+              context_id: communityId,
+              is_private: false,
+            });
+
+            const fileRecord = fileResponse.data.data;
+
+              // Step 4: Update community with banner_file_id (store File.id, not URL)
+              await communityApi.update(communityId, {
+                banner_file_id: fileRecord.id,
+              });
+          }
+        } catch (uploadError) {
+          console.error('Failed to upload banner:', uploadError);
+          // Community is created, but banner upload failed - non-critical
+        }
+      }
+      
       // Optionally refresh the dashboard data or show success message
       await fetchDashboardData();
     } finally {

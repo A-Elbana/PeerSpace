@@ -127,7 +127,7 @@ model File {
 
   // Context (Where does this belong?)
   context    FileContext
-  context_id Int
+  context_id String      @db.VarChar(128)
 
   // Cloudinary Data
   public_id     String // e.g., "peerspace/private/courses/101/homework_1"

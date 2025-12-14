@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "File" ALTER COLUMN "context_id" SET DATA TYPE VARCHAR(128);

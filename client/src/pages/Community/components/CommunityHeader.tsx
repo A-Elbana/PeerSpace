@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Users, FileText, Globe, Lock, Copy, Check, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Users, FileText, Globe, Lock, Copy, Check, X, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import api from '@/services/api';
 
 interface CommunityHeaderProps {
   name: string;
@@ -9,6 +10,7 @@ interface CommunityHeaderProps {
   type: 'PUBLIC' | 'PRIVATE';
   memberCount: number;
   postCount: number;
+  bannerUrl?: string | null;
   isInstructor?: boolean;
 }
 
@@ -19,10 +21,36 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
   type,
   memberCount,
   postCount,
+  bannerUrl,
   isInstructor = false,
 }) => {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [resolvedBannerUrl, setResolvedBannerUrl] = useState<string | null>(bannerUrl ?? null);
+
+  useEffect(() => {
+    const isUrl = (v?: string | null) => !!v && (v.startsWith('http://') || v.startsWith('https://'));
+    if (!bannerUrl) {
+      setResolvedBannerUrl(null);
+      return;
+    }
+    if (isUrl(bannerUrl)) {
+      setResolvedBannerUrl(bannerUrl);
+      return;
+    }
+    // bannerUrl is actually a File UUID; fetch its secure_url
+    (async () => {
+      try {
+        const res = await api.get(`/files/${bannerUrl}`);
+        const file = res.data?.data;
+        const url: string | undefined = file?.signed_url || file?.secure_url;
+        setResolvedBannerUrl(url ?? null);
+      } catch (err) {
+        console.error('Failed to resolve banner file URL', err);
+        setResolvedBannerUrl(null);
+      }
+    })();
+  }, [bannerUrl]);
 
   const handleCopyId = async () => {
     try {
@@ -37,9 +65,27 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
 
   return (
     <>
-      <div className="bg-background border border-border rounded-lg p-6 mb-6">
-        {/* Community Name and Type Badge */}
-        <div className="flex items-center justify-between mb-2">
+      <div className="bg-background border border-border rounded-lg overflow-hidden mb-6">
+        {/* Banner Image */}
+        {resolvedBannerUrl && (
+          <div className="relative w-full h-48 bg-gradient-to-br from-blue-500/10 to-purple-500/10">
+            <img
+              src={resolvedBannerUrl}
+              alt={`${name} banner`}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                // Hide image on error and show gradient background
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+          </div>
+        )}
+
+        {/* Content Section */}
+        <div className="p-6">
+          {/* Community Name and Type Badge */}
+          <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-foreground">{name}</h1>
             <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${type === 'PUBLIC'
@@ -63,22 +109,23 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
           )}
         </div>
 
-        {/* Description */}
-        {description && (
-          <p className="text-muted-foreground mb-4">
-            {description}
-          </p>
-        )}
+          {/* Description */}
+          {description && (
+            <p className="text-muted-foreground mb-4">
+              {description}
+            </p>
+          )}
 
-        {/* Stats */}
-        <div className="flex items-center gap-6 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            <span>{memberCount} members</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <FileText className="w-4 h-4" />
-            <span>{postCount} posts</span>
+          {/* Stats */}
+          <div className="flex items-center gap-6 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              <span>{memberCount} members</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              <span>{postCount} posts</span>
+            </div>
           </div>
         </div>
       </div>
