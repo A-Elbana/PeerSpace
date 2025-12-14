@@ -1,5 +1,6 @@
 import React from 'react';
 import { User, UserPlus, Loader2 } from 'lucide-react';
+import { useResolvedFileUrl } from '../../../hooks/useResolvedFileUrl';
 
 interface Member {
   id: number;
@@ -25,14 +26,15 @@ const ClassmateCard: React.FC<ClassmateCardProps> = ({
   hideInviteButton = false,
 }) => {
   const isCurrentUser = member.id === currentUserId;
+  const avatarUrl = useResolvedFileUrl(member.avatar_file_id);
 
   return (
     <div className="flex items-center justify-between py-2">
       <div className="flex items-center gap-3">
         {/* Avatar */}
-        {member.avatar_file_id ? (
+        {avatarUrl ? (
           <img
-            src={member.avatar_file_id}
+            src={avatarUrl}
             alt={`${member.fname} ${member.lname}`}
             className="w-8 h-8 rounded-full object-cover"
           />

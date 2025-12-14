@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Send, Loader2, Tag, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { postApi, type PostResponse } from '../../../services/api';
+import { useResolvedFileUrl } from '../../../hooks/useResolvedFileUrl';
 
 // Available post tags
 const POST_TAGS = [
@@ -31,6 +32,7 @@ const CreatePost: React.FC<CreatePostProps> = ({
   const [newPostBody, setNewPostBody] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isCreatingPost, setIsCreatingPost] = useState(false);
+  const resolvedAvatarUrl = useResolvedFileUrl(userAvatarUrl || null);
 
   const handleCreatePost = async () => {
     if (!newPostTitle.trim() || !newPostBody.trim()) return;
@@ -75,9 +77,17 @@ const CreatePost: React.FC<CreatePostProps> = ({
       <div className="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-purple-500/0 to-pink-500/0 group-hover:from-blue-500/5 group-hover:via-purple-500/5 group-hover:to-pink-500/5 transition-all duration-500 rounded-xl" />
 
       <div className="flex items-start gap-3 relative">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-lg shadow-blue-500/20">
-          {userFirstName[0]}
-        </div>
+        {resolvedAvatarUrl ? (
+          <img
+            src={resolvedAvatarUrl}
+            alt={`${userFirstName} ${userLastName}`}
+            className="w-10 h-10 rounded-full object-cover flex-shrink-0 border border-border"
+          />
+        ) : (
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-lg shadow-blue-500/20">
+            {userFirstName[0]}
+          </div>
+        )}
         <div className="flex-1 bg-muted/50 border border-input rounded-md flex flex-col overflow-hidden focus-within:border-ring transition-colors">
           {/* Tags Selection */}
           <div className="px-3 py-2 border-b border-input bg-muted/30 flex items-center gap-2 flex-wrap">

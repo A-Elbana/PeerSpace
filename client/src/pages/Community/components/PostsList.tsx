@@ -1,5 +1,6 @@
 import React from 'react';
 import { MessageSquare, Clock, User, ArrowBigUp, ArrowBigDown, Megaphone } from 'lucide-react';
+import { useResolvedFileUrl } from '../../../hooks/useResolvedFileUrl';
 
 interface PostAuthor {
   id: number;
@@ -27,6 +28,8 @@ interface PostsListProps {
 }
 
 const PostCard: React.FC<{ post: Post }> = ({ post }) => {
+  const authorAvatarUrl = useResolvedFileUrl(post.User.avatar_file_id);
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -86,9 +89,9 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               {/* Author Avatar */}
-              {post.User.avatar_file_id ? (
+              {authorAvatarUrl ? (
                 <img
-                  src={post.User.avatar_file_id}
+                  src={authorAvatarUrl}
                   alt={`${post.User.fname} ${post.User.lname}`}
                   className="w-8 h-8 rounded-full object-cover"
                 />

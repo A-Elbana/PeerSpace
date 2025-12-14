@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Users, GraduationCap, User } from 'lucide-react';
 import { toast } from 'sonner';
 import ClassmateCard from './ClassmateCard';
+import { useResolvedFileUrl } from '../../../hooks/useResolvedFileUrl';
 
 interface Member {
   id: number;
@@ -27,6 +28,29 @@ const MembersPanel: React.FC<MembersPanelProps> = ({
   isCurrentUserInstructor = false,
 }) => {
   const [invitingMemberId, setInvitingMemberId] = useState<number | null>(null);
+
+  const InstructorItem: React.FC<{ instructor: Member }> = ({ instructor }) => {
+    const avatarUrl = useResolvedFileUrl(instructor.avatar_file_id);
+
+    return (
+      <div className="flex items-center gap-3 py-2">
+        {avatarUrl ? (
+          <img
+            src={avatarUrl}
+            alt={`${instructor.fname} ${instructor.lname}`}
+            className="w-8 h-8 rounded-full object-cover"
+          />
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+            <User className="w-4 h-4 text-primary" />
+          </div>
+        )}
+        <span className="text-sm font-medium text-foreground">
+          {instructor.fname} {instructor.lname}
+        </span>
+      </div>
+    );
+  };
 
   const handleInviteToTeam = async (memberId: number) => {
     setInvitingMemberId(memberId);
@@ -71,22 +95,7 @@ const MembersPanel: React.FC<MembersPanelProps> = ({
         {instructors.length > 0 ? (
           <div className="space-y-2">
             {instructors.map((instructor) => (
-              <div key={instructor.id} className="flex items-center gap-3 py-2">
-                {instructor.avatar_file_id ? (
-                  <img
-                    src={instructor.avatar_file_id}
-                    alt={`${instructor.fname} ${instructor.lname}`}
-                    className="w-8 h-8 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                    <User className="w-4 h-4 text-primary" />
-                  </div>
-                )}
-                <span className="text-sm font-medium text-foreground">
-                  {instructor.fname} {instructor.lname}
-                </span>
-              </div>
+              <InstructorItem key={instructor.id} instructor={instructor} />
             ))}
           </div>
         ) : (

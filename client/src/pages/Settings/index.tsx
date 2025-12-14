@@ -30,6 +30,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useResolvedFileUrl } from '@/hooks/useResolvedFileUrl';
 
 type UserRole = 'student' | 'instructor' | 'admin';
 
@@ -65,6 +66,7 @@ const Settings: React.FC = () => {
   const [email, setEmail] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   // Password state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -78,6 +80,8 @@ const Settings: React.FC = () => {
   useEffect(() => {
     fetchUserData();
   }, []);
+
+  const resolvedAvatarUrl = useResolvedFileUrl(avatarPreview || avatarUrl || null);
 
   const fetchUserData = async () => {
     try {
@@ -109,18 +113,70 @@ const Settings: React.FC = () => {
     fileInputRef.current?.click();
   };
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAvatarPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (!file || !user) return;
+
+    setIsUploadingAvatar(true);
+    setMessage(null);
+
+    try {
+      const signResponse = await api.post('/uploads/sign', {
+        context: 'USER_AVATAR',
+        context_id: user.id.toString(),
+        is_private: false,
+        resource_type: 'auto'
+      });
+
+      const { timestamp, signature, folder, cloudName, apiKey } = signResponse.data;
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('timestamp', timestamp.toString());
+      formData.append('signature', signature);
+      formData.append('api_key', apiKey);
+      formData.append('folder', folder);
+
+      const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Cloudinary upload failed');
+      }
+
+      const cloudinaryData = await uploadResponse.json();
+
+      const fileResponse = await api.post('/files', {
+        public_id: cloudinaryData.public_id,
+        secure_url: cloudinaryData.secure_url,
+        resource_type: cloudinaryData.resource_type,
+        format: cloudinaryData.format,
+        context: 'USER_AVATAR',
+        context_id: user.id.toString(),
+        is_private: false
+      });
+
+      const fileRecord = fileResponse.data.data;
+
+      const { data } = await api.put(`/users/${user.id}`, {
+        avatar_file_id: fileRecord.id
+      });
+
+      setUser(prev => (prev ? { ...prev, ...data.user } : data.user));
+      setAvatarUrl(fileRecord.id);
+      setAvatarPreview(fileRecord.secure_url);
+      setMessage({ type: 'success', text: 'Avatar updated successfully!' });
+    } catch (err: any) {
+      console.error('Failed to upload avatar:', err);
       setMessage({
         type: 'error',
-        text: 'File upload not supported. Please use the Avatar URL field instead.'
+        text: err.response?.data?.message || err.message || 'Failed to upload avatar'
       });
+    } finally {
+      setIsUploadingAvatar(false);
     }
   };
 
@@ -311,7 +367,7 @@ const Settings: React.FC = () => {
                 <div className="flex items-start gap-6 pb-6 border-b border-border">
                   <div className="relative group">
                     <Avatar className="w-20 h-20 border-2 border-border">
-                      <AvatarImage src={avatarPreview || avatarUrl} alt="Profile" />
+                      <AvatarImage src={avatarPreview || resolvedAvatarUrl || undefined} alt="Profile" />
                       <AvatarFallback className="text-lg font-semibold bg-muted text-muted-foreground">
                         {getInitials()}
                       </AvatarFallback>
@@ -320,14 +376,20 @@ const Settings: React.FC = () => {
                       type="button"
                       onClick={handleAvatarClick}
                       className="absolute -bottom-1 -right-1 p-1.5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors"
+                      disabled={isUploadingAvatar}
                     >
-                      <Camera className="w-3.5 h-3.5" />
+                      {isUploadingAvatar ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Camera className="w-3.5 h-3.5" />
+                      )}
                     </button>
                     <input
                       ref={fileInputRef}
                       type="file"
                       accept="image/*"
                       onChange={handleAvatarChange}
+                      disabled={isUploadingAvatar}
                       className="hidden"
                     />
                   </div>
