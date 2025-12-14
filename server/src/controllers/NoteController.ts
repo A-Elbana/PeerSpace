@@ -15,7 +15,7 @@ interface NoteRequest extends Request {
  * Requires: authenticateToken + validateNoteCreate middleware
  */
 export const createNote = async (req: Request, res: Response) => {
-  const { title, body, notebook_id } = req.body;
+  const { title, body, notebook_id, file_ids } = req.body;
   const owner_uid = (req as any).userId;
   try {
     const note = await prisma.note.create({
@@ -27,6 +27,18 @@ export const createNote = async (req: Request, res: Response) => {
         owner_uid: owner_uid,
       },
     });
+
+    // Create file attachments if file_ids provided
+    if (file_ids && Array.isArray(file_ids) && file_ids.length > 0) {
+      await prisma.noteFileAttachment.createMany({
+        data: file_ids.map((fid: string) => ({
+          nid: note.id,
+          fid: String(fid),
+        })),
+        skipDuplicates: true,
+      });
+    }
+
     return res.status(201).json(note);
   } catch (error) {
     console.error("Create Note Error:", error);
@@ -85,6 +97,20 @@ export const getMyNotes = async (req: Request, res: Response) => {
             select: {
               id: true,
               title: true,
+            },
+          },
+          NoteFileAttachment: {
+            include: {
+              File: {
+                select: {
+                  id: true,
+                  public_id: true,
+                  secure_url: true,
+                  resource_type: true,
+                  format: true,
+                  is_private: true,
+                },
+              },
             },
           },
         },
@@ -146,7 +172,7 @@ export const getNoteById = async (req: NoteRequest, res: Response) => {
  */
 export const updateNote = async (req: NoteRequest, res: Response) => {
   const note = req.note;
-  const { title, body, notebook_id } = req.body;
+  const { title, body, notebook_id, file_ids } = req.body;
 
   const updateData: {
     title?: string;
@@ -169,7 +195,7 @@ export const updateNote = async (req: NoteRequest, res: Response) => {
       notebook_id !== null ? parseInt(notebook_id) : null;
   }
 
-  if (Object.keys(updateData).length === 0) {
+  if (Object.keys(updateData).length === 0 && file_ids === undefined) {
     return res.status(400).json({ message: "No valid fields to update" });
   }
 
@@ -195,6 +221,25 @@ export const updateNote = async (req: NoteRequest, res: Response) => {
         },
       },
     });
+
+    // Update file attachments if file_ids provided
+    if (file_ids !== undefined && Array.isArray(file_ids)) {
+      // Delete existing attachments
+      await prisma.noteFileAttachment.deleteMany({
+        where: { nid: note.id },
+      });
+
+      // Create new attachments
+      if (file_ids.length > 0) {
+        await prisma.noteFileAttachment.createMany({
+          data: file_ids.map((fid: string) => ({
+            nid: note.id,
+            fid: String(fid),
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
 
     return res.status(200).json({
       message: "Note updated successfully",

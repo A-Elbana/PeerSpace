@@ -29,17 +29,35 @@ export const createSubmission = async (req: Request, res: Response) => {
       },
     });
 
-    // TODO: File attachments now use context/context_id approach
-    // Create File records with context=SUBMISSION, context_id=submission.id
-    // if (fileIds && fileIds.length) {
-    //   for (const fidRaw of fileIds) {
-    //     // Create File record with context and context_id
-    //   }
-    // }
+    // Create file attachments if fileIds provided
+    if (fileIds && Array.isArray(fileIds) && fileIds.length > 0) {
+      await prisma.submissionFileAttachment.createMany({
+        data: fileIds.map((fid: string | number) => ({
+          subid: submission.id,
+          fid: String(fid),
+        })),
+        skipDuplicates: true,
+      });
+    }
 
     const result = await prisma.submission.findUnique({
       where: { id: submission.id },
-      // include: { // SubmissionFileAttachment: { include: { File: true } } },
+      include: {
+        SubmissionFileAttachment: {
+          include: {
+            File: {
+              select: {
+                id: true,
+                public_id: true,
+                secure_url: true,
+                resource_type: true,
+                format: true,
+                is_private: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     res.status(201).json({ success: true, data: result });
@@ -74,7 +92,20 @@ export const getSubmissionsByAssignment = async (
       take: limit,
       orderBy: { subm_date: "desc" },
       include: {
-        // SubmissionFileAttachment: { include: { File: true } },
+        SubmissionFileAttachment: {
+          include: {
+            File: {
+              select: {
+                id: true,
+                public_id: true,
+                secure_url: true,
+                resource_type: true,
+                format: true,
+                is_private: true,
+              },
+            },
+          },
+        },
         Student: { include: { User: true } },
       },
     });
@@ -109,7 +140,20 @@ export const getMySubmissions = async (req: Request, res: Response) => {
       take: limit,
       orderBy: { subm_date: "desc" },
       include: {
-        // SubmissionFileAttachment: { include: { File: true } },
+        SubmissionFileAttachment: {
+          include: {
+            File: {
+              select: {
+                id: true,
+                public_id: true,
+                secure_url: true,
+                resource_type: true,
+                format: true,
+                is_private: true,
+              },
+            },
+          },
+        },
         Assignment: true,
       },
     });
@@ -175,7 +219,7 @@ export const updateSubmission = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { feedback, fileIds } = req.body as {
     feedback?: string | null;
-    fileIds?: number[];
+    fileIds?: string[];
   };
   try {
     const submission = await prisma.submission.update({
@@ -183,16 +227,43 @@ export const updateSubmission = async (req: Request, res: Response) => {
       data: { feedback: feedback ?? null },
     });
 
-    // TODO: File replacement now uses context/context_id approach
-    // Delete old files for this submission, create new ones
-    // if (fileIds) {
-    //   // Delete existing files: prisma.file.deleteMany({ where: { context: SUBMISSION, context_id: submission.id } })
-    //   // Create new files with context and context_id
-    // }
+    // Update file attachments if fileIds provided
+    if (fileIds !== undefined && Array.isArray(fileIds)) {
+      // Delete existing attachments
+      await prisma.submissionFileAttachment.deleteMany({
+        where: { subid: submission.id },
+      });
+
+      // Create new attachments
+      if (fileIds.length > 0) {
+        await prisma.submissionFileAttachment.createMany({
+          data: fileIds.map((fid: string) => ({
+            subid: submission.id,
+            fid: String(fid),
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
 
     const result = await prisma.submission.findUnique({
       where: { id: submission.id },
-      // include: { // SubmissionFileAttachment: { include: { File: true } } },
+      include: {
+        SubmissionFileAttachment: {
+          include: {
+            File: {
+              select: {
+                id: true,
+                public_id: true,
+                secure_url: true,
+                resource_type: true,
+                format: true,
+                is_private: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     res.status(200).json({ success: true, data: result });

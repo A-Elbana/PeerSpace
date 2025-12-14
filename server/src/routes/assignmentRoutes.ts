@@ -78,6 +78,13 @@ const router = express.Router();
  *                 type: boolean
  *                 description: Whether late submissions are allowed (defaults to true)
  *                 example: true
+ *               file_ids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: uuid
+ *                 description: Array of file UUIDs to attach to this assignment
+ *                 example: ["550e8400-e29b-41d4-a716-446655440001", "550e8400-e29b-41d4-a716-446655440002"]
  *     responses:
  *       201:
  *         description: Assignment created successfully
@@ -190,6 +197,29 @@ router.post(
  *                         type: integer
  *                       cid:
  *                         type: string
+ *                       AssignmentFileAttachment:
+ *                         type: array
+ *                         description: Attached files
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             fid:
+ *                               type: string
+ *                               format: uuid
+ *                             File:
+ *                               type: object
+ *                               properties:
+ *                                 id:
+ *                                   type: string
+ *                                   format: uuid
+ *                                 secure_url:
+ *                                   type: string
+ *                                 resource_type:
+ *                                   type: string
+ *                                 format:
+ *                                   type: string
+ *                                 is_private:
+ *                                   type: boolean
  *                 meta:
  *                   type: object
  *                   properties:
@@ -264,6 +294,23 @@ router.get("/", authenticateToken, getAssignmentsByCommunity);
  *                 Community:
  *                   type: object
  *                   description: Community the assignment belongs to
+ *                 files:
+ *                   type: array
+ *                   description: Attached files
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         format: uuid
+ *                       secure_url:
+ *                         type: string
+ *                       resource_type:
+ *                         type: string
+ *                       format:
+ *                         type: string
+ *                       is_private:
+ *                         type: boolean
  *       400:
  *         description: Invalid assignment ID
  *       401:
@@ -326,6 +373,12 @@ router.get(
  *               canBeLate:
  *                 type: boolean
  *                 description: Whether late submissions are allowed
+ *               file_ids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: uuid
+ *                 description: Array of file UUIDs - replaces all existing attachments
  *     responses:
  *       200:
  *         description: Assignment updated successfully

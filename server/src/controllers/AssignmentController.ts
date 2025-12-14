@@ -16,7 +16,8 @@ interface AssignmentRequest extends Request {
  * Requires: authenticateToken + validateAssignmentCreate + requireInstructorManagesCommunity middleware
  */
 export const createAssignment = async (req: Request, res: Response) => {
-  const { title, description, cid, due_date, max_points, canBeLate } = req.body;
+  const { title, description, cid, due_date, max_points, canBeLate, file_ids } =
+    req.body;
   const userId = (req as any).userId;
 
   try {
@@ -52,6 +53,17 @@ export const createAssignment = async (req: Request, res: Response) => {
         },
       },
     });
+
+    // Create file attachments if file_ids provided
+    if (file_ids && Array.isArray(file_ids) && file_ids.length > 0) {
+      await prisma.assignmentFileAttachment.createMany({
+        data: file_ids.map((fid: string) => ({
+          aid: assignment.id,
+          fid: String(fid),
+        })),
+        skipDuplicates: true,
+      });
+    }
 
     res.status(201).json(assignment);
   } catch (error) {
@@ -116,6 +128,20 @@ export const getAssignmentsByCommunity = async (
             include: {
               User: {
                 select: { id: true, fname: true, lname: true },
+              },
+            },
+          },
+          AssignmentFileAttachment: {
+            include: {
+              File: {
+                select: {
+                  id: true,
+                  public_id: true,
+                  secure_url: true,
+                  resource_type: true,
+                  format: true,
+                  is_private: true,
+                },
               },
             },
           },
@@ -187,7 +213,8 @@ export const updateAssignment = async (
   res: Response
 ) => {
   const assignment = req.assignment;
-  const { title, description, due_date, max_points, canBeLate } = req.body;
+  const { title, description, due_date, max_points, canBeLate, file_ids } =
+    req.body;
 
   // Build update data object with only provided fields
   const updateData: {
@@ -222,7 +249,7 @@ export const updateAssignment = async (
   }
 
   // Check if there's anything to update
-  if (Object.keys(updateData).length === 0) {
+  if (Object.keys(updateData).length === 0 && file_ids === undefined) {
     return res.status(400).json({ message: "No valid fields to update" });
   }
 
@@ -243,6 +270,25 @@ export const updateAssignment = async (
         },
       },
     });
+
+    // Update file attachments if file_ids provided
+    if (file_ids !== undefined && Array.isArray(file_ids)) {
+      // Delete existing attachments
+      await prisma.assignmentFileAttachment.deleteMany({
+        where: { aid: assignment.id },
+      });
+
+      // Create new attachments
+      if (file_ids.length > 0) {
+        await prisma.assignmentFileAttachment.createMany({
+          data: file_ids.map((fid: string) => ({
+            aid: assignment.id,
+            fid: String(fid),
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
 
     res.status(200).json({
       message: "Assignment updated successfully",
