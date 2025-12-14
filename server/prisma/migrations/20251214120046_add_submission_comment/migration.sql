@@ -1,0 +1,3 @@
+-- Placeholder migration recovered from database history
+-- Already applied in remote database; no-op locally.
+-- If schema drift exists, consider updating prisma/schema.prisma and generating a new migration.

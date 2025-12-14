@@ -202,6 +202,68 @@ export const updateUser = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Get all communities for the authenticated user.
+ * - If role is STUDENT: return communities where the student is enrolled
+ * - If role is INSTRUCTOR: return communities managed by the instructor
+ * Headers only; implementation to be added later.
+ */
+export const getMyCommunities = async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
+  const userRole = (req as any).role;
+
+  try {
+    if (userRole === "STUDENT") {
+      const communities = await prisma.enrollment.findMany({
+        where: { sid: userId },
+        include: {
+          Community: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              type: true,
+            },
+          },
+        },
+      });
+
+      return res.status(200).json({
+        message: "Communities retrieved successfully",
+        role: "STUDENT",
+        data: communities.map((enrollment) => enrollment.Community),
+      });
+    } else if (userRole === "INSTRUCTOR") {
+      const manages = await prisma.manages.findMany({
+        where: { iid: userId },
+      });
+
+      // Fetch communities separately by their IDs
+      const communityIds = manages.map((m) => m.cid);
+      const communities = await prisma.community.findMany({
+        where: { id: { in: communityIds } },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          type: true,
+        },
+      });
+
+      return res.status(200).json({
+        message: "Communities retrieved successfully",
+        role: "INSTRUCTOR",
+        data: communities,
+      });
+    }
+
+    return res.status(403).json({ message: "Invalid role" });
+  } catch (error) {
+    console.error("Get My Communities Error:", error);
+    return res.status(500).json({ message: "Failed to fetch communities" });
+  }
+};
+
 export const deleteUser = async (req: Request, res: Response) => {
   const id = req.params.id;
   if (!id) {
@@ -365,3 +427,4 @@ export const createAdmin = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Failed to create admin" });
   }
 };
+
