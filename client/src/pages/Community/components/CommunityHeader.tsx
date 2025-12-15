@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { Users, FileText, Globe, Lock, Copy, Check, X } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { Users, FileText, Globe, Lock, Copy, Check, X, Link } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api';
+import './CommunityHeader.css';
 
 interface CommunityHeaderProps {
   name: string;
@@ -31,6 +32,69 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [copied, setCopied] = useState(false);
   const [resolvedBannerUrl, setResolvedBannerUrl] = useState<string | null>(bannerUrl ?? null);
+  const [session, setSession] = useState<any | null>(null);
+  const [showSessionHover, setShowSessionHover] = useState(false);
+  const hoverHideTimeout = useRef<number | null>(null);
+  const [localStartTime, setLocalStartTime] = useState<string | null>(null);
+  const [isUpdatingSession, setIsUpdatingSession] = useState(false);
+  const [showSessionModal, setShowSessionModal] = useState(false);
+  const [sessionForm, setSessionForm] = useState({ title: '', meet_url: '', start_time_local: '' });
+  // Validation errors
+  const [formErrors, setFormErrors] = useState<{ title?: string; meet_url?: string; start_time_local?: string }>({});
+
+  const validateForm = (f: { title: string; meet_url: string; start_time_local: string }) => {
+    const errors: { title?: string; meet_url?: string; start_time_local?: string } = {};
+    if (!f.title || f.title.trim() === '') errors.title = 'Title is required';
+    try {
+      // Accept full URLs or protocol-less hostnames (e.g. example.com)
+      // Try parsing as-is, otherwise attempt with https:// prepended for validation only
+      try {
+        new URL(f.meet_url);
+      } catch (e) {
+        new URL(`https://${f.meet_url}`);
+      }
+    } catch (e) {
+      errors.meet_url = 'Please provide a valid URL';
+    }
+    if (!f.start_time_local) {
+      errors.start_time_local = 'Start time is required';
+    } else {
+      const t = new Date(f.start_time_local).getTime();
+      if (isNaN(t) || t <= Date.now()) errors.start_time_local = 'Start time must be in the future';
+    }
+    return errors;
+  };
+
+  const liveErrors = validateForm(sessionForm);
+  const isFormValid = Object.keys(liveErrors).length === 0;
+  const [isSavingSession, setIsSavingSession] = useState(false);
+  const [isDeletingSession, setIsDeletingSession] = useState(false);
+
+  const sessionIsLive = !!(session && session.start_time && new Date(session.start_time).getTime() <= Date.now());
+
+  // Hover handlers keep the hover card visible when hovering either the badge or the card
+  const handleHoverEnter = () => {
+    if (hoverHideTimeout.current) {
+      window.clearTimeout(hoverHideTimeout.current);
+      hoverHideTimeout.current = null;
+    }
+    setShowSessionHover(true);
+  };
+
+  const handleHoverLeave = () => {
+    if (hoverHideTimeout.current) window.clearTimeout(hoverHideTimeout.current);
+    // Slightly longer delay so the user can move between badge and card without flicker
+    hoverHideTimeout.current = window.setTimeout(() => {
+      setShowSessionHover(false);
+      hoverHideTimeout.current = null;
+    }, 300);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (hoverHideTimeout.current) window.clearTimeout(hoverHideTimeout.current);
+    };
+  }, []);
 
   useEffect(() => {
     const isUrl = (v?: string | null) => !!v && (v.startsWith('http://') || v.startsWith('https://'));
@@ -56,6 +120,49 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
     })();
   }, [bannerUrl]);
 
+  // Fetch session info when user can see it (enrolled or instructor)
+  useEffect(() => {
+    const fetchSession = async () => {
+      if (!isEnrolled && !isInstructor) return;
+      try {
+        const res = await api.get(`/sessions?cid=${id}`);
+        const s = res.data?.data ?? res.data; // tolerate different shapes
+        if (s) {
+          setSession(s);
+          setLocalStartTime(s.start_time ? new Date(s.start_time).toISOString().slice(0, 16) : null);
+        } else {
+          setSession(null);
+        }
+      } catch (err: any) {
+        // ignore 404/no session
+        if (err.response && err.response.status !== 404) console.error('Failed to fetch session', err);
+      }
+    };
+
+    fetchSession();
+    // Optionally refresh occasionally if needed
+  }, [id, isEnrolled, isInstructor]);
+
+  const handleSaveStartTime = async () => {
+    if (!isInstructor || !localStartTime) return;
+    try {
+      setIsUpdatingSession(true);
+      // Convert local datetime-local value to ISO
+      const iso = new Date(localStartTime).toISOString();
+      await api.put(`/sessions/${id}`, { start_time: iso });
+      toast.success('Session start time updated');
+      // refresh session
+      const res = await api.get(`/sessions?cid=${id}`);
+      const s = res.data?.data ?? res.data;
+      setSession(s ?? null);
+    } catch (err) {
+      console.error('Failed to update session', err);
+      toast.error('Failed to update session');
+    } finally {
+      setIsUpdatingSession(false);
+    }
+  };
+
   const handleCopyId = async () => {
     try {
       await navigator.clipboard.writeText(id);
@@ -67,9 +174,77 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
     }
   };
 
+  const openSessionModal = () => {
+    setSessionForm({
+      title: session?.title ?? '',
+      meet_url: session?.meet_url ?? '',
+      start_time_local: session?.start_time ? new Date(session.start_time).toISOString().slice(0, 16) : ''
+    });
+    setShowSessionModal(true);
+  };
+
+  const closeSessionModal = () => {
+    setShowSessionModal(false);
+  };
+
+  const handleSaveSession = async () => {
+    // Validate before sending using shared validator
+    const errors = validateForm(sessionForm);
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast.error('Please fix validation errors');
+      return;
+    }
+    try {
+      setIsSavingSession(true);
+      const payload: any = {
+        title: sessionForm.title,
+        meet_url: sessionForm.meet_url
+      };
+      if (sessionForm.start_time_local) payload.start_time = new Date(sessionForm.start_time_local).toISOString();
+
+      if (session) {
+        // update
+        const res = await api.put(`/sessions/${id}`, payload);
+        const s = res.data?.data ?? res.data;
+        setSession(s ?? null);
+        toast.success('Session updated');
+      } else {
+        // create
+        const res = await api.post(`/sessions`, { cid: id, ...payload });
+        const s = res.data?.data ?? res.data;
+        setSession(s ?? null);
+        toast.success('Session created');
+      }
+      setShowSessionModal(false);
+    } catch (err) {
+      console.error('Failed to save session', err);
+      toast.error('Failed to save session');
+    } finally {
+      setIsSavingSession(false);
+    }
+  };
+
+  const handleDeleteSession = async () => {
+    if (!session) return;
+    if (!window.confirm('Are you sure you want to delete this live session?')) return;
+    try {
+      setIsDeletingSession(true);
+      await api.delete(`/sessions/${id}`);
+      setSession(null);
+      toast.success('Session deleted');
+      setShowSessionModal(false);
+    } catch (err) {
+      console.error('Failed to delete session', err);
+      toast.error('Failed to delete session');
+    } finally {
+      setIsDeletingSession(false);
+    }
+  };
+
   return (
     <>
-      <div className="bg-background border border-border rounded-lg overflow-hidden mb-6">
+      <div className="bg-background border border-border rounded-lg mb-6">
         {/* Banner Image */}
         {resolvedBannerUrl && (
           <div className="relative w-full h-48 bg-gradient-to-br from-blue-500/10 to-purple-500/10">
@@ -99,6 +274,54 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
                 {type === 'PUBLIC' ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
                 {type}
               </span>
+
+              {/* Separate small session badge (near but not part of the type badge) */}
+              {session && (isEnrolled || isInstructor) && (
+                <div className="ml-3 relative inline-block" onMouseEnter={handleHoverEnter} onMouseLeave={handleHoverLeave}>
+                  <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-card text-xs font-medium text-foreground`}>
+                    <div className={`session-dot ${sessionIsLive ? 'live' : 'scheduled'}`}>
+                      <span className="outer" aria-hidden />
+                      <span className="glow" aria-hidden />
+                      <span className="core" aria-hidden />
+                    </div>
+                    <span className="whitespace-nowrap">{sessionIsLive ? 'A session is live' : 'A live session is scheduled'}</span>
+                  </div>
+
+                  {/* Hover card anchored to this badge and above all UI */}
+                  <div
+                    onMouseEnter={handleHoverEnter}
+                    onMouseLeave={handleHoverLeave}
+                    className={`absolute left-0 top-full mt-2 w-80 bg-card border border-border rounded-lg p-3 shadow-lg z-[9999] transition-opacity transition-transform duration-300 ease-in-out ${showSessionHover ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 -translate-y-2 pointer-events-none'}`}>
+                  
+                      <div className="text-sm text-muted-foreground mb-1">{sessionIsLive ? 'A session is live' : 'A live session is scheduled'}</div>
+                      <div className="text-base font-semibold text-foreground mb-1">{session.title ?? 'Untitled session'}</div>
+                      {session?.start_time && (
+                        <div className="text-xs text-muted-foreground mb-3">{new Date(session.start_time).toLocaleString()}</div>
+                      )}
+
+                      <div className="flex items-center gap-2 mb-2">
+                        {
+                          (() => {
+                            const raw = session?.meet_url ?? '';
+                            const normalized = raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
+                            return (
+                              <a href={normalized} target="_blank" rel="noopener noreferrer" className="flex-1 inline-flex items-center justify-center px-3 py-1.5 bg-primary/30 text-foreground rounded-md text-sm hover:bg-primary/20">
+                                <Link className="w-4 h-4 mr-2" />Go To Link
+                              </a>
+                            );
+                          })()
+                        }
+                      </div>
+
+                      {isInstructor && (
+                        <div className="flex items-center gap-2">
+                          <input type="datetime-local" value={localStartTime ?? ''} onChange={(e) => setLocalStartTime(e.target.value)} className="flex-1 bg-transparent border border-border rounded px-2 py-1 text-sm text-foreground" />
+                          <button onClick={handleSaveStartTime} disabled={isUpdatingSession} className="px-3 py-1 bg-tech-blue-500 text-white rounded text-sm disabled:opacity-60">Save</button>
+                        </div>
+                      )}
+                    </div>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-3">
@@ -122,6 +345,16 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
                   Share Community ID
                 </button>
               )}
+              {/* Add/Edit Live Session button for instructors */}
+              {isInstructor && (
+                <button
+                  onClick={openSessionModal}
+                  className="flex items-center gap-2 px-3 py-2 bg-rose-500 hover:bg-rose-600 text-white text-sm font-medium rounded-lg transition-all duration-300"
+                >
+                  {session ? 'Edit Live Session' : 'Add Live Session'}
+                </button>
+              )}
+ 
             </div>
           </div>
 
@@ -147,9 +380,9 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
       </div>
 
       {/* Invite Modal */}
-      {showInviteModal && (
+          {showInviteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background border border-border rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl">
+          <div className="bg-background border border-border rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl text-foreground">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-foreground">Share Community ID</h2>
               <button
@@ -185,6 +418,75 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
             <p className="text-xs text-muted-foreground mt-3">
               Students can use this ID in their dashboard to join the community.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Session Modal (Add / Edit) - instructors only */}
+      {showSessionModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background border border-border rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl text-foreground">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-foreground">{session ? 'Edit Live Session' : 'Add Live Session'}</h2>
+              <button onClick={closeSessionModal} className="text-muted-foreground hover:text-foreground transition-colors"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm text-muted-foreground block mb-1">Title</label>
+                <input
+                  type="text"
+                  value={sessionForm.title}
+                  onChange={(e) => setSessionForm(prev => ({ ...prev, title: e.target.value }))}
+                  className="w-full bg-transparent border border-border rounded px-3 py-2 text-sm text-foreground"
+                />
+                {(formErrors.title || liveErrors.title) && <p className="text-xs text-red-500 mt-1">{formErrors.title || liveErrors.title}</p>}
+              </div>
+
+              <div>
+                <label className="text-sm text-muted-foreground block mb-1">Meeting URL</label>
+                <input
+                  type="url"
+                  value={sessionForm.meet_url}
+                  onChange={(e) => setSessionForm(prev => ({ ...prev, meet_url: e.target.value }))}
+                  className="w-full bg-transparent border border-border rounded px-3 py-2 text-sm text-foreground"
+                />
+                {(formErrors.meet_url || liveErrors.meet_url) && <p className="text-xs text-red-500 mt-1">{formErrors.meet_url || liveErrors.meet_url}</p>}
+              </div>
+
+              <div>
+                <label className="text-sm text-muted-foreground block mb-1">Start time</label>
+                <input
+                  type="datetime-local"
+                  value={sessionForm.start_time_local}
+                  onChange={(e) => setSessionForm(prev => ({ ...prev, start_time_local: e.target.value }))}
+                  className="w-full bg-transparent border border-border rounded px-3 py-2 text-sm text-foreground"
+                />
+                {(formErrors.start_time_local || liveErrors.start_time_local) && <p className="text-xs text-red-500 mt-1">{formErrors.start_time_local || liveErrors.start_time_local}</p>}
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center justify-between">
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSaveSession}
+                  disabled={!isFormValid || isSavingSession}
+                  className="px-4 py-2 bg-tech-blue-500 hover:bg-tech-blue-600 text-white rounded disabled:opacity-60"
+                >
+                  {isSavingSession ? 'Saving...' : session ? 'Save Changes' : 'Create Session'}
+                </button>
+                {session && (
+                  <button
+                    onClick={handleDeleteSession}
+                    disabled={isDeletingSession}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded"
+                  >
+                    {isDeletingSession ? 'Deleting...' : 'Delete'}
+                  </button>
+                )}
+              </div>
+              <button onClick={closeSessionModal} className="text-sm text-muted-foreground">Cancel</button>
+            </div>
           </div>
         </div>
       )}

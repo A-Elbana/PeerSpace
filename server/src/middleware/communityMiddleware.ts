@@ -155,3 +155,37 @@ export const requireCommunityMembership = async (
 
   next();
 };
+
+/**
+ * Middleware: Require instructor to manage community (from body.cid or params.cid)
+ * Used for assignment/session creation and management
+ * Expects cid in request body (POST/PUT) or params (DELETE)
+ */
+export const requireInstructorManagesCommunity = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const userId = (req as any).userId;
+  const userRole = (req as any).role;
+  const cid = (req.body && req.body.cid) || (req.params && req.params.cid);
+
+  if (!cid || !isValidUUID(cid)) {
+    return res.status(400).json({ message: "Valid community ID (cid) is required" });
+  }
+
+  // Admins can manage any community
+  if (userRole === Role.ADMIN) {
+    return next();
+  }
+
+  // Check if user is instructor managing this community
+  const isManager = await isUserManagerOfCommunity(userId, cid);
+  if (!isManager) {
+    return res
+      .status(403)
+      .json({ message: "Only instructors managing this community can perform this action" });
+  }
+
+  next();
+};

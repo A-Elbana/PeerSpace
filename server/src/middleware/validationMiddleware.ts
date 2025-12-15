@@ -559,3 +559,61 @@ export const validateBadgeUpdate = [
     .withMessage("Icon URL must be a valid URL"),
 ];
 
+/**
+ * Session creation validation rules
+ */
+export const validateSessionCreate = [
+  body("cid")
+    .trim()
+    .notEmpty()
+    .withMessage("Community ID (cid) is required")
+    .isUUID()
+    .withMessage("Community ID must be a valid UUID"),
+
+  body("title")
+    .trim()
+    .notEmpty()
+    .withMessage("Session title is required")
+    .isLength({ min: 3, max: 255 })
+    .withMessage("Session title must be between 3 and 255 characters"),
+
+  body("start_time")
+    .notEmpty()
+    .withMessage("Session start time is required")
+    .isISO8601()
+    .withMessage("Start time must be a valid ISO 8601 date-time string"),
+
+  body("meet_url")
+    .trim()
+    .notEmpty()
+    .withMessage("Meeting URL is required")
+    .isURL()
+    .withMessage("Meeting URL must be a valid URL"),
+];
+
+/**
+ * Session update validation rules
+ */
+export const validateSessionUpdate = [
+  body("title")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Session title cannot be empty")
+    .isLength({ min: 3, max: 255 })
+    .withMessage("Session title must be between 3 and 255 characters"),
+
+  body("start_time")
+    .optional()
+    .isISO8601()
+    .withMessage("Start time must be a valid ISO 8601 date-time string"),
+
+  body("meet_url")
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage("Meeting URL cannot be empty")
+    .isURL()
+    .withMessage("Meeting URL must be a valid URL"),
+];
+

@@ -7,6 +7,7 @@ import {
   getPostsByCommunity,
   togglePostResolved,
   getAllPosts,
+  getAllMyPosts,
 } from "../controllers/PostController";
 import {
   authenticateToken,
@@ -228,6 +229,39 @@ router.get(
   authenticateToken,
   getAllPosts
 );
+
+/**
+ * @swagger
+ * /api/posts/me:
+ *   get:
+ *     summary: Get all my posts
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *     description: Retrieve all posts created by the authenticated user with pagination and metadata
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *           maximum: 50
+ *         description: Number of posts per page
+ *     responses:
+ *       200:
+ *         description: My posts retrieved successfully with pagination metadata
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get("/me", authenticateToken, getAllMyPosts);
 
 /**
  * @swagger

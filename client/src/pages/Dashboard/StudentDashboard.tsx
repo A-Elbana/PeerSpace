@@ -58,7 +58,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
       setIsLoading(true);
 
       // Fetch communities the student is enrolled in
-      const communitiesResponse = await communityApi.getAll({ limit: 50, memberOnly: true });
+      const communitiesResponse = await communityApi.getMyCommunities({ limit: 50 });
 
       // Map communities to Course format
       const enrolledCourses: Course[] = communitiesResponse.data.map((community: CommunityResponse) => ({
@@ -67,8 +67,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
         instructor: '', // Will be populated when we have instructor info
         status: 'enrolled' as const,
       }));
-
-      setCourses(enrolledCourses);
 
       setCourses(enrolledCourses);
 
@@ -122,10 +120,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
     }
   };
 
-  const handleNewTask = () => {
-    console.log('New task clicked');
-  };
-
   const handleEnrollInPrivateCommunity = async () => {
     if (!communityCode.trim()) {
       toast.error('Please enter a community ID');
@@ -177,7 +171,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
         <Header
           title="Student Dashboard"
           subtitle={`Welcome back, ${user.fname}!`}
-          onNewTask={handleNewTask}
+          showNewTaskButton={false}
         />
 
         {/* Metric Cards Row */}
