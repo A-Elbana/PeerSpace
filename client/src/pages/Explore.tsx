@@ -74,9 +74,10 @@ interface PostCardProps {
     postAuthorId?: number;
     onEdit?: () => void;
     onDelete?: () => void;
+    postId?: number;
 }
 
-const PostCard = ({ communityId, subreddit, author, time, title, content, image, upvotes, comments, postType, onNavigate, currentUser, postAuthorId, onEdit, onDelete }: PostCardProps) => {
+const PostCard = ({ communityId, subreddit, author, time, title, content, image, upvotes, comments, postType, onNavigate, currentUser, postAuthorId, onEdit, onDelete, postId }: PostCardProps) => {
     const tags = postType?.split(',').map((t: string) => t.trim().toLowerCase()) || [];
     const isAnnouncement = tags.includes('announcement');
 
@@ -95,6 +96,8 @@ const PostCard = ({ communityId, subreddit, author, time, title, content, image,
         };
         return styles[tag] || styles.discussion;
     };
+
+    const navigate = useNavigate();
 
     return (
         <div className={`bg-card rounded-xl border ${isAnnouncement ? 'border-royal-gold-500/50 ring-1 ring-royal-gold-500/20' : 'border-border'} hover:border-tech-blue-500/30 hover:shadow-lg hover:shadow-tech-blue-500/5 transition-all duration-300 overflow-hidden group`}>
@@ -159,7 +162,12 @@ const PostCard = ({ communityId, subreddit, author, time, title, content, image,
                         <span>•</span>
                         <span>{time}</span>
                     </div>
-                    <h3 className={`text-lg font-semibold mb-2 leading-snug ${isAnnouncement ? 'text-yellow-600 dark:text-yellow-400' : 'text-foreground'}`}>{title}</h3>
+                    <h3
+                        onClick={() => postId && navigate(`/community/${communityId}/post/${postId}`)}
+                        className={`text-lg font-semibold mb-2 leading-snug cursor-pointer ${isAnnouncement ? 'text-yellow-600 dark:text-yellow-400' : 'text-foreground'}`}
+                    >
+                        {title}
+                    </h3>
                     {content && <MarkdownPreview content={content} className="text-sm mb-3" />}
                     {image && (
                         <div className="mb-3 rounded-lg overflow-hidden border border-border">
@@ -1200,6 +1208,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                                     onNavigate={(id: string) => navigate(`/community/${id}`)}
                                                     currentUser={user}
                                                     postAuthorId={post.owner_uid}
+                                                    postId={post.id}
                                                     onEdit={() => handleEditPost(post)}
                                                     onDelete={() => handleDeletePost(post.id)}
                                                 />

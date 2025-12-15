@@ -299,6 +299,7 @@ const Community: React.FC = () => {
                 isLoading={isLoadingPosts}
                 currentUser={user}
                 isInstructorOfCommunity={isInstructorOfCommunity}
+                communityId={community.id}
                 onDeletePost={handleDeletePost}
                 onEditPost={handleEditPost}
               />
