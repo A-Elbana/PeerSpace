@@ -424,6 +424,39 @@ export const announcementApi = {
   },
 };
 
+// Comment API
+export const commentApi = {
+  getByPost: async (
+    pid: number,
+    params?: { includeReplies?: boolean; page?: number; limit?: number; sortBy?: string }
+  ) => {
+    const cleanParams: any = { pid };
+    if (params) {
+      if (params.includeReplies !== undefined) cleanParams.includeReplies = params.includeReplies;
+      if (params.page) cleanParams.page = params.page;
+      if (params.limit) cleanParams.limit = params.limit;
+      if (params.sortBy) cleanParams.sortBy = params.sortBy;
+    }
+    const response = await api.get('/comments', { params: cleanParams });
+    return response.data;
+  },
+
+  create: async (data: { pid: number; content: string; parentCommentId?: number }) => {
+    const response = await api.post('/comments', data);
+    return response.data;
+  },
+
+  update: async (id: number, data: { content: string }) => {
+    const response = await api.put(`/comments/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id: number) => {
+    const response = await api.delete(`/comments/${id}`);
+    return response.data;
+  },
+};
+
 // File API calls
 export const fileApi = {
   create: async (data: {
