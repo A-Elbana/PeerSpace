@@ -269,15 +269,27 @@ export const deleteComment = async (req: Request, res: Response) => {
   }
 
   try {
-    // Delete all child comments first (cascade handled by schema but explicit for clarity)
-    await prisma.comment.deleteMany({
+    // Check if this comment has any replies
+    const repliesCount = await prisma.comment.count({
       where: { parent_comment_id: commentId },
     });
 
-    // Delete the comment
-    await prisma.comment.delete({ where: { id: commentId } });
+    if (repliesCount === 0) {
+      // No replies: hard delete
+      await prisma.comment.delete({ where: { id: commentId } });
+      return res.status(200).json({ success: true, deleted: "hard" });
+    }
 
-    res.status(200).json({ success: true });
+    // Has replies: soft delete (mark deleted and replace content)
+    await prisma.comment.update({
+      where: { id: commentId },
+      data: {
+        isDeleted: true,
+        content: "This comment was deleted",
+      },
+    });
+
+    return res.status(200).json({ success: true, deleted: "soft" });
   } catch (error) {
     console.error("Delete Comment Error:", error);
     res.status(500).json({ message: "Failed to delete comment" });
