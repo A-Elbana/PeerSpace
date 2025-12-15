@@ -1,5 +1,7 @@
 import { MarkdownPreview } from '../../../components/MarkdownEditor';
 import { MessageSquare, Clock, User, ArrowBigUp, ArrowBigDown, Megaphone, MoreHorizontal, PenSquare, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { voteApi } from '../../../services/api';
 import { useResolvedFileUrl } from '../../../hooks/useResolvedFileUrl';
 import { useState, useRef, useEffect } from 'react';
 
@@ -84,6 +86,27 @@ const PostCard: React.FC<{
   const tags = post.type?.split(',').map((t: string) => t.trim().toLowerCase()) || [];
   const isAnnouncement = tags.includes('announcement');
 
+  // Voting state
+  const [upvotes, setUpvotes] = useState<number>(0);
+  const [downvotes, setDownvotes] = useState<number>(0);
+  const [userVote, setUserVote] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await voteApi.getVoteInfo(post.id);
+        if (!mounted) return;
+        setUpvotes(res.upvotes ?? 0);
+        setDownvotes(res.downvotes ?? 0);
+        setUserVote(res.userVote ?? null);
+      } catch (err: any) {
+        // ignore for guests or failures
+      }
+    })();
+    return () => { mounted = false; };
+  }, [post.id]);
+
   // Check permissions: Owner OR Admin OR Instructor of this Community
   const canModify = currentUser && (
     currentUser.id === post.User.id ||
@@ -104,11 +127,59 @@ const PostCard: React.FC<{
           </div>
         ) : (
           <div className="w-12 bg-muted/30 flex flex-col items-center py-3 gap-1">
-            <button className="text-muted-foreground hover:text-orange-500 transition-colors">
+            <button
+              onClick={async () => {
+                try {
+                  // if already upvoted -> remove
+                  if (userVote === true) {
+                    await voteApi.removeVote(post.id);
+                    setUserVote(null);
+                    setUpvotes(u => Math.max(0, u - 1));
+                    return;
+                  }
+
+                  // cast upvote
+                  await voteApi.votePost(post.id, true);
+                  // adjust counts
+                  if (userVote === false) setDownvotes(d => Math.max(0, d - 1));
+                  setUpvotes(u => u + 1);
+                  setUserVote(true);
+                } catch (err: any) {
+                  if (err?.response?.status === 401) {
+                    toast.error('Please login to vote');
+                  } else {
+                    toast.error('Failed to vote');
+                  }
+                }
+              }}
+              className={`transition-colors ${userVote === true ? 'text-orange-500' : 'text-muted-foreground hover:text-orange-500'}`}
+            >
               <ArrowBigUp size={24} />
             </button>
-            <span className="text-sm font-bold text-foreground">0</span>
-            <button className="text-muted-foreground hover:text-blue-500 transition-colors">
+            <span className="text-sm font-bold text-foreground">{upvotes}</span>
+            <button
+              onClick={async () => {
+                try {
+                  if (userVote === false) {
+                    await voteApi.removeVote(post.id);
+                    setUserVote(null);
+                    setDownvotes(d => Math.max(0, d - 1));
+                    return;
+                  }
+                  await voteApi.votePost(post.id, false);
+                  if (userVote === true) setUpvotes(u => Math.max(0, u - 1));
+                  setDownvotes(d => d + 1);
+                  setUserVote(false);
+                } catch (err: any) {
+                  if (err?.response?.status === 401) {
+                    toast.error('Please login to vote');
+                  } else {
+                    toast.error('Failed to vote');
+                  }
+                }
+              }}
+              className={`transition-colors ${userVote === false ? 'text-blue-500' : 'text-muted-foreground hover:text-blue-500'}`}
+            >
               <ArrowBigDown size={24} />
             </button>
           </div>

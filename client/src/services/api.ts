@@ -375,6 +375,33 @@ export const postApi = {
   },
 };
 
+// Vote API calls
+export const voteApi = {
+  // Get vote info (public endpoint)
+  getVoteInfo: async (postId: number): Promise<{
+    postId: number;
+    upvotes: number;
+    downvotes: number;
+    score: number;
+    userVote: boolean | null;
+  }> => {
+    const response = await api.get(`/votes/${postId}`);
+    return response.data;
+  },
+
+  // Cast or update vote (requires auth)
+  votePost: async (postId: number, voteType: boolean) => {
+    const response = await api.post(`/votes`, { postId, voteType });
+    return response.data;
+  },
+
+  // Remove vote
+  removeVote: async (postId: number) => {
+    const response = await api.delete(`/votes/${postId}`);
+    return response.data;
+  },
+};
+
 // Announcement API calls (Posts with type 'announcement')
 export const announcementApi = {
   create: async (data: {
