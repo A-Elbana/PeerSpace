@@ -78,6 +78,56 @@ export const getAllBadges = async (req: Request, res: Response) => {
 };
 
 /**
+ * Get badges earned by the authenticated student
+ * Query params: page, limit
+ */
+export const getMyBadges = async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
+  const role = (req as any).role;
+
+  const pageParam = parseInt(req.query.page as string);
+  const limitParam = parseInt(req.query.limit as string);
+  const page = !isNaN(pageParam) && pageParam > 0 ? pageParam : 1;
+  const limit = !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
+  const skip = (page - 1) * limit;
+
+  if (role !== "STUDENT") {
+    return res
+      .status(403)
+      .json({ message: "Only students can view their badges" });
+  }
+
+  try {
+    const [studentBadges, total] = await Promise.all([
+      prisma.studentBadge.findMany({
+        where: { sid: userId },
+        skip,
+        take: limit,
+        orderBy: { bid: "asc" },
+        include: {
+          Badge: true,
+        },
+      }),
+      prisma.studentBadge.count({ where: { sid: userId } }),
+    ]);
+
+    return res.status(200).json({
+      message: "Badges retrieved successfully",
+      data: studentBadges,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error("Get My Badges Error:", error);
+    return res.status(500).json({ message: "Failed to fetch badges" });
+  }
+};
+
+/**
  * Get a single badge by ID
  * Params: id
  */

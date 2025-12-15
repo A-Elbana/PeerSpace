@@ -1,3 +1,4 @@
+import React from 'react';
 import PostCard from '../../../components/posts/PostCard';
 import { MessageSquare } from 'lucide-react';
 
@@ -21,11 +22,19 @@ interface Post {
   };
 }
 
+interface Comment {
+  id: number;
+  content: string;
+  created_at: string;
+  User: PostAuthor;
+}
+
 interface PostsListProps {
   posts: Post[];
   isLoading: boolean;
   currentUser?: { id: number; role: string } | null;
   isInstructorOfCommunity?: boolean;
+  communityId?: string | number;
   onEditPost?: (post: Post) => void;
   onDeletePost?: (postId: number) => void;
 }
@@ -35,6 +44,7 @@ const PostsList: React.FC<PostsListProps> = ({
   isLoading,
   currentUser,
   isInstructorOfCommunity,
+  communityId,
   onEditPost,
   onDeletePost
 }) => {

@@ -575,6 +575,30 @@ export const removeTaskTag = async (req: TaskRequest, res: Response) => {
 };
 
 /**
+ * Get all tags for a task.
+ * Expects: id (path param)
+ * Requires: authenticateToken + requireStudentRole + loadTask + authorizeTaskAccess middleware
+ */
+export const getTaskTags = async (req: TaskRequest, res: Response) => {
+  const task = req.task;
+
+  try {
+    const tags = await prisma.taskTag.findMany({
+      where: { task_id: task.id },
+      orderBy: { tag: "asc" },
+    });
+
+    return res.status(200).json({
+      message: "Tags retrieved successfully",
+      data: tags,
+    });
+  } catch (error) {
+    console.error("Get Task Tags Error:", error);
+    return res.status(500).json({ message: "Failed to fetch task tags" });
+  }
+};
+
+/**
  * Link a task to an assignment.
  * Expects: id (path param), assignment_id (body)
  * Requires: authenticateToken + requireStudentRole + loadTask + authorizeTaskAccess middleware
