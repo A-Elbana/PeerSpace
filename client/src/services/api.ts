@@ -10,7 +10,6 @@ import {
   removeTokens,
 } from "../utils/auth";
 
-
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 const api = axios.create({
@@ -31,7 +30,7 @@ interface FailedRequest {
 let failedQueue: FailedRequest[] = [];
 
 const processQueue = (error: any = null, token: string | null = null) => {
-  failedQueue.forEach(prom => {
+  failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
     } else {
@@ -78,7 +77,7 @@ api.interceptors.response.use(
       // If no refresh token, logout immediately
       if (!refreshToken) {
         removeTokens();
-        window.location.href = '/login';
+        window.location.href = "/login";
         return Promise.reject(error);
       }
 
@@ -125,7 +124,7 @@ api.interceptors.response.use(
         // Refresh failed, logout user
         processQueue(refreshError, null);
         removeTokens();
-        window.location.href = '/login';
+        window.location.href = "/login";
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -346,6 +345,17 @@ export const postApi = {
     return response.data;
   },
 
+  // Get posts created by the authenticated user
+  getMyPosts: async (params?: { page?: number; limit?: number; }): Promise<{ message?: string; data: PostResponse[]; meta: PaginationMeta; }> => {
+    const cleanParams: any = {};
+    if (params) {
+      if (params.page) cleanParams.page = params.page;
+      if (params.limit) cleanParams.limit = params.limit;
+    }
+    const response = await api.get('/posts/me', { params: cleanParams });
+    return response.data;
+  },
+
   getById: async (id: number): Promise<PostResponse> => {
     const response = await api.get(`/posts/${id}`);
     return response.data;
@@ -371,6 +381,35 @@ export const postApi = {
 
   toggleResolved: async (id: number): Promise<PostResponse> => {
     const response = await api.patch(`/posts/${id}/resolve`);
+    return response.data;
+  },
+};
+
+// Vote API calls
+export const voteApi = {
+  // Get vote info (public endpoint)
+  getVoteInfo: async (
+    postId: number
+  ): Promise<{
+    postId: number;
+    upvotes: number;
+    downvotes: number;
+    score: number;
+    userVote: boolean | null;
+  }> => {
+    const response = await api.get(`/votes/${postId}`);
+    return response.data;
+  },
+
+  // Cast or update vote (requires auth)
+  votePost: async (postId: number, voteType: boolean) => {
+    const response = await api.post(`/votes`, { postId, voteType });
+    return response.data;
+  },
+
+  // Remove vote
+  removeVote: async (postId: number) => {
+    const response = await api.delete(`/votes/${postId}`);
     return response.data;
   },
 };
@@ -420,6 +459,39 @@ export const announcementApi = {
 
   delete: async (id: number): Promise<{ message: string }> => {
     const response = await api.delete(`/posts/${id}`);
+    return response.data;
+  },
+};
+
+// Comment API
+export const commentApi = {
+  getByPost: async (
+    pid: number,
+    params?: { includeReplies?: boolean; page?: number; limit?: number; sortBy?: string }
+  ) => {
+    const cleanParams: any = { pid };
+    if (params) {
+      if (params.includeReplies !== undefined) cleanParams.includeReplies = params.includeReplies;
+      if (params.page) cleanParams.page = params.page;
+      if (params.limit) cleanParams.limit = params.limit;
+      if (params.sortBy) cleanParams.sortBy = params.sortBy;
+    }
+    const response = await api.get('/comments', { params: cleanParams });
+    return response.data;
+  },
+
+  create: async (data: { pid: number; content: string; parentCommentId?: number }) => {
+    const response = await api.post('/comments', data);
+    return response.data;
+  },
+
+  update: async (id: number, data: { content: string }) => {
+    const response = await api.put(`/comments/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id: number) => {
+    const response = await api.delete(`/comments/${id}`);
     return response.data;
   },
 };
@@ -601,14 +673,17 @@ export const assignmentApi = {
       name: string;
     };
   }> => {
-    const response = await api.post('/assignments', data);
+    const response = await api.post("/assignments", data);
     return response.data;
   },
 
-  getByCommunity: async (cid: string, params?: {
-    page?: number;
-    limit?: number;
-  }): Promise<{
+  getByCommunity: async (
+    cid: string,
+    params?: {
+      page?: number;
+      limit?: number;
+    }
+  ): Promise<{
     data: Array<{
       id: number;
       title: string;
@@ -632,11 +707,15 @@ export const assignmentApi = {
     }>;
     meta: PaginationMeta;
   }> => {
-    const response = await api.get('/assignments', { params: { cid, ...params } });
+    const response = await api.get("/assignments", {
+      params: { cid, ...params },
+    });
     return response.data;
   },
 
-  getById: async (id: number): Promise<{
+  getById: async (
+    id: number
+  ): Promise<{
     id: number;
     title: string;
     description?: string;
@@ -662,14 +741,17 @@ export const assignmentApi = {
     return response.data;
   },
 
-  update: async (id: number, data: {
-    title?: string;
-    description?: string;
-    due_date?: string | null;
-    max_points?: number | null;
-    canBeLate?: boolean;
-    file_ids?: string[];
-  }): Promise<{
+  update: async (
+    id: number,
+    data: {
+      title?: string;
+      description?: string;
+      due_date?: string | null;
+      max_points?: number | null;
+      canBeLate?: boolean;
+      file_ids?: string[];
+    }
+  ): Promise<{
     message: string;
     assignment: {
       id: number;
@@ -706,7 +788,11 @@ export const assignmentApi = {
 
 // Submission API calls
 export const submissionApi = {
-  create: async (data: { aid: number; comment?: string; fileIds?: string[] }): Promise<{
+  create: async (data: {
+    aid: number;
+    comment?: string;
+    fileIds?: string[];
+  }): Promise<{
     success: boolean;
     data: {
       id: number;
@@ -718,11 +804,14 @@ export const submissionApi = {
       comment: string | null;
     };
   }> => {
-    const response = await api.post('/submissions', data);
+    const response = await api.post("/submissions", data);
     return response.data;
   },
 
-  update: async (id: number, data: { comment?: string }): Promise<{
+  update: async (
+    id: number,
+    data: { comment?: string }
+  ): Promise<{
     success: boolean;
     data: {
       id: number;
@@ -738,7 +827,9 @@ export const submissionApi = {
     return response.data;
   },
 
-  delete: async (id: number): Promise<{ success: boolean; message?: string }> => {
+  delete: async (
+    id: number
+  ): Promise<{ success: boolean; message?: string }> => {
     const response = await api.delete(`/submissions/${id}`);
     return response.data;
   },
@@ -764,14 +855,17 @@ export const submissionApi = {
     }>;
     meta: PaginationMeta;
   }> => {
-    const response = await api.get('/submissions/mine', { params });
+    const response = await api.get("/submissions/mine", { params });
     return response.data;
   },
 
-  getByAssignment: async (aid: number, params?: {
-    page?: number;
-    limit?: number;
-  }): Promise<{
+  getByAssignment: async (
+    aid: number,
+    params?: {
+      page?: number;
+      limit?: number;
+    }
+  ): Promise<{
     data: Array<{
       id: number;
       aid: number;
@@ -790,7 +884,9 @@ export const submissionApi = {
     }>;
     meta: PaginationMeta;
   }> => {
-    const response = await api.get('/submissions', { params: { aid, ...params } });
+    const response = await api.get("/submissions", {
+      params: { aid, ...params },
+    });
     return response.data;
   },
 };

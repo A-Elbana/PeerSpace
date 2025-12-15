@@ -13,6 +13,7 @@ import Settings from './pages/Settings';
 import Notifications from './pages/Notifications';
 import Announcements from './pages/Announcements';
 import Community from './pages/Community';
+import PostPreview from './pages/Community/PostPreview.tsx';
 import ManageCommunity from './pages/ManageCommunity';
 import AssignmentDetails from './pages/Assignments/AssignmentDetails';
 import Assignments from './pages/Assignments/Assignments';
@@ -162,6 +163,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <Community />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/community/:communityId/post/:postId"
+            element={
+              <ProtectedRoute>
+                <PostPreview />
               </ProtectedRoute>
             }
           />

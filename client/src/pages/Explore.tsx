@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { Sidebar } from '../components/dashboard';
 import { Flame, Clock, Filter, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, MoreHorizontal, Loader2, Sparkles, Users, BookOpen, Rocket, Send, Megaphone, Lock, Search, X, Tag, Maximize2, PenSquare, Trash2 } from 'lucide-react';
 import api, { communityApi, postApi, assignmentApi, submissionApi, type CommunityResponse, type PostResponse } from '../services/api';
+import PostCard from '../components/posts/PostCard';
 import { removeTokens } from '../utils/auth';
 import { MarkdownEditor, MarkdownPreview } from '../components/MarkdownEditor';
 import { PostModal } from '../components/posts';
@@ -56,210 +57,9 @@ interface CommunityWithMeta extends CommunityResponse {
     memberCount?: number;
     postCount?: number;
 }
-
-// Helper Components (defined before Explore component to avoid hoisting issues)
-interface PostCardProps {
-    communityId: string;
-    subreddit: string;
-    author: string;
-    time: string;
-    title: string;
-    content: string | null;
-    image?: string;
-    upvotes: number;
-    comments: number;
-    postType: string | null;
-    onNavigate: (communityId: string) => void;
-    currentUser?: UserData | null;
-    postAuthorId?: number;
-    onEdit?: () => void;
-    onDelete?: () => void;
-}
-
-const PostCard = ({ communityId, subreddit, author, time, title, content, image, upvotes, comments, postType, onNavigate, currentUser, postAuthorId, onEdit, onDelete }: PostCardProps) => {
-    const tags = postType?.split(',').map((t: string) => t.trim().toLowerCase()) || [];
-    const isAnnouncement = tags.includes('announcement');
-
-    const isAuthor = currentUser?.id === postAuthorId;
-    const isInstructor = currentUser?.role === 'instructor';
-    const isAdmin = currentUser?.role === 'admin';
-    const canManage = isAuthor || isInstructor || isAdmin;
-
-    const getTagStyle = (tag: string) => {
-        const styles: Record<string, { bg: string; text: string }> = {
-            announcement: { bg: 'bg-royal-gold-500', text: 'text-white' },
-            math: { bg: 'bg-tech-blue-500/10', text: 'text-tech-blue-600' },
-            scientific: { bg: 'bg-turf-green-500/10', text: 'text-turf-green-600' },
-            puzzles: { bg: 'bg-royal-gold-500/10', text: 'text-royal-gold-600' },
-            discussion: { bg: 'bg-muted', text: 'text-muted-foreground' },
-        };
-        return styles[tag] || styles.discussion;
-    };
-
-    return (
-        <div className={`bg-card rounded-xl border ${isAnnouncement ? 'border-royal-gold-500/50 ring-1 ring-royal-gold-500/20' : 'border-border'} hover:border-tech-blue-500/30 hover:shadow-lg hover:shadow-tech-blue-500/5 transition-all duration-300 overflow-hidden group`}>
-            <div className="flex">
-                {isAnnouncement ? (
-                    <div className="w-12 bg-royal-gold-500/10 flex flex-col items-center justify-center py-3 border-r border-royal-gold-500/30">
-                        <div className="w-8 h-8 rounded-full bg-royal-gold-500 flex items-center justify-center shadow-lg shadow-royal-gold-500/30 animate-pulse">
-                            <Megaphone size={16} className="text-white" />
-                        </div>
-                    </div>
-                ) : (
-                    <div className="w-10 bg-gradient-to-b from-muted/50 to-muted/30 flex flex-col items-center py-3 gap-1">
-                        <button className="text-muted-foreground hover:text-orange-500 transition-colors"><ArrowBigUp size={24} /></button>
-                        <span className="text-sm font-bold text-foreground">{upvotes}</span>
-                        <button className="text-muted-foreground hover:text-blue-500 transition-colors"><ArrowBigDown size={24} /></button>
-                    </div>
-                )}
-                <div className="p-3 flex-1 relative">
-                    {canManage && (
-                        <div className="absolute top-2 right-2">
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <button className="p-1 hover:bg-muted rounded-full transition-colors text-muted-foreground outline-none focus:ring-2 focus:ring-ring">
-                                        <MoreHorizontal size={16} />
-                                    </button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-32">
-                                    <DropdownMenuItem onClick={() => onEdit && onEdit()}>
-                                        <PenSquare size={12} className="mr-2" /> Edit
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                        onClick={() => onDelete && onDelete()}
-                                        className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                                    >
-                                        <Trash2 size={12} className="mr-2" /> Delete
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
-                    )}
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 flex-wrap pr-8">
-                        <div className="w-5 h-5 rounded-full bg-tech-blue-500 flex items-center justify-center text-[10px] text-white font-bold shadow-sm">{subreddit.substring(0, 1)}</div>
-                        <button
-                            onClick={() => onNavigate && onNavigate(communityId)}
-                            className="font-bold text-foreground hover:underline hover:text-blue-500 transition-colors cursor-pointer"
-                        >
-                            {subreddit}
-                        </button>
-                        {tags.length > 0 && tags.map((tag: string, index: number) => {
-                            const style = getTagStyle(tag);
-                            return (
-                                <span
-                                    key={index}
-                                    className={`px-2 py-0.5 ${style.bg} ${style.text} text-[10px] font-bold rounded-full capitalize`}
-                                >
-                                    {tag}
-                                </span>
-                            );
-                        })}
-                        <span>•</span>
-                        <span>Posted by u/{author}</span>
-                        <span>•</span>
-                        <span>{time}</span>
-                    </div>
-                    <h3 className={`text-lg font-semibold mb-2 leading-snug ${isAnnouncement ? 'text-yellow-600 dark:text-yellow-400' : 'text-foreground'}`}>{title}</h3>
-                    {content && <MarkdownPreview content={content} className="text-sm mb-3" />}
-                    {image && (
-                        <div className="mb-3 rounded-lg overflow-hidden border border-border">
-                            <img src={image} alt="Post content" className="w-full h-auto object-cover" />
-                        </div>
-                    )}
-                    <div className="flex items-center gap-1 text-muted-foreground text-xs font-bold">
-                        <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted rounded-md transition-colors">
-                            <MessageSquare size={16} /> {comments} Comments
-                        </button>
-                        <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted rounded-md transition-colors">
-                            <Share2 size={16} /> Share
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-interface CommunityItemProps {
-    communityId: string;
-    name: string;
-    description: string | null;
-    color: string;
-    isJoining: boolean;
-    onJoin: () => void;
-    isStudent: boolean;
-    isPrivate?: boolean;
-    isEnrolled?: boolean;
-    onNavigate: (communityId: string) => void;
-}
-
-const CommunityItem = ({ communityId, name, description, color, isJoining, onJoin, isStudent, isPrivate, isEnrolled, onNavigate }: CommunityItemProps) => (
-    <div className="flex items-center justify-between group p-2 -mx-2 rounded-lg hover:bg-muted/50 transition-colors">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className={`w-8 h-8 rounded-full ${color} flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-md relative`}>
-                {name.substring(0, 1).toUpperCase()}
-                {isPrivate && (
-                    <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-background rounded-full flex items-center justify-center border border-border">
-                        <Lock size={10} className="text-frosted-blue-500" />
-                    </div>
-                )}
-            </div>
-            <div className="min-w-0 flex flex-col">
-                <button
-                    onClick={() => onNavigate(communityId)}
-                    className="text-sm font-medium text-foreground group-hover:text-tech-blue-600 transition-colors truncate flex items-center gap-1 hover:underline cursor-pointer text-left max-w-[180px]"
-                    title={name}
-                >
-                    <span className="truncate max-w-[110px]">{name}</span>
-                    {isPrivate && <Lock size={12} className="text-frosted-blue-500 flex-shrink-0" />}
-                </button>
-                <div className="text-xs text-muted-foreground truncate max-w-[110px]" title={description || undefined}>{description}</div>
-            </div>
-        </div>
-        {isStudent && !isPrivate && (
-            isEnrolled ? (
-                <span className="px-3 py-1 bg-turf-green-500/10 text-turf-green-600 text-xs font-bold rounded-full flex-shrink-0 ml-2">
-                    Enrolled
-                </span>
-            ) : (
-                <button
-                    onClick={onJoin}
-                    disabled={isJoining}
-                    className="px-3 py-1 bg-tech-blue-500 text-white text-xs font-bold rounded-full hover:bg-tech-blue-600 transition-all duration-300 disabled:opacity-50 flex-shrink-0 ml-2 shadow-sm hover:shadow-md"
-                >
-                    {isJoining ? <Loader2 size={12} className="animate-spin" /> : 'Enroll'}
-                </button>
-            )
-        )}
-    </div>
-);
-
-interface DeadlineItemProps {
-    course: string;
-    task: string;
-    due: string;
-    isInstructor?: boolean;
-    onClick?: () => void;
-}
-
-const DeadlineItem = ({ course, task, due, isInstructor, onClick }: DeadlineItemProps) => (
-    <div
-        onClick={onClick}
-        className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-all duration-200 cursor-pointer group"
-    >
-        <div className={`w-1.5 h-12 ${isInstructor ? 'bg-royal-gold-500' : 'bg-red-500'} rounded-full flex-shrink-0 group-hover:scale-110 transition-transform`} />
-        <div className="flex-1 min-w-0">
-            <div className="text-sm font-bold text-foreground truncate group-hover:text-tech-blue-600 transition-colors">{task}</div>
-            <div className="text-xs text-muted-foreground flex items-center gap-1">
-                <span className="truncate">{course}</span>
-                <span>•</span>
-                <span className={`${isInstructor ? 'text-royal-gold-600' : 'text-red-500'} font-medium`}>
-                    {isInstructor ? 'Pending: ' : 'Due '}{due}
-                </span>
-            </div>
-        </div>
-    </div>
-);
+// Using shared components
+import CommunityItem from '../components/common/CommunityItem';
+import DeadlineItem from '../components/common/DeadlineItem';
 
 const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
     // Search state
@@ -1188,18 +988,10 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                             .map((post) => (
                                                 <PostCard
                                                     key={post.id}
-                                                    communityId={post.cid}
-                                                    subreddit={getCommunityName(post.cid)}
-                                                    author={`${post.User.fname}_${post.User.lname.charAt(0).toLowerCase()}`}
-                                                    time={formatTimeAgo(post.post_date)}
-                                                    title={post.title}
-                                                    content={post.body || ''}
-                                                    upvotes={0}
-                                                    comments={post._count?.Comment || 0}
-                                                    postType={post.type}
+                                                    post={post}
+                                                    communityName={getCommunityName(post.cid)}
                                                     onNavigate={(id: string) => navigate(`/community/${id}`)}
                                                     currentUser={user}
-                                                    postAuthorId={post.owner_uid}
                                                     onEdit={() => handleEditPost(post)}
                                                     onDelete={() => handleDeletePost(post.id)}
                                                 />

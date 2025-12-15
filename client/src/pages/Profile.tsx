@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sidebar } from '../components/dashboard';
-import api, { communityApi, type CommunityResponse } from '../services/api';
+import api, { communityApi, postApi, type CommunityResponse, type PostResponse } from '../services/api';
 import { useResolvedFileUrl } from '../hooks/useResolvedFileUrl';
 import { Loader2 } from 'lucide-react';
 
@@ -23,59 +23,7 @@ interface CommunityCardProps {
   community: CommunityResponse;
   onClick: () => void;
 }
-
-const CommunityCard: React.FC<CommunityCardProps> = ({ community, onClick }) => {
-  const bannerUrl = useResolvedFileUrl(community.banner_file_id);
-
-  return (
-    <div
-      onClick={onClick}
-      className="bg-card rounded-lg border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-    >
-      {/* Banner */}
-      <div className="h-32 bg-muted relative">
-        {bannerUrl ? (
-          <img
-            src={bannerUrl}
-            alt={`${community.name} banner`}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
-            <span className="text-white text-2xl font-bold">
-              {community.name.charAt(0).toUpperCase()}
-            </span>
-          </div>
-        )}
-        {/* Community Type Badge */}
-        <div className="absolute top-2 right-2">
-          <span className={`px-2 py-1 text-xs font-medium rounded-full ${community.type === 'PUBLIC'
-            ? 'bg-green-500/90 text-white'
-            : 'bg-orange-500/90 text-white'
-            }`}>
-            {community.type}
-          </span>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-4">
-        <h3 className="font-semibold text-lg text-foreground mb-2 line-clamp-1">
-          {community.name}
-        </h3>
-        {community.description && (
-          <p className="text-muted-foreground text-sm line-clamp-2 mb-3">
-            {community.description}
-          </p>
-        )}
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>{community._count?.Enrollment || 0} members</span>
-          <span>{community._count?.Post || 0} posts</span>
-        </div>
-      </div>
-    </div>
-  );
-};
+import CommunityCard from '../components/common/CommunityCard';
 
 const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
   const navigate = useNavigate();
@@ -88,6 +36,12 @@ const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
   const [communitiesPage, setCommunitiesPage] = useState(1);
   const [hasMoreCommunities, setHasMoreCommunities] = useState(true);
   const [loadingMoreCommunities, setLoadingMoreCommunities] = useState(false);
+  // Posts (my posts)
+  const [myPosts, setMyPosts] = useState<PostResponse[]>([]);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const [postsPage, setPostsPage] = useState(1);
+  const [hasMorePosts, setHasMorePosts] = useState(true);
+  const [loadingMorePosts, setLoadingMorePosts] = useState(false);
 
   const avatarUrl = useResolvedFileUrl(user?.avatar_file_id);
 
@@ -137,6 +91,30 @@ const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
         setCommunitiesPage(1);
         setHasMoreCommunities(true);
         setLoadingMoreCommunities(false);
+      }
+
+      // Fetch user's posts when Posts tab active
+      if (activeTab === 'Posts' && user) {
+        try {
+          setPostsLoading(true);
+          setPostsPage(1);
+          setMyPosts([]);
+          setHasMorePosts(true);
+          const resp = await postApi.getMyPosts({ page: 1, limit: 9 });
+          const posts = resp?.data ?? [];
+          setMyPosts(posts as PostResponse[]);
+          setHasMorePosts((resp?.meta?.page ?? 1) < (resp?.meta?.totalPages ?? 1));
+        } catch (err) {
+          console.error('Failed to fetch my posts:', err);
+        } finally {
+          setPostsLoading(false);
+        }
+      } else if (activeTab !== 'Posts') {
+        // Reset posts when leaving tab
+        setMyPosts([]);
+        setPostsPage(1);
+        setHasMorePosts(true);
+        setLoadingMorePosts(false);
       }
     };
 
@@ -273,13 +251,53 @@ const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
 
           {/* Posts Section */}
           {activeTab === 'Posts' && (
-            <div className="bg-muted/50 rounded-xl border border-border p-6 flex items-center gap-4 mb-6">
-              <span className="text-xl text-muted-foreground flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7v4H5V7m14 0V5a2 2 0 00-2-2H7a2 2 0 00-2 2v2m14 0a2 2 0 01-2 2H7a2 2 0 01-2-2m0 0v10a2 2 0 002 2h10a2 2 0 002-2V7z" />
-                </svg>
-                No posts to show.
-              </span>
+            <div className="space-y-4 mb-6">
+              {postsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                  <span>Loading posts...</span>
+                </div>
+              ) : myPosts.length === 0 ? (
+                <div className="bg-muted/50 rounded-xl border border-border p-6 flex items-center gap-4">
+                  <span className="text-xl text-muted-foreground flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7v4H5V7m14 0V5a2 2 0 00-2-2H7a2 2 0 00-2 2v2m14 0a2 2 0 01-2 2H7a2 2 0 01-2-2m0 0v10a2 2 0 002 2h10a2 2 0 002-2V7z" />
+                    </svg>
+                    No posts to show.
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {myPosts.map((p) => (
+                      <div
+                        key={p.id}
+                        onClick={() => navigate(`/community/${p.cid}/post/${p.id}`)}
+                        className="bg-card rounded-lg border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer p-4"
+                      >
+                        <h3 className="font-semibold text-lg text-foreground mb-2 line-clamp-2">{p.title}</h3>
+                        <p className="text-muted-foreground text-sm line-clamp-3 mb-3">{p.body ?? ''}</p>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{p._count?.Comment || 0} comments</span>
+                          <span>{p.post_date ? new Date(p.post_date).toLocaleDateString() : ''}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Loading trigger for lazy loading posts (if implemented later) */}
+                  {hasMorePosts && (
+                    <div className="flex items-center justify-center py-4">
+                      {loadingMorePosts ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                          <span>Loading more posts...</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 

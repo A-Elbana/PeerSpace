@@ -83,6 +83,7 @@ model Comment {
   id                 Int       @id @default(autoincrement())
   pid                Int
   content            String    @db.VarChar
+  isDeleted          Boolean   @default(false)
   approved_by_inst   Boolean
   approved_by_op     Boolean
   approved_at_inst   DateTime? @db.Timestamp(6)
