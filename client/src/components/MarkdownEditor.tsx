@@ -312,6 +312,14 @@ export const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, class
             attributes: {
                 class: cn(
                     'prose prose-sm sm:prose-base dark:prose-invert max-w-none',
+                    '[&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mb-4',
+                    '[&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mb-3',
+                    '[&_h3]:text-xl [&_h3]:font-bold [&_h3]:mb-2',
+                    '[&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-4',
+                    '[&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-4',
+                    '[&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-4',
+                    '[&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:font-mono [&_code]:text-sm',
+                    '[&_pre]:bg-muted [&_pre]:p-4 [&_pre]:rounded-lg [&_pre]:my-4 [&_pre_code]:bg-transparent [&_pre_code]:p-0',
                     className,
                     'markdown-links'
                 ),

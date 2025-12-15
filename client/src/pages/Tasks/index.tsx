@@ -208,9 +208,17 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
         });
     };
 
-    const confirmDelete = () => {
-        setTasks(tasks.filter(t => t.id !== deleteModal.taskId));
-        setDeleteModal({ ...deleteModal, isOpen: false });
+    const confirmDelete = async () => {
+        try {
+            await api.delete(`/tasks/${Number(deleteModal.taskId)}`);
+            setTasks(tasks.filter(t => t.id !== deleteModal.taskId));
+            toast.success('Task deleted');
+        } catch (err) {
+            console.error('Failed to delete task:', err);
+            toast.error('Failed to delete task');
+        } finally {
+            setDeleteModal({ ...deleteModal, isOpen: false });
+        }
     };
 
     const toggleTaskCompletion = async (task: Task) => {
