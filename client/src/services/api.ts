@@ -515,7 +515,7 @@ export const userApi = {
   },
 
   getById: async (
-    id: number
+    id: string
   ): Promise<{
     id: number;
     email: string;
@@ -526,6 +526,27 @@ export const userApi = {
     activated: boolean;
   }> => {
     const response = await api.get(`/users/${id}`);
+    return response.data;
+  },
+
+  update: async (
+    id: string,
+    data: {
+      fname?: string;
+      lname?: string;
+      email?: string;
+      role?: string;
+    }
+  ): Promise<{
+    success: boolean;
+    message: string;
+  }> => {
+    const response = await api.put(`/users/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id: string): Promise<{ message: string }> => {
+    const response = await api.delete(`/users/${id}`);
     return response.data;
   },
 };

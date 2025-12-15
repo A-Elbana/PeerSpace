@@ -32,6 +32,9 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu';
+import UserManagementModal from '../../components/dashboard/UserManagementModal';
+import CommunityManagementModal from '../../components/dashboard/CommunityManagementModal';
+import PostManagementModal from '../../components/dashboard/PostManagementModal';
 
 // API
 import { adminApi, userApi, communityApi, postApi } from '../../services/api';
@@ -149,21 +152,113 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
         totalPosts: 0,
     });
 
+    // Modal states
+    const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+    const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(null);
+    const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
+    const [userModalOpen, setUserModalOpen] = useState(false);
+    const [communityModalOpen, setCommunityModalOpen] = useState(false);
+    const [postModalOpen, setPostModalOpen] = useState(false);
+
+    // Reusable fetch functions
+    const fetchStats = async () => {
+        try {
+            const statsData = await adminApi.getStats();
+            setStats(statsData);
+        } catch (error) {
+            console.error('Failed to fetch stats:', error);
+        }
+    };
+
+    const fetchCommunitiesTimeSeries = async () => {
+        try {
+            const communitiesData = await adminApi.getCommunitiesTimeSeries(6);
+            setCommunitiesChartData(communitiesData.data);
+        } catch (error) {
+            console.error('Failed to fetch communities time series:', error);
+        }
+    };
+
+    const fetchPostsTimeSeries = async () => {
+        try {
+            const postsData = await adminApi.getPostsTimeSeries({
+                months: 6,
+                communityId: chartCommunityIdFilter || undefined,
+                tag: chartTagFilter || undefined,
+                resolvedOnly: chartResolvedOnly,
+            });
+            setPostsChartData(postsData.data);
+        } catch (error) {
+            console.error('Failed to fetch posts time series:', error);
+        }
+    };
+
+    const fetchUsers = async () => {
+        if (!userSearch.trim()) {
+            setUsers([]);
+            return;
+        }
+
+        try {
+            const response = await userApi.getAll({
+                search: userSearch,
+                role: userRoleFilter !== 'all' ? userRoleFilter : undefined,
+                limit: 50,
+            });
+            setUsers(response.data);
+        } catch (error) {
+            console.error('Failed to fetch users:', error);
+            setUsers([]);
+        }
+    };
+
+    const fetchCommunities = async () => {
+        if (!communitySearch.trim() && !communityTagSearch.trim()) {
+            setCommunities([]);
+            return;
+        }
+
+        try {
+            const response = await communityApi.getAll({
+                search: communitySearch,
+                tags: communityTagSearch,
+                type: communityVisibilityFilter !== 'all' ? communityVisibilityFilter.toUpperCase() as 'PUBLIC' | 'PRIVATE' : undefined,
+                limit: 50,
+            });
+            setCommunities(response.data);
+        } catch (error) {
+            console.error('Failed to fetch communities:', error);
+            setCommunities([]);
+        }
+    };
+
+    const fetchPosts = async () => {
+        if (!postSearch.trim() && !postTagSearch.trim()) {
+            setPosts([]);
+            return;
+        }
+
+        try {
+            const response = await postApi.getAll({
+                search: postSearch,
+                tags: postTagSearch,
+                limit: 50,
+            });
+            setPosts(response.data);
+        } catch (error) {
+            console.error('Failed to fetch posts:', error);
+            setPosts([]);
+        }
+    };
+
     // Fetch initial data
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                // Fetch stats
-                const statsData = await adminApi.getStats();
-                setStats(statsData);
-
-                // Fetch chart data
-                const communitiesData = await adminApi.getCommunitiesTimeSeries(6);
-                setCommunitiesChartData(communitiesData.data);
-
-                const postsData = await adminApi.getPostsTimeSeries({ months: 6 });
-                setPostsChartData(postsData.data);
+                await fetchStats();
+                await fetchCommunitiesTimeSeries();
+                await fetchPostsTimeSeries();
             } catch (error) {
                 console.error('Failed to fetch dashboard data:', error);
             } finally {
@@ -175,97 +270,25 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
 
     // Fetch users when search changes
     useEffect(() => {
-        const fetchUsers = async () => {
-            if (!userSearch.trim()) {
-                setUsers([]);
-                return;
-            }
-
-            try {
-                const response = await userApi.getAll({
-                    search: userSearch,
-                    role: userRoleFilter !== 'all' ? userRoleFilter : undefined,
-                    limit: 50,
-                });
-                setUsers(response.data);
-            } catch (error) {
-                console.error('Failed to fetch users:', error);
-                setUsers([]);
-            }
-        };
-
         const debounce = setTimeout(fetchUsers, 300);
         return () => clearTimeout(debounce);
     }, [userSearch, userRoleFilter]);
 
     // Fetch communities when search changes
     useEffect(() => {
-        const fetchCommunities = async () => {
-            if (!communitySearch.trim() && !communityTagSearch.trim()) {
-                setCommunities([]);
-                return;
-            }
-
-            try {
-                const response = await communityApi.getAll({
-                    search: communitySearch,
-                    tags: communityTagSearch,
-                    type: communityVisibilityFilter !== 'all' ? communityVisibilityFilter.toUpperCase() as 'PUBLIC' | 'PRIVATE' : undefined,
-                    limit: 50,
-                });
-                setCommunities(response.data);
-            } catch (error) {
-                console.error('Failed to fetch communities:', error);
-                setCommunities([]);
-            }
-        };
-
         const debounce = setTimeout(fetchCommunities, 300);
         return () => clearTimeout(debounce);
     }, [communitySearch, communityTagSearch, communityVisibilityFilter]);
 
     // Fetch posts when search changes
     useEffect(() => {
-        const fetchPosts = async () => {
-            if (!postSearch.trim() && !postTagSearch.trim()) {
-                setPosts([]);
-                return;
-            }
-
-            try {
-                const response = await postApi.getAll({
-                    search: postSearch,
-                    tags: postTagSearch,
-                    limit: 50,
-                });
-                setPosts(response.data);
-            } catch (error) {
-                console.error('Failed to fetch posts:', error);
-                setPosts([]);
-            }
-        };
-
         const debounce = setTimeout(fetchPosts, 300);
         return () => clearTimeout(debounce);
     }, [postSearch, postTagSearch]);
 
     // Fetch posts chart data when filters change
     useEffect(() => {
-        const fetchPostsChart = async () => {
-            try {
-                const response = await adminApi.getPostsTimeSeries({
-                    months: 6,
-                    communityId: chartCommunityIdFilter || undefined,
-                    tag: chartTagFilter || undefined,
-                    resolvedOnly: chartResolvedOnly,
-                });
-                setPostsChartData(response.data);
-            } catch (error) {
-                console.error('Failed to fetch posts chart data:', error);
-            }
-        };
-
-        const debounce = setTimeout(fetchPostsChart, 300);
+        const debounce = setTimeout(fetchPostsTimeSeries, 300);
         return () => clearTimeout(debounce);
     }, [chartCommunityIdFilter, chartTagFilter, chartResolvedOnly]);
 
@@ -477,7 +500,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                                         {users.map(u => (
                                             <div
                                                 key={u.id}
-                                                onClick={() => navigate(`/users/${u.id}`)}
+                                                onClick={() => {
+                                                    setSelectedUserId(String(u.id));
+                                                    setUserModalOpen(true);
+                                                }}
                                                 className="flex items-center justify-between p-4 hover:bg-muted/50 cursor-pointer transition-colors border-b sm:border-r border-border"
                                             >
                                                 <div className="min-w-0 flex-1">
@@ -558,7 +584,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                                         {communities.map(community => (
                                             <div
                                                 key={community.id}
-                                                onClick={() => navigate(`/community/${community.id}`)}
+                                                onClick={() => {
+                                                    setSelectedCommunityId(community.id);
+                                                    setCommunityModalOpen(true);
+                                                }}
                                                 className="flex items-center justify-between p-4 hover:bg-muted/50 cursor-pointer transition-colors border-b sm:border-r border-border"
                                             >
                                                 <div className="min-w-0 flex-1">
@@ -634,7 +663,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                                         {posts.map(post => (
                                             <div
                                                 key={post.id}
-                                                onClick={() => navigate(`/posts/${post.id}`)}
+                                                onClick={() => {
+                                                    setSelectedPostId(post.id);
+                                                    setPostModalOpen(true);
+                                                }}
                                                 className="flex items-center justify-between p-4 hover:bg-muted/50 cursor-pointer transition-colors border-b sm:border-r border-border"
                                             >
                                                 <div className="min-w-0 flex-1">
@@ -667,6 +699,58 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                     </div>
                 </div>
             </main>
+
+            {/* Management Modals */}
+            <UserManagementModal
+                open={userModalOpen}
+                onOpenChange={setUserModalOpen}
+                userId={selectedUserId}
+                onUserUpdated={() => {
+                    fetchUsers();
+                    fetchStats();
+                }}
+                onUserDeleted={() => {
+                    fetchUsers();
+                    fetchStats();
+                    setUserSearch('');
+                }}
+            />
+
+            <CommunityManagementModal
+                open={communityModalOpen}
+                onOpenChange={setCommunityModalOpen}
+                communityId={selectedCommunityId}
+                onCommunityUpdated={() => {
+                    fetchCommunities();
+                    fetchStats();
+                    fetchCommunitiesTimeSeries();
+                }}
+                onCommunityDeleted={() => {
+                    fetchCommunities();
+                    fetchStats();
+                    fetchCommunitiesTimeSeries();
+                    setCommunitySearch('');
+                    setCommunityTagSearch('');
+                }}
+            />
+
+            <PostManagementModal
+                open={postModalOpen}
+                onOpenChange={setPostModalOpen}
+                postId={selectedPostId}
+                onPostUpdated={() => {
+                    fetchPosts();
+                    fetchStats();
+                    fetchPostsTimeSeries();
+                }}
+                onPostDeleted={() => {
+                    fetchPosts();
+                    fetchStats();
+                    fetchPostsTimeSeries();
+                    setPostSearch('');
+                    setPostTagSearch('');
+                }}
+            />
         </div>
     );
 };
