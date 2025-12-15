@@ -1,3 +1,18 @@
+// --- Search Results Types ---
+interface SearchedCommunity {
+    id: string;
+    name: string;
+    description?: string;
+    type?: string;
+}
+interface SearchedPost {
+    id: number;
+    title: string;
+    cid: string;
+    User?: { fname: string; lname: string };
+    post_date: string;
+    body?: string;
+}
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -189,15 +204,16 @@ const CommunityItem = ({ communityId, name, description, color, isJoining, onJoi
                     </div>
                 )}
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex flex-col">
                 <button
                     onClick={() => onNavigate(communityId)}
-                    className="text-sm font-medium text-foreground group-hover:text-tech-blue-600 transition-colors truncate flex items-center gap-1 hover:underline cursor-pointer text-left"
+                    className="text-sm font-medium text-foreground group-hover:text-tech-blue-600 transition-colors truncate flex items-center gap-1 hover:underline cursor-pointer text-left max-w-[180px]"
+                    title={name}
                 >
-                    {name}
+                    <span className="truncate max-w-[110px]">{name}</span>
                     {isPrivate && <Lock size={12} className="text-frosted-blue-500 flex-shrink-0" />}
                 </button>
-                <div className="text-xs text-muted-foreground truncate">{description}</div>
+                <div className="text-xs text-muted-foreground truncate max-w-[110px]" title={description || undefined}>{description}</div>
             </div>
         </div>
         {isStudent && !isPrivate && (
@@ -246,6 +262,48 @@ const DeadlineItem = ({ course, task, due, isInstructor, onClick }: DeadlineItem
 );
 
 const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
+    // Search state
+    const [exploreSearch, setExploreSearch] = useState('');
+    const [searchedPosts, setSearchedPosts] = useState<SearchedPost[]>([]);
+    const [searchedCommunities, setSearchedCommunities] = useState<SearchedCommunity[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
+
+    // Debounced search effect
+    useEffect(() => {
+        if (!exploreSearch.trim()) {
+            setSearchedPosts([]);
+            setSearchedCommunities([]);
+            setIsSearching(false);
+            return;
+        }
+        setIsSearching(true);
+        const timeout = setTimeout(async () => {
+            try {
+                const [postsRes, commRes] = await Promise.all([
+                    postApi.getAll({ search: exploreSearch, limit: 5 }),
+                    communityApi.getAll({ search: exploreSearch, limit: 5 })
+                ]);
+                setSearchedPosts(
+                    (postsRes.data || []).map((post: any) => ({
+                        ...post,
+                        body: post.body ?? undefined,
+                    }))
+                );
+                setSearchedCommunities(
+                    (commRes.data || []).map((comm: any) => ({
+                        ...comm,
+                        description: comm.description ?? undefined,
+                    }))
+                );
+            } catch (err) {
+                setSearchedPosts([]);
+                setSearchedCommunities([]);
+            } finally {
+                setIsSearching(false);
+            }
+        }, 300);
+        return () => clearTimeout(timeout);
+    }, [exploreSearch]);
     const [activeTab, setActiveTab] = useState('popular');
     const navigate = useNavigate();
     const [user, setUser] = useState<UserData | null>(null);
@@ -713,191 +771,121 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
 
     return (
         <>
+            {/* Explore Page Search Box */}
+            <div className="w-full flex justify-center items-center py-6 bg-background">
+                <div className="relative w-full max-w-xl">
+                    <input
+                        type="text"
+                        placeholder="Search..."
+                        value={exploreSearch}
+                        onChange={e => setExploreSearch(e.target.value)}
+                        className="w-full pl-12 pr-4 py-3 rounded-xl border border-border bg-card text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-tech-blue-500 transition-all shadow-md"
+                    />
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.5 4.5a7.5 7.5 0 0012.15 12.15z" />
+                        </svg>
+                    </span>
+                    {/* Results Box */}
+                    {exploreSearch.trim() && (
+                        <div className="absolute left-0 top-[110%] w-full z-30">
+                            <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 space-y-6 max-h-[60vh] overflow-y-auto animate-in fade-in duration-200">
+                                <div>
+                                    <h2 className="text-lg font-bold mb-2">Posts</h2>
+                                    {isSearching ? (
+                                        <div className="text-muted-foreground">Searching...</div>
+                                    ) : searchedPosts.length === 0 ? (
+                                        <div className="text-muted-foreground">No posts found.</div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {searchedPosts.map(post => (
+                                                <div key={post.id} className="bg-background border border-border rounded-lg p-4 shadow hover:shadow-lg transition-all cursor-pointer">
+                                                    <div className="font-semibold truncate mb-1">{post.title}</div>
+                                                    <div className="text-xs text-muted-foreground truncate">{post.User ? `${post.User.fname} ${post.User.lname}` : ''} • {new Date(post.post_date).toLocaleDateString()}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-bold mb-2">Communities</h2>
+                                    {isSearching ? (
+                                        <div className="text-muted-foreground">Searching...</div>
+                                    ) : searchedCommunities.length === 0 ? (
+                                        <div className="text-muted-foreground">No communities found.</div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {searchedCommunities.map(comm => (
+                                                <div
+                                                    key={comm.id}
+                                                    className="bg-background border border-border rounded-lg p-4 shadow hover:shadow-lg transition-all cursor-pointer"
+                                                    onClick={() => navigate(`/community/${comm.id}`)}
+                                                >
+                                                    <div className="font-semibold truncate mb-1">{comm.name}</div>
+                                                    <div className="text-xs text-muted-foreground truncate">{comm.description}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
             <div className="flex min-h-screen bg-background text-foreground font-sans">
                 <Sidebar onLogout={onLogout} />
 
                 {/* Main Content Area */}
                 <main className="flex-1 ml-20 p-6 transition-all duration-300 flex justify-center">
-                    <div className="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-3 gap-0 m-0 p-0">
-
-                        {/* Feed Column (Center) */}
-                        <div className="lg:col-span-2 space-y-4 m-0 p-0">
-                            {/* Welcome Header with decorative elements */}
-                            <div className="mb-4 relative">
-                                <div className="absolute -top-4 -left-4 w-24 h-24 bg-tech-blue-500/10 rounded-full blur-2xl pointer-events-none" />
-                                <div className="relative">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-                                            Welcome back, {user?.fname || 'User'}!
-                                        </h1>
-                                        <Sparkles className="w-5 h-5 text-royal-gold-500 animate-pulse" />
+                    <div style={{ width: '100%' }}>
+                        <div className="max-w-6xl w-full flex flex-row gap-8 m-0 p-0 justify-center">
+                            {/* Left Spacer */}
+                            <div className="hidden lg:block" style={{ width: '340px' }}></div>
+                            {/* Feed Column (Center) */}
+                            <div className="w-full max-w-2xl space-y-4 m-0 p-0">
+                                {/* Welcome Header with decorative elements */}
+                                <div className="mb-4 relative">
+                                    <div className="absolute -top-4 -left-4 w-24 h-24 bg-tech-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+                                    <div className="relative">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+                                                Welcome back, {user?.fname || 'User'}!
+                                            </h1>
+                                            <Sparkles className="w-5 h-5 text-royal-gold-500 animate-pulse" />
+                                        </div>
+                                        <p className="text-muted-foreground text-sm">Explore public communities and join the conversation.</p>
                                     </div>
-                                    <p className="text-muted-foreground text-sm">Explore public communities and join the conversation.</p>
                                 </div>
-                            </div>
 
-                            {/* Create Post Input */}
-                            <div className="bg-card p-4 rounded-xl border border-border flex flex-col gap-3 relative overflow-hidden group hover:shadow-lg transition-all duration-300">
-                                {/* Subtle hover effect */}
-                                <div className="absolute inset-0 bg-tech-blue-500/0 group-hover:bg-tech-blue-500/5 transition-all duration-300 rounded-xl" />
+                                {/* Create Post Input */}
+                                <div className="bg-card p-4 rounded-xl border border-border flex flex-col gap-3 relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+                                    {/* Subtle hover effect */}
+                                    <div className="absolute inset-0 bg-tech-blue-500/0 group-hover:bg-tech-blue-500/5 transition-all duration-300 rounded-xl" />
 
-                                <div className="flex items-start gap-3 relative">
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-lg shadow-blue-500/20">
-                                        {user?.fname?.[0] || 'U'}
-                                    </div>
-                                    <div className="flex-1 bg-muted/50 border border-input rounded-md flex flex-col overflow-hidden focus-within:border-ring transition-colors">
-                                        <div className="flex border-b border-input">
-                                            <select
-                                                value={selectedCommunity}
-                                                onChange={(e) => setSelectedCommunity(e.target.value)}
-                                                className="flex-1 px-3 py-2 bg-muted text-muted-foreground text-sm font-medium hover:bg-muted/80 transition-colors cursor-pointer focus:outline-none"
-                                            >
-                                                <option value="">Select Community</option>
-                                                {communities.map((community) => (
-                                                    <option key={community.id} value={community.id}>
-                                                        {community.name}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                    <div className="flex items-start gap-3 relative">
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-lg shadow-blue-500/20">
+                                            {user?.fname?.[0] || 'U'}
                                         </div>
-
-                                        {/* Tags Selection */}
-                                        <div className="px-3 py-2 border-b border-input bg-muted/30 flex items-center gap-2 flex-wrap">
-                                            <Tag size={12} className="text-muted-foreground flex-shrink-0" />
-                                            {POST_TAGS.map((tag) => {
-                                                const isSelected = selectedTags.includes(tag.id);
-                                                return (
-                                                    <button
-                                                        key={tag.id}
-                                                        onClick={() => {
-                                                            if (isSelected) {
-                                                                setSelectedTags(prev => prev.filter(t => t !== tag.id));
-                                                            } else {
-                                                                setSelectedTags(prev => [...prev, tag.id]);
-                                                            }
-                                                        }}
-                                                        className={`text-xs font-medium px-2 py-0.5 rounded-full transition-all ${isSelected
-                                                            ? `${tag.bgLight} ${tag.textColor} ring-1 ring-current`
-                                                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                                                            }`}
-                                                    >
-                                                        {tag.label}
-                                                    </button>
-                                                );
-                                            })}
-                                            {selectedTags.length > 0 && (
-                                                <button
-                                                    onClick={() => setSelectedTags([])}
-                                                    className="ml-auto text-muted-foreground hover:text-foreground transition-colors"
+                                        <div className="flex-1 bg-muted/50 border border-input rounded-md flex flex-col overflow-hidden focus-within:border-ring transition-colors">
+                                            <div className="flex border-b border-input">
+                                                <select
+                                                    value={selectedCommunity}
+                                                    onChange={(e) => setSelectedCommunity(e.target.value)}
+                                                    className="flex-1 px-3 py-2 bg-muted text-muted-foreground text-sm font-medium hover:bg-muted/80 transition-colors cursor-pointer focus:outline-none"
                                                 >
-                                                    <X size={12} />
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        <input
-                                            type="text"
-                                            placeholder="Post title..."
-                                            value={newPostTitle}
-                                            onChange={(e) => setNewPostTitle(e.target.value)}
-                                            className="bg-transparent px-4 py-2 text-sm font-medium focus:outline-none text-foreground placeholder-muted-foreground border-b border-input"
-                                        />
-                                        <textarea
-                                            placeholder="What's on your mind? (Shift+Enter for new line)"
-                                            value={newPostBody}
-                                            onChange={(e) => setNewPostBody(e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter' && !e.shiftKey && selectedCommunity && newPostTitle.trim() && newPostBody.trim()) {
-                                                    e.preventDefault();
-                                                    handleCreatePost();
-                                                }
-                                            }}
-                                            rows={2}
-                                            className="flex-1 bg-transparent px-4 py-2 text-sm focus:outline-none text-foreground placeholder-muted-foreground resize-none min-h-[60px]"
-                                        />
-                                    </div>
-                                    <button
-                                        onClick={handleCreatePost}
-                                        disabled={!user || !selectedCommunity || !newPostTitle.trim() || !newPostBody.trim() || isCreatingPost}
-                                        className="p-2.5 bg-frosted-blue-500 hover:bg-frosted-blue-600 rounded-full text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 group/btn mt-1"
-                                    >
-                                        {isCreatingPost ? (
-                                            <Loader2 size={18} className="animate-spin" />
-                                        ) : (
-                                            <Send size={18} className="transform -rotate-45" />
-                                        )}
-                                    </button>
-                                    <button
-                                        onClick={() => setIsEditorOpen(true)}
-                                        className="absolute bottom-2 right-14 p-2 text-muted-foreground hover:text-primary transition-colors hover:bg-muted/50 rounded-full"
-                                        title="Open full editor"
-                                    >
-                                        <Maximize2 size={16} />
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Editor Overlay */}
-                            {isEditorOpen && (
-                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                                    <div className="bg-card w-full max-w-4xl h-[80vh] rounded-xl shadow-2xl border border-border flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-                                        <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
-                                            <h3 className="font-semibold text-lg flex items-center gap-2">
-                                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold shadow-md">
-                                                    {user?.fname?.[0] || 'U'}
-                                                </div>
-                                                Create Post
-                                            </h3>
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={handleCreatePost}
-                                                    disabled={!user || !selectedCommunity || !newPostTitle.trim() || !newPostBody.trim() || isCreatingPost}
-                                                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                                >
-                                                    {isCreatingPost ? (
-                                                        <Loader2 size={16} className="animate-spin mr-2 inline" />
-                                                    ) : (
-                                                        <Send size={16} className="mr-2 inline" />
-                                                    )}
-                                                    Post
-                                                </button>
-                                                <button
-                                                    onClick={() => setIsEditorOpen(false)}
-                                                    className="p-2 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground"
-                                                >
-                                                    <X size={20} />
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div className="p-4 space-y-4 flex-1 overflow-y-auto bg-background">
-                                            <div className="flex gap-4">
-                                                <div className="flex-1">
-                                                    <select
-                                                        value={selectedCommunity}
-                                                        onChange={(e) => setSelectedCommunity(e.target.value)}
-                                                        className="w-full px-4 py-2 bg-muted text-muted-foreground text-sm font-medium rounded-lg hover:bg-muted/80 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring"
-                                                    >
-                                                        <option value="">Select Community</option>
-                                                        {communities.map((community) => (
-                                                            <option key={community.id} value={community.id}>
-                                                                {community.name}
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                                <div className="flex-1 relative">
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Post title..."
-                                                        value={newPostTitle}
-                                                        onChange={(e) => setNewPostTitle(e.target.value)}
-                                                        className="w-full px-4 py-2 bg-muted/50 border border-input rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder-muted-foreground"
-                                                    />
-                                                </div>
+                                                    <option value="">Select Community</option>
+                                                    {communities.map((community) => (
+                                                        <option key={community.id} value={community.id}>
+                                                            {community.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
                                             </div>
 
-                                            <div className="flex flex-wrap gap-2">
+                                            {/* Tags Selection */}
+                                            <div className="px-3 py-2 border-b border-input bg-muted/30 flex items-center gap-2 flex-wrap">
+                                                <Tag size={12} className="text-muted-foreground flex-shrink-0" />
                                                 {POST_TAGS.map((tag) => {
                                                     const isSelected = selectedTags.includes(tag.id);
                                                     return (
@@ -910,7 +898,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                                                     setSelectedTags(prev => [...prev, tag.id]);
                                                                 }
                                                             }}
-                                                            className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${isSelected
+                                                            className={`text-xs font-medium px-2 py-0.5 rounded-full transition-all ${isSelected
                                                                 ? `${tag.bgLight} ${tag.textColor} ring-1 ring-current`
                                                                 : 'bg-muted text-muted-foreground hover:bg-muted/80'
                                                                 }`}
@@ -919,394 +907,532 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                                         </button>
                                                     );
                                                 })}
-                                            </div>
-
-                                            <div className="border border-input rounded-lg overflow-hidden min-h-[300px]">
-                                                <MarkdownEditor
-                                                    value={newPostBody}
-                                                    onChange={setNewPostBody}
-                                                    placeholder="Write something amazing..."
-                                                    className="min-h-[300px]"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Filter Bar */}
-                            <div className="flex items-center gap-4 text-sm font-medium text-muted-foreground mb-2">
-                                <button
-                                    onClick={() => setActiveTab('popular')}
-                                    className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${activeTab === 'popular' ? 'text-primary bg-muted' : ''}`}
-                                >
-                                    <Flame size={18} /> Popular
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('new')}
-                                    className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${activeTab === 'new' ? 'text-primary bg-muted' : ''}`}
-                                >
-                                    <Clock size={18} /> New
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('top')}
-                                    className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${activeTab === 'top' ? 'text-primary bg-muted' : ''}`}
-                                >
-                                    <ArrowBigUp size={18} /> Top
-                                </button>
-
-                                {/* Filter by Post Title */}
-                                <div className="relative ml-auto" ref={filterRef}>
-                                    <button
-                                        onClick={() => setIsFilterOpen(!isFilterOpen)}
-                                        className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${postTitleSearch ? 'text-primary bg-muted' : ''}`}
-                                    >
-                                        <Filter size={18} />
-                                        {postTitleSearch && (
-                                            <span className="text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">1</span>
-                                        )}
-                                    </button>
-
-                                    {/* Filter Dropdown */}
-                                    {isFilterOpen && (
-                                        <div className="absolute right-0 top-full mt-2 w-72 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                                            <div className="p-3">
-                                                <label className="text-xs font-medium text-muted-foreground mb-2 block">Search by post title</label>
-                                                <div className="relative">
-                                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Search posts..."
-                                                        value={filterSearch}
-                                                        onChange={(e) => {
-                                                            setFilterSearch(e.target.value);
-                                                            setPostTitleSearch(e.target.value);
-                                                        }}
-                                                        className="w-full pl-9 pr-3 py-2 bg-muted/50 border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder-muted-foreground"
-                                                        autoFocus
-                                                    />
-                                                </div>
-                                                {postTitleSearch && (
+                                                {selectedTags.length > 0 && (
                                                     <button
-                                                        onClick={() => {
-                                                            setPostTitleSearch('');
-                                                            setFilterSearch('');
-                                                        }}
-                                                        className="mt-2 w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors flex items-center gap-2 text-destructive rounded-lg"
+                                                        onClick={() => setSelectedTags([])}
+                                                        className="ml-auto text-muted-foreground hover:text-foreground transition-colors"
                                                     >
-                                                        <X size={16} />
-                                                        Clear search
+                                                        <X size={12} />
                                                     </button>
                                                 )}
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
 
-                            {/* Active Search Badge */}
-                            {postTitleSearch && (
-                                <div className="flex items-center gap-2 mb-3">
-                                    <span className="text-sm text-muted-foreground">Searching:</span>
-                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full">
-                                        "{postTitleSearch}"
-                                        <button
-                                            onClick={() => {
-                                                setPostTitleSearch('');
-                                                setFilterSearch('');
-                                            }}
-                                            className="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
-                                        >
-                                            <X size={14} />
-                                        </button>
-                                    </span>
-                                </div>
-                            )}
-
-                            {/* Posts List */}
-                            {(postTitleSearch ? posts.filter(p => p.title.toLowerCase().includes(postTitleSearch.toLowerCase())).length === 0 : posts.length === 0) ? (
-                                <div className="bg-card rounded-xl border border-border p-12 text-center relative overflow-hidden">
-                                    {/* Decorative background elements */}
-                                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                                        <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full blur-3xl" />
-                                        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-gradient-to-tr from-green-500/10 to-blue-500/10 rounded-full blur-3xl" />
-                                    </div>
-
-                                    {/* Illustration */}
-                                    <div className="relative mb-6">
-                                        <div className="w-24 h-24 mx-auto bg-tech-blue-500/10 rounded-full flex items-center justify-center">
-                                            <Rocket className="w-12 h-12 text-tech-blue-600" />
-                                        </div>
-                                        <div className="absolute top-0 right-1/3 animate-pulse">
-                                            <Sparkles className="w-6 h-6 text-yellow-500" />
-                                        </div>
-                                        <div className="absolute bottom-0 left-1/3 animate-pulse delay-300">
-                                            <Sparkles className="w-4 h-4 text-purple-500" />
-                                        </div>
-                                    </div>
-
-                                    <h3 className="text-lg font-semibold text-foreground mb-2">
-                                        {postTitleSearch ? 'No posts found' : 'No posts yet'}
-                                    </h3>
-                                    <p className="text-muted-foreground text-sm mb-4">
-                                        {postTitleSearch
-                                            ? 'Try a different search term'
-                                            : 'Be the first to share something with the community!'
-                                        }
-                                    </p>
-                                    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                                        <BookOpen className="w-4 h-4" />
-                                        <span>{postTitleSearch ? 'Clear the search to see all posts' : 'Select a community above and start a conversation'}</span>
-                                    </div>
-                                </div>
-                            ) : (
-                                <>
-                                    {displayedPosts
-                                        .filter(post => !postTitleSearch || post.title.toLowerCase().includes(postTitleSearch.toLowerCase()))
-                                        .map((post) => (
-                                            <PostCard
-                                                key={post.id}
-                                                communityId={post.cid}
-                                                subreddit={getCommunityName(post.cid)}
-                                                author={`${post.User.fname}_${post.User.lname.charAt(0).toLowerCase()}`}
-                                                time={formatTimeAgo(post.post_date)}
-                                                title={post.title}
-                                                content={post.body || ''}
-                                                upvotes={0}
-                                                comments={post._count?.Comment || 0}
-                                                postType={post.type}
-                                                onNavigate={(id: string) => navigate(`/community/${id}`)}
-                                                currentUser={user}
-                                                postAuthorId={post.owner_uid}
-                                                onEdit={() => handleEditPost(post)}
-                                                onDelete={() => handleDeletePost(post.id)}
+                                            <input
+                                                type="text"
+                                                placeholder="Post title..."
+                                                value={newPostTitle}
+                                                onChange={(e) => setNewPostTitle(e.target.value)}
+                                                className="bg-transparent px-4 py-2 text-sm font-medium focus:outline-none text-foreground placeholder-muted-foreground border-b border-input"
                                             />
-                                        ))}
+                                            <textarea
+                                                placeholder="What's on your mind? (Shift+Enter for new line)"
+                                                value={newPostBody}
+                                                onChange={(e) => setNewPostBody(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && !e.shiftKey && selectedCommunity && newPostTitle.trim() && newPostBody.trim()) {
+                                                        e.preventDefault();
+                                                        handleCreatePost();
+                                                    }
+                                                }}
+                                                rows={2}
+                                                className="flex-1 bg-transparent px-4 py-2 text-sm focus:outline-none text-foreground placeholder-muted-foreground resize-none min-h-[60px]"
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={handleCreatePost}
+                                            disabled={!user || !selectedCommunity || !newPostTitle.trim() || !newPostBody.trim() || isCreatingPost}
+                                            className="p-2.5 bg-frosted-blue-500 hover:bg-frosted-blue-600 rounded-full text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 group/btn mt-1"
+                                        >
+                                            {isCreatingPost ? (
+                                                <Loader2 size={18} className="animate-spin" />
+                                            ) : (
+                                                <Send size={18} className="transform -rotate-45" />
+                                            )}
+                                        </button>
+                                        <button
+                                            onClick={() => setIsEditorOpen(true)}
+                                            className="absolute bottom-2 right-14 p-2 text-muted-foreground hover:text-primary transition-colors hover:bg-muted/50 rounded-full"
+                                            title="Open full editor"
+                                        >
+                                            <Maximize2 size={16} />
+                                        </button>
+                                    </div>
+                                </div>
 
-                                    {/* Load More Trigger */}
-                                    <div ref={loadMoreRef} className="py-4">
-                                        {isLoadingMore && (
-                                            <div className="flex items-center justify-center gap-3">
-                                                <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
-                                                <span className="text-sm text-muted-foreground">Loading more posts...</span>
+                                {/* Editor Overlay */}
+                                {isEditorOpen && (
+                                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                                        <div className="bg-card w-full max-w-4xl h-[80vh] rounded-xl shadow-2xl border border-border flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                                            <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
+                                                <h3 className="font-semibold text-lg flex items-center gap-2">
+                                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold shadow-md">
+                                                        {user?.fname?.[0] || 'U'}
+                                                    </div>
+                                                    Create Post
+                                                </h3>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={handleCreatePost}
+                                                        disabled={!user || !selectedCommunity || !newPostTitle.trim() || !newPostBody.trim() || isCreatingPost}
+                                                        className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                    >
+                                                        {isCreatingPost ? (
+                                                            <Loader2 size={16} className="animate-spin mr-2 inline" />
+                                                        ) : (
+                                                            <Send size={16} className="mr-2 inline" />
+                                                        )}
+                                                        Post
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setIsEditorOpen(false)}
+                                                        className="p-2 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground"
+                                                    >
+                                                        <X size={20} />
+                                                    </button>
+                                                </div>
                                             </div>
-                                        )}
-                                        {!hasMore && displayedPosts.length > 0 && (
-                                            <div className="text-center py-4">
-                                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-muted/50 rounded-full">
-                                                    <Sparkles className="w-4 h-4 text-purple-500" />
-                                                    <span className="text-sm text-muted-foreground">You've seen all posts!</span>
+
+                                            <div className="p-4 space-y-4 flex-1 overflow-y-auto bg-background">
+                                                <div className="flex gap-4">
+                                                    <div className="flex-1">
+                                                        <select
+                                                            value={selectedCommunity}
+                                                            onChange={(e) => setSelectedCommunity(e.target.value)}
+                                                            className="w-full px-4 py-2 bg-muted text-muted-foreground text-sm font-medium rounded-lg hover:bg-muted/80 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring"
+                                                        >
+                                                            <option value="">Select Community</option>
+                                                            {communities.map((community) => (
+                                                                <option key={community.id} value={community.id}>
+                                                                    {community.name}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div className="flex-1 relative">
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Post title..."
+                                                            value={newPostTitle}
+                                                            onChange={(e) => setNewPostTitle(e.target.value)}
+                                                            className="w-full px-4 py-2 bg-muted/50 border border-input rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder-muted-foreground"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex flex-wrap gap-2">
+                                                    {POST_TAGS.map((tag) => {
+                                                        const isSelected = selectedTags.includes(tag.id);
+                                                        return (
+                                                            <button
+                                                                key={tag.id}
+                                                                onClick={() => {
+                                                                    if (isSelected) {
+                                                                        setSelectedTags(prev => prev.filter(t => t !== tag.id));
+                                                                    } else {
+                                                                        setSelectedTags(prev => [...prev, tag.id]);
+                                                                    }
+                                                                }}
+                                                                className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${isSelected
+                                                                    ? `${tag.bgLight} ${tag.textColor} ring-1 ring-current`
+                                                                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                                                                    }`}
+                                                            >
+                                                                {tag.label}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                <div className="border border-input rounded-lg overflow-hidden min-h-[300px]">
+                                                    <MarkdownEditor
+                                                        value={newPostBody}
+                                                        onChange={setNewPostBody}
+                                                        placeholder="Write something amazing..."
+                                                        className="min-h-[300px]"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Filter Bar */}
+                                <div className="flex items-center gap-4 text-sm font-medium text-muted-foreground mb-2">
+                                    <button
+                                        onClick={() => setActiveTab('popular')}
+                                        className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${activeTab === 'popular' ? 'text-primary bg-muted' : ''}`}
+                                    >
+                                        <Flame size={18} /> Popular
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveTab('new')}
+                                        className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${activeTab === 'new' ? 'text-primary bg-muted' : ''}`}
+                                    >
+                                        <Clock size={18} /> New
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveTab('top')}
+                                        className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${activeTab === 'top' ? 'text-primary bg-muted' : ''}`}
+                                    >
+                                        <ArrowBigUp size={18} /> Top
+                                    </button>
+
+                                    {/* Filter by Post Title */}
+                                    <div className="relative ml-auto" ref={filterRef}>
+                                        <button
+                                            onClick={() => setIsFilterOpen(!isFilterOpen)}
+                                            className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${postTitleSearch ? 'text-primary bg-muted' : ''}`}
+                                        >
+                                            <Filter size={18} />
+                                            {postTitleSearch && (
+                                                <span className="text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">1</span>
+                                            )}
+                                        </button>
+
+                                        {/* Filter Dropdown */}
+                                        {isFilterOpen && (
+                                            <div className="absolute right-0 top-full mt-2 w-72 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                                <div className="p-3">
+                                                    <label className="text-xs font-medium text-muted-foreground mb-2 block">Search by post title</label>
+                                                    <div className="relative">
+                                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Search posts..."
+                                                            value={filterSearch}
+                                                            onChange={(e) => {
+                                                                setFilterSearch(e.target.value);
+                                                                setPostTitleSearch(e.target.value);
+                                                            }}
+                                                            className="w-full pl-9 pr-3 py-2 bg-muted/50 border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder-muted-foreground"
+                                                            autoFocus
+                                                        />
+                                                    </div>
+                                                    {postTitleSearch && (
+                                                        <button
+                                                            onClick={() => {
+                                                                setPostTitleSearch('');
+                                                                setFilterSearch('');
+                                                            }}
+                                                            className="mt-2 w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors flex items-center gap-2 text-destructive rounded-lg"
+                                                        >
+                                                            <X size={16} />
+                                                            Clear search
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
                                         )}
                                     </div>
-                                </>
-                            )}
-                        </div>
-                    </div>
+                                </div>
 
-                    {/* Right Sidebar */}
-                    <div className="hidden lg:block space-y-6 sticky top-6 self-start h-fit m-0 p-0">
+                                {/* Active Search Badge */}
+                                {postTitleSearch && (
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <span className="text-sm text-muted-foreground">Searching:</span>
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full">
+                                            "{postTitleSearch}"
+                                            <button
+                                                onClick={() => {
+                                                    setPostTitleSearch('');
+                                                    setFilterSearch('');
+                                                }}
+                                                className="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </span>
+                                    </div>
+                                )}
 
-                        {/* Public Communities */}
-                        <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
-                            {/* Decorative corner accent */}
-                            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-tech-blue-500/10 to-transparent rounded-bl-full" />
+                                {/* Posts List */}
+                                {(postTitleSearch ? posts.filter(p => p.title.toLowerCase().includes(postTitleSearch.toLowerCase())).length === 0 : posts.length === 0) ? (
+                                    <div className="bg-card rounded-xl border border-border p-12 text-center relative overflow-hidden">
+                                        {/* Decorative background elements */}
+                                        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                                            <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full blur-3xl" />
+                                            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-gradient-to-tr from-green-500/10 to-blue-500/10 rounded-full blur-3xl" />
+                                        </div>
 
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="font-bold text-foreground text-sm uppercase tracking-wider flex items-center gap-2">
-                                    <Users className="w-4 h-4 text-blue-500" />
-                                    Public Communities
-                                </h3>
-
-                                {/* Community Filter */}
-                                <div className="relative" ref={communityFilterRef}>
-                                    <button
-                                        onClick={() => setIsCommunityFilterOpen(!isCommunityFilterOpen)}
-                                        className={`p-1.5 rounded-lg hover:bg-muted transition-colors ${communityFilterSearch ? 'text-primary bg-muted' : 'text-muted-foreground'}`}
-                                    >
-                                        <Filter size={14} />
-                                    </button>
-
-                                    {/* Community Filter Dropdown */}
-                                    {isCommunityFilterOpen && (
-                                        <div className="absolute right-0 top-full mt-2 w-64 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                                            <div className="p-3">
-                                                <div className="relative">
-                                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Search communities..."
-                                                        value={communityFilterSearch}
-                                                        onChange={(e) => setCommunityFilterSearch(e.target.value)}
-                                                        className="w-full pl-9 pr-3 py-2 bg-muted/50 border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder-muted-foreground"
-                                                        autoFocus
-                                                    />
-                                                </div>
-                                                {communityFilterSearch && (
-                                                    <button
-                                                        onClick={() => setCommunityFilterSearch('')}
-                                                        className="mt-2 w-full px-3 py-1.5 text-left text-xs hover:bg-muted transition-colors flex items-center gap-2 text-destructive rounded-lg"
-                                                    >
-                                                        <X size={14} />
-                                                        Clear search
-                                                    </button>
-                                                )}
+                                        {/* Illustration */}
+                                        <div className="relative mb-6">
+                                            <div className="w-24 h-24 mx-auto bg-tech-blue-500/10 rounded-full flex items-center justify-center">
+                                                <Rocket className="w-12 h-12 text-tech-blue-600" />
+                                            </div>
+                                            <div className="absolute top-0 right-1/3 animate-pulse">
+                                                <Sparkles className="w-6 h-6 text-yellow-500" />
+                                            </div>
+                                            <div className="absolute bottom-0 left-1/3 animate-pulse delay-300">
+                                                <Sparkles className="w-4 h-4 text-purple-500" />
                                             </div>
                                         </div>
-                                    )}
-                                </div>
-                            </div>
 
-                            {/* Active Community Search Badge */}
-                            {communityFilterSearch && (
-                                <div className="flex items-center gap-1.5 mb-3 text-xs">
-                                    <span className="text-muted-foreground">Filtering:</span>
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-tech-blue-500/10 text-tech-blue-600 font-medium rounded-full">
-                                        "{communityFilterSearch}"
-                                        <button
-                                            onClick={() => setCommunityFilterSearch('')}
-                                            className="hover:bg-tech-blue-500/20 rounded-full transition-colors"
-                                        >
-                                            <X size={12} />
-                                        </button>
-                                    </span>
-                                </div>
-                            )}
-
-                            <div className="space-y-4">
-                                {communities.filter(c => c.name.toLowerCase().includes(communityFilterSearch.toLowerCase())).length === 0 ? (
-                                    <div className="text-center py-6">
-                                        <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center">
-                                            <Users className="w-8 h-8 text-muted-foreground" />
-                                        </div>
-                                        <p className="text-sm text-muted-foreground">
-                                            {communityFilterSearch ? 'No communities match your search.' : 'No public communities found.'}
+                                        <h3 className="text-lg font-semibold text-foreground mb-2">
+                                            {postTitleSearch ? 'No posts found' : 'No posts yet'}
+                                        </h3>
+                                        <p className="text-muted-foreground text-sm mb-4">
+                                            {postTitleSearch
+                                                ? 'Try a different search term'
+                                                : 'Be the first to share something with the community!'
+                                            }
                                         </p>
-                                    </div>
-                                ) : (
-                                    communities
-                                        .filter(c => c.name.toLowerCase().includes(communityFilterSearch.toLowerCase()))
-                                        .map((community, index) => (
-                                            <CommunityItem
-                                                key={community.id}
-                                                communityId={community.id}
-                                                name={community.name}
-                                                description={community.description || 'No description'}
-                                                color={['bg-tech-blue-500', 'bg-turf-green-500', 'bg-destructive', 'bg-royal-gold-500', 'bg-frosted-blue-500'][index % 5]}
-                                                isJoining={joiningCommunityId === community.id}
-                                                onJoin={() => handleJoinCommunity(community.id)}
-                                                isStudent={user?.role === 'student'}
-                                                isEnrolled={enrolledCommunityIds.has(community.id)}
-                                                onNavigate={(id: string) => navigate(`/community/${id}`)}
-                                            />
-                                        ))
-                                )}
-                            </div>
-                            {hasMorePublic && (
-                                <button
-                                    onClick={handleLoadMorePublic}
-                                    disabled={isLoadingPublic}
-                                    className="w-full mt-4 py-2 rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground flex items-center justify-center"
-                                >
-                                    {isLoadingPublic ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
-                                    Show More
-                                </button>
-                            )}
-                        </div>
-
-                        {/* Private Communities */}
-                        <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
-                            {/* Decorative corner accent */}
-                            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-frosted-blue-500/10 to-transparent rounded-bl-full" />
-
-                            <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider flex items-center gap-2">
-                                <Lock className="w-4 h-4 text-purple-500" />
-                                Private Communities
-                            </h3>
-                            <div className="space-y-4">
-                                {privateCommunities.length === 0 ? (
-                                    <div className="text-center py-6">
-                                        <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full flex items-center justify-center">
-                                            <Lock className="w-8 h-8 text-muted-foreground" />
+                                        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                                            <BookOpen className="w-4 h-4" />
+                                            <span>{postTitleSearch ? 'Clear the search to see all posts' : 'Select a community above and start a conversation'}</span>
                                         </div>
-                                        <p className="text-sm text-muted-foreground">No private communities yet.</p>
-                                        <p className="text-xs text-muted-foreground mt-1">Join or create one to see it here.</p>
                                     </div>
                                 ) : (
-                                    privateCommunities.map((community, index) => (
-                                        <CommunityItem
-                                            key={community.id}
-                                            communityId={community.id}
-                                            name={community.name}
-                                            description={community.description || 'No description'}
-                                            color={['bg-frosted-blue-500', 'bg-royal-gold-500', 'bg-tech-blue-500', 'bg-turf-green-500', 'bg-destructive'][index % 5]}
-                                            isJoining={joiningCommunityId === community.id}
-                                            onJoin={() => handleJoinCommunity(community.id)}
-                                            isStudent={user?.role === 'student'}
-                                            isPrivate
-                                            isEnrolled={enrolledCommunityIds.has(community.id)}
-                                            onNavigate={(id: string) => navigate(`/community/${id}`)}
-                                        />
-                                    ))
+                                    <>
+                                        {displayedPosts
+                                            .filter(post => !postTitleSearch || post.title.toLowerCase().includes(postTitleSearch.toLowerCase()))
+                                            .map((post) => (
+                                                <PostCard
+                                                    key={post.id}
+                                                    communityId={post.cid}
+                                                    subreddit={getCommunityName(post.cid)}
+                                                    author={`${post.User.fname}_${post.User.lname.charAt(0).toLowerCase()}`}
+                                                    time={formatTimeAgo(post.post_date)}
+                                                    title={post.title}
+                                                    content={post.body || ''}
+                                                    upvotes={0}
+                                                    comments={post._count?.Comment || 0}
+                                                    postType={post.type}
+                                                    onNavigate={(id: string) => navigate(`/community/${id}`)}
+                                                    currentUser={user}
+                                                    postAuthorId={post.owner_uid}
+                                                    onEdit={() => handleEditPost(post)}
+                                                    onDelete={() => handleDeletePost(post.id)}
+                                                />
+                                            ))}
+
+                                        {/* Load More Trigger */}
+                                        <div ref={loadMoreRef} className="py-4">
+                                            {isLoadingMore && (
+                                                <div className="flex items-center justify-center gap-3">
+                                                    <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                                                    <span className="text-sm text-muted-foreground">Loading more posts...</span>
+                                                </div>
+                                            )}
+                                            {!hasMore && displayedPosts.length > 0 && (
+                                                <div className="text-center py-4">
+                                                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-muted/50 rounded-full">
+                                                        <Sparkles className="w-4 h-4 text-purple-500" />
+                                                        <span className="text-sm text-muted-foreground">You've seen all posts!</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </>
                                 )}
                             </div>
-                            {hasMorePrivate && (
-                                <button
-                                    onClick={handleLoadMorePrivate}
-                                    disabled={isLoadingPrivate}
-                                    className="w-full mt-4 py-2 rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground flex items-center justify-center"
-                                >
-                                    {isLoadingPrivate ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
-                                    Show More
-                                </button>
-                            )}
-                        </div>
+                            {/* Right Sidebar */}
+                            <div
+                                className="hidden lg:block space-y-6 m-0 p-0 overflow-y-auto scrollbar-hide"
+                                style={{ width: '300px', minWidth: '300px', maxWidth: '300px', maxHeight: 'calc(100vh - 48px)', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                            >
 
-                        {/* Dynamic Widget based on Role */}
-                        <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
-                            {/* Decorative gradient */}
-                            <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-tech-blue-500 via-frosted-blue-500 to-turf-green-500 opacity-50" />
+                                {/* Public Communities */}
+                                <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
+                                    {/* Decorative corner accent */}
+                                    <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-tech-blue-500/10 to-transparent rounded-bl-full" />
 
-                            <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider flex items-center gap-2">
-                                <Clock className="w-4 h-4 text-purple-500" />
-                                {user?.role === 'instructor' ? 'Pending Actions' : 'Upcoming Deadlines'}
-                            </h3>
-                            <div className="space-y-3">
-                                {user?.role === 'instructor' ? (
-                                    <>
-                                        {pendingSubmissions.length > 0 ? (
-                                            pendingSubmissions.map((assignment, idx) => (
-                                                <DeadlineItem
-                                                    key={idx}
-                                                    course={assignment.communityName}
-                                                    task={assignment.title}
-                                                    due={`${assignment.ungradedCount} submission${assignment.ungradedCount !== 1 ? 's' : ''} to grade`}
-                                                    isInstructor
-                                                    onClick={() => navigate(`/community/${assignment.cid}/assignment/${assignment.id}`)}
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="font-bold text-foreground text-sm uppercase tracking-wider flex items-center gap-2">
+                                            <Users className="w-4 h-4 text-blue-500" />
+                                            Public Communities
+                                        </h3>
+
+                                        {/* Community Filter */}
+                                        <div className="relative" ref={communityFilterRef}>
+                                            <button
+                                                onClick={() => setIsCommunityFilterOpen(!isCommunityFilterOpen)}
+                                                className={`p-1.5 rounded-lg hover:bg-muted transition-colors ${communityFilterSearch ? 'text-primary bg-muted' : 'text-muted-foreground'}`}
+                                            >
+                                                <Filter size={14} />
+                                            </button>
+
+                                            {/* Community Filter Dropdown */}
+                                            {isCommunityFilterOpen && (
+                                                <div className="absolute right-0 top-full mt-2 w-64 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                                    <div className="p-3">
+                                                        <div className="relative">
+                                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                                            <input
+                                                                type="text"
+                                                                placeholder="Search communities..."
+                                                                value={communityFilterSearch}
+                                                                onChange={(e) => setCommunityFilterSearch(e.target.value)}
+                                                                className="w-full pl-9 pr-3 py-2 bg-muted/50 border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder-muted-foreground"
+                                                                autoFocus
+                                                            />
+                                                        </div>
+                                                        {communityFilterSearch && (
+                                                            <button
+                                                                onClick={() => setCommunityFilterSearch('')}
+                                                                className="mt-2 w-full px-3 py-1.5 text-left text-xs hover:bg-muted transition-colors flex items-center gap-2 text-destructive rounded-lg"
+                                                            >
+                                                                <X size={14} />
+                                                                Clear search
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Active Community Search Badge */}
+                                    {communityFilterSearch && (
+                                        <div className="flex items-center gap-1.5 mb-3 text-xs">
+                                            <span className="text-muted-foreground">Filtering:</span>
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-tech-blue-500/10 text-tech-blue-600 font-medium rounded-full">
+                                                "{communityFilterSearch}"
+                                                <button
+                                                    onClick={() => setCommunityFilterSearch('')}
+                                                    className="hover:bg-tech-blue-500/20 rounded-full transition-colors"
+                                                >
+                                                    <X size={12} />
+                                                </button>
+                                            </span>
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-4">
+                                        {communities.filter(c => c.name.toLowerCase().includes(communityFilterSearch.toLowerCase())).length === 0 ? (
+                                            <div className="text-center py-6">
+                                                <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center">
+                                                    <Users className="w-8 h-8 text-muted-foreground" />
+                                                </div>
+                                                <p className="text-sm text-muted-foreground">
+                                                    {communityFilterSearch ? 'No communities match your search.' : 'No public communities found.'}
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            communities
+                                                .filter(c => c.name.toLowerCase().includes(communityFilterSearch.toLowerCase()))
+                                                .slice(0, hasMorePublic ? 3 : communities.length)
+                                                .map((community, index) => (
+                                                    <CommunityItem
+                                                        key={community.id}
+                                                        communityId={community.id}
+                                                        name={community.name}
+                                                        description={community.description || 'No description'}
+                                                        color={['bg-tech-blue-500', 'bg-turf-green-500', 'bg-destructive', 'bg-royal-gold-500', 'bg-frosted-blue-500'][index % 5]}
+                                                        isJoining={joiningCommunityId === community.id}
+                                                        onJoin={() => handleJoinCommunity(community.id)}
+                                                        isStudent={user?.role === 'student'}
+                                                        isEnrolled={enrolledCommunityIds.has(community.id)}
+                                                        onNavigate={(id: string) => navigate(`/community/${id}`)}
+                                                    />
+                                                ))
+                                        )}
+                                    </div>
+                                    {hasMorePublic && communities.filter(c => c.name.toLowerCase().includes(communityFilterSearch.toLowerCase())).length > 0 && (
+                                        <button
+                                            onClick={handleLoadMorePublic}
+                                            disabled={isLoadingPublic}
+                                            className="w-full mt-4 py-2 rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground flex items-center justify-center"
+                                        >
+                                            {isLoadingPublic ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
+                                            Show More
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Private Communities */}
+                                <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
+                                    {/* Decorative corner accent */}
+                                    <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-frosted-blue-500/10 to-transparent rounded-bl-full" />
+
+                                    <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider flex items-center gap-2">
+                                        <Lock className="w-4 h-4 text-purple-500" />
+                                        Private Communities
+                                    </h3>
+                                    <div className="space-y-4">
+                                        {privateCommunities.length === 0 ? (
+                                            <div className="text-center py-6">
+                                                <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full flex items-center justify-center">
+                                                    <Lock className="w-8 h-8 text-muted-foreground" />
+                                                </div>
+                                                <p className="text-sm text-muted-foreground">No private communities yet.</p>
+                                                <p className="text-xs text-muted-foreground mt-1">Join or create one to see it here.</p>
+                                            </div>
+                                        ) : (
+                                            privateCommunities.map((community, index) => (
+                                                <CommunityItem
+                                                    key={community.id}
+                                                    communityId={community.id}
+                                                    name={community.name}
+                                                    description={community.description || 'No description'}
+                                                    color={['bg-frosted-blue-500', 'bg-royal-gold-500', 'bg-tech-blue-500', 'bg-turf-green-500', 'bg-destructive'][index % 5]}
+                                                    isJoining={joiningCommunityId === community.id}
+                                                    onJoin={() => handleJoinCommunity(community.id)}
+                                                    isStudent={user?.role === 'student'}
+                                                    isPrivate
+                                                    isEnrolled={enrolledCommunityIds.has(community.id)}
+                                                    onNavigate={(id: string) => navigate(`/community/${id}`)}
                                                 />
                                             ))
-                                        ) : (
-                                            <p className="text-sm text-muted-foreground text-center py-4">No pending submissions</p>
                                         )}
-                                    </>
-                                ) : (
-                                    <>
-                                        {deadlines.length > 0 ? (
-                                            deadlines.map((assignment, idx) => (
-                                                <DeadlineItem
-                                                    key={idx}
-                                                    course={assignment.communityName}
-                                                    task={assignment.title}
-                                                    due={assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : 'No due date'}
-                                                    onClick={() => navigate(`/community/${assignment.cid}/assignment/${assignment.id}`)}
-                                                />
-                                            ))
+                                    </div>
+                                    {hasMorePrivate && (
+                                        <button
+                                            onClick={handleLoadMorePrivate}
+                                            disabled={isLoadingPrivate}
+                                            className="w-full mt-4 py-2 rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground flex items-center justify-center"
+                                        >
+                                            {isLoadingPrivate ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
+                                            Show More
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Dynamic Widget based on Role */}
+                                <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
+                                    {/* Decorative gradient */}
+                                    <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-tech-blue-500 via-frosted-blue-500 to-turf-green-500 opacity-50" />
+
+                                    <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider flex items-center gap-2">
+                                        <Clock className="w-4 h-4 text-purple-500" />
+                                        {user?.role === 'instructor' ? 'Pending Actions' : 'Upcoming Deadlines'}
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {user?.role === 'instructor' ? (
+                                            <>
+                                                {pendingSubmissions.length > 0 ? (
+                                                    pendingSubmissions.map((assignment, idx) => (
+                                                        <DeadlineItem
+                                                            key={idx}
+                                                            course={assignment.communityName}
+                                                            task={assignment.title}
+                                                            due={`${assignment.ungradedCount} submission${assignment.ungradedCount !== 1 ? 's' : ''} to grade`}
+                                                            isInstructor
+                                                            onClick={() => navigate(`/community/${assignment.cid}/assignment/${assignment.id}`)}
+                                                        />
+                                                    ))
+                                                ) : (
+                                                    <p className="text-sm text-muted-foreground text-center py-4">No pending submissions</p>
+                                                )}
+                                            </>
                                         ) : (
-                                            <p className="text-sm text-muted-foreground text-center py-4">No upcoming deadlines</p>
+                                            <>
+                                                {deadlines.length > 0 ? (
+                                                    deadlines.map((assignment, idx) => (
+                                                        <DeadlineItem
+                                                            key={idx}
+                                                            course={assignment.communityName}
+                                                            task={assignment.title}
+                                                            due={assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : 'No due date'}
+                                                            onClick={() => navigate(`/community/${assignment.cid}/assignment/${assignment.id}`)}
+                                                        />
+                                                    ))
+                                                ) : (
+                                                    <p className="text-sm text-muted-foreground text-center py-4">No upcoming deadlines</p>
+                                                )}
+                                            </>
                                         )}
-                                    </>
-                                )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
