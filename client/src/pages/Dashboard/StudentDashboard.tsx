@@ -120,10 +120,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
     }
   };
 
-  const handleNewTask = () => {
-    console.log('New task clicked');
-  };
-
   const handleEnrollInPrivateCommunity = async () => {
     if (!communityCode.trim()) {
       toast.error('Please enter a community ID');
@@ -175,7 +171,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
         <Header
           title="Student Dashboard"
           subtitle={`Welcome back, ${user.fname}!`}
-          onNewTask={handleNewTask}
+          showNewTaskButton={false}
         />
 
         {/* Metric Cards Row */}
