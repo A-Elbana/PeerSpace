@@ -103,7 +103,7 @@ export const getCommentsByPost = async (req: Request, res: Response) => {
     Math.max(1, parseInt((req.query.limit as string) || "10"))
   );
   const skip = (page - 1) * limit;
-  const includeReplies = req.query.includeReplies !== "false"; // default true
+ // default true
   const sortBy = (req.query.sortBy as string) || "date"; // "date" or "approved"
 
   const pidNum = Number(pid);
@@ -120,9 +120,9 @@ export const getCommentsByPost = async (req: Request, res: Response) => {
 
     // Build where clause - only get top-level comments
     const where: any = { pid: pidNum };
-    if (!includeReplies) {
-      where.parent_comment_id = null;
-    }
+
+    where.parent_comment_id = null;
+
 
     // Determine orderBy based on sortBy
     let orderBy: any = { comment_date: "asc" };
@@ -144,29 +144,25 @@ export const getCommentsByPost = async (req: Request, res: Response) => {
         User: {
           select: { id: true, fname: true, lname: true, avatar_file_id: true },
         },
-        other_Comment: includeReplies
-          ? {
-              orderBy: { comment_date: "asc" },
-              include: {
-                User: {
-                  select: {
-                    id: true,
-                    fname: true,
-                    lname: true,
-                    avatar_file_id: true,
-                  },
-                },
-              },
-            }
-          : false,
+        _count: {
+          select: { other_Comment: true },
+        },
       },
     });
 
     const total = await prisma.comment.count({ where });
 
+    const data = comments.map((comment: any) => {
+      const { _count, ...rest } = comment;
+      return {
+        ...rest,
+        hasReplies: (_count?.other_Comment || 0) > 0,
+      };
+    });
+
     res.status(200).json({
       success: true,
-      data: comments,
+      data,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {
