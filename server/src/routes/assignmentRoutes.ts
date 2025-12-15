@@ -3,6 +3,7 @@ import {
   createAssignment,
   getAssignmentById,
   getAssignmentsByCommunity,
+  getMyAssignments,
   updateAssignment,
   deleteAssignment,
 } from "../controllers/AssignmentController";
@@ -241,6 +242,43 @@ router.post(
  *         description: Server error
  */
 router.get("/", authenticateToken, getAssignmentsByCommunity);
+
+/**
+ * @swagger
+ * /api/assignments/me:
+ *   get:
+ *     summary: Get my assignments across enrolled communities
+ *     tags: [Assignments]
+ *     security:
+ *       - bearerAuth: []
+ *     description: |
+ *       Retrieve assignments from all communities the authenticated student is enrolled in.
+ *       Results are paginated and include basic metadata and attachments.
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *           maximum: 50
+ *         description: Number of assignments per page
+ *     responses:
+ *       200:
+ *         description: List of assignments with pagination metadata
+ *       401:
+ *         description: Authentication required
+ *       403:
+ *         description: Only students can view their assignments
+ *       500:
+ *         description: Server error
+ */
+router.get("/me", authenticateToken, getMyAssignments);
 
 /**
  * @swagger

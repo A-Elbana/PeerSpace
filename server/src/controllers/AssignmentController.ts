@@ -195,6 +195,108 @@ export const getAssignmentsByCommunity = async (
 };
 
 /**
+ * Get assignments for the authenticated student across enrolled communities
+ * Expects: page (optional), limit (optional)
+ * Requires: authenticateToken
+ */
+export const getMyAssignments = async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
+  const userRole = (req as any).role;
+
+  const pageParam = parseInt(req.query.page as string);
+  const limitParam = parseInt(req.query.limit as string);
+  const page = !isNaN(pageParam) && pageParam > 0 ? pageParam : 1;
+  const limit = !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
+  const skip = (page - 1) * limit;
+
+  if (userRole !== "STUDENT") {
+    return res
+      .status(403)
+      .json({ message: "Only students can view their assignments" });
+  }
+
+  try {
+    const enrollments = await prisma.enrollment.findMany({
+      where: { sid: userId },
+      select: { cid: true },
+    });
+
+    const communityIds = enrollments.map((enrollment) => enrollment.cid);
+
+    if (communityIds.length === 0) {
+      return res.status(200).json({
+        message: "Assignments retrieved successfully",
+        data: [],
+        meta: {
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+        },
+      });
+    }
+
+    const [assignments, total] = await Promise.all([
+      prisma.assignment.findMany({
+        where: { cid: { in: communityIds } },
+        skip,
+        take: limit,
+        orderBy: [{ due_date: "asc" }, { id: "asc" }],
+        include: {
+          Instructor: {
+            include: {
+              User: {
+                select: { id: true, fname: true, lname: true },
+              },
+            },
+          },
+          Community: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              type: true,
+            },
+          },
+          AssignmentFileAttachment: {
+            include: {
+              File: {
+                select: {
+                  id: true,
+                  public_id: true,
+                  secure_url: true,
+                  resource_type: true,
+                  format: true,
+                  is_private: true,
+                },
+              },
+            },
+          },
+          _count: {
+            select: { Submission: true },
+          },
+        },
+      }),
+      prisma.assignment.count({ where: { cid: { in: communityIds } } }),
+    ]);
+
+    return res.status(200).json({
+      message: "Assignments retrieved successfully",
+      data: assignments,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error("Get My Assignments Error:", error);
+    return res.status(500).json({ message: "Failed to fetch assignments" });
+  }
+};
+
+/**
  * Get a single assignment by ID.
  * Expects: id (path param)
  * Requires: authenticateToken + loadAssignment + authorizeAssignmentAccess middleware
