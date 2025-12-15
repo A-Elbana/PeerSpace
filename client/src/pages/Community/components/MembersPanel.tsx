@@ -58,7 +58,7 @@ const MembersPanel: React.FC<MembersPanelProps> = ({
       // TODO: Implement actual team invite API call
       await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API call
       toast.success('Team invitation sent!');
-    } catch (error) {
+    } catch {
       toast.error('Failed to send invitation');
     } finally {
       setInvitingMemberId(null);

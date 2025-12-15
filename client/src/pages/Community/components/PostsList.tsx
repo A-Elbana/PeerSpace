@@ -1,6 +1,7 @@
-import React from 'react';
-import { MessageSquare, Clock, User, ArrowBigUp, ArrowBigDown, Megaphone } from 'lucide-react';
+import { MarkdownView } from '../../../components/MarkdownView';
+import { MessageSquare, Clock, User, ArrowBigUp, ArrowBigDown, Megaphone, MoreHorizontal, PenSquare, Trash2 } from 'lucide-react';
 import { useResolvedFileUrl } from '../../../hooks/useResolvedFileUrl';
+import { useState, useRef, useEffect } from 'react';
 
 interface PostAuthor {
   id: number;
@@ -25,9 +26,32 @@ interface Post {
 interface PostsListProps {
   posts: Post[];
   isLoading: boolean;
+  currentUser?: { id: number; role: string } | null;
+  isInstructorOfCommunity?: boolean;
+  onEditPost?: (post: Post) => void;
+  onDeletePost?: (postId: number) => void;
 }
 
-const PostCard: React.FC<{ post: Post }> = ({ post }) => {
+const PostCard: React.FC<{
+  post: Post;
+  currentUser?: { id: number; role: string } | null;
+  isInstructorOfCommunity?: boolean;
+  onEdit?: (post: Post) => void;
+  onDelete?: (postId: number) => void;
+}> = ({ post, currentUser, isInstructorOfCommunity, onEdit, onDelete }) => {
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const authorAvatarUrl = useResolvedFileUrl(post.User.avatar_file_id);
 
   const formatDate = (dateString: string) => {
@@ -48,9 +72,9 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   const getTypeColor = (type: string) => {
     const colors: Record<string, string> = {
       announcement: 'bg-red-500/10 text-red-500',
-      math: 'bg-blue-500/10 text-blue-500',
-      scientific: 'bg-green-500/10 text-green-500',
-      puzzles: 'bg-purple-500/10 text-purple-500',
+      math: 'bg-tech-blue-500/10 text-tech-blue-600',
+      scientific: 'bg-turf-green-500/10 text-turf-green-600',
+      puzzles: 'bg-royal-gold-500/10 text-royal-gold-600',
       discussion: 'bg-gray-500/10 text-gray-500',
     };
     return colors[type.toLowerCase()] || colors.discussion;
@@ -60,8 +84,15 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   const tags = post.type?.split(',').map((t: string) => t.trim().toLowerCase()) || [];
   const isAnnouncement = tags.includes('announcement');
 
+  // Check permissions: Owner OR Admin OR Instructor of this Community
+  const canModify = currentUser && (
+    currentUser.id === post.User.id ||
+    currentUser.role === 'admin' ||
+    (currentUser.role === 'instructor' && isInstructorOfCommunity)
+  );
+
   return (
-    <div className={`bg-background border rounded-lg overflow-hidden hover:border-primary/50 transition-colors ${isAnnouncement ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-border'
+    <div className={`bg-background border rounded-lg overflow-visible hover:border-primary/50 transition-colors ${isAnnouncement ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-border'
       }`}>
       <div className="flex">
         {/* Vote Bar or Announcement Indicator */}
@@ -84,7 +115,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
         )}
 
         {/* Post Content */}
-        <div className="flex-1 p-4">
+        <div className="flex-1 p-4 relative">
           {/* Post Header */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
@@ -111,16 +142,46 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
               </div>
             </div>
 
-            {/* Post Type Badges - Multiple tags */}
-            <div className="flex flex-wrap gap-1">
-              {tags.map((tag: string, index: number) => (
-                <span
-                  key={index}
-                  className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${getTypeColor(tag)}`}
-                >
-                  {tag}
-                </span>
-              ))}
+            <div className="flex items-center gap-2">
+              {/* Post Type Badges - Multiple tags */}
+              <div className="flex flex-wrap gap-1">
+                {tags.map((tag: string, index: number) => (
+                  <span
+                    key={index}
+                    className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${getTypeColor(tag)}`}
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+
+              {/* Actions Menu */}
+              {canModify && (
+                <div className="relative" ref={menuRef}>
+                  <button
+                    onClick={() => setShowMenu(!showMenu)}
+                    className="p-1 hover:bg-muted rounded-full text-muted-foreground transition-colors"
+                  >
+                    <MoreHorizontal size={16} />
+                  </button>
+                  {showMenu && (
+                    <div className="absolute right-0 top-full mt-1 w-32 bg-card border border-border rounded-lg shadow-lg z-10 overflow-hidden">
+                      <button
+                        onClick={() => { setShowMenu(false); onEdit?.(post); }}
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 text-foreground"
+                      >
+                        <PenSquare size={14} /> Edit
+                      </button>
+                      <button
+                        onClick={() => { setShowMenu(false); onDelete?.(post.id); }}
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-red-500/10 text-red-500 flex items-center gap-2"
+                      >
+                        <Trash2 size={14} /> Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -128,9 +189,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
           <h3 className={`font-semibold mb-2 ${isAnnouncement ? 'text-yellow-600 dark:text-yellow-400' : 'text-foreground'
             }`}>{post.title}</h3>
           {post.body && (
-            <p className="text-muted-foreground text-sm line-clamp-3 mb-3">
-              {post.body}
-            </p>
+            <MarkdownView content={post.body} className="text-sm mb-3" />
           )}
 
           {/* Post Footer */}
@@ -141,8 +200,8 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
             </div>
             {post.is_resolved !== null && (
               <span className={`px-2 py-0.5 rounded text-xs ${post.is_resolved
-                ? 'bg-green-500/10 text-green-500'
-                : 'bg-yellow-500/10 text-yellow-500'
+                ? 'bg-turf-green-500/10 text-turf-green-600'
+                : 'bg-royal-gold-500/10 text-royal-gold-600'
                 }`}>
                 {post.is_resolved ? 'Resolved' : 'Open'}
               </span>
@@ -154,7 +213,14 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   );
 };
 
-const PostsList: React.FC<PostsListProps> = ({ posts, isLoading }) => {
+const PostsList: React.FC<PostsListProps> = ({
+  posts,
+  isLoading,
+  currentUser,
+  isInstructorOfCommunity,
+  onEditPost,
+  onDeletePost
+}) => {
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -188,7 +254,14 @@ const PostsList: React.FC<PostsListProps> = ({ posts, isLoading }) => {
     <div className="space-y-4">
       <h2 className="text-lg font-semibold text-foreground mb-4">Posts</h2>
       {posts.map((post) => (
-        <PostCard key={post.id} post={post} />
+        <PostCard
+          key={post.id}
+          post={post}
+          currentUser={currentUser}
+          isInstructorOfCommunity={isInstructorOfCommunity}
+          onEdit={onEditPost}
+          onDelete={onDeletePost}
+        />
       ))}
     </div>
   );

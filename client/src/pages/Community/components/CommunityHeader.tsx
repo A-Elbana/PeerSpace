@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Users, FileText, Globe, Lock, Copy, Check, X, Image as ImageIcon } from 'lucide-react';
+import { Users, FileText, Globe, Lock, Copy, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api';
 
@@ -12,6 +12,8 @@ interface CommunityHeaderProps {
   postCount: number;
   bannerUrl?: string | null;
   isInstructor?: boolean;
+  isEnrolled?: boolean;
+  onEnroll?: () => void;
 }
 
 const CommunityHeader: React.FC<CommunityHeaderProps> = ({
@@ -23,6 +25,8 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
   postCount,
   bannerUrl,
   isInstructor = false,
+  isEnrolled = false,
+  onEnroll,
 }) => {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -31,7 +35,7 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
   useEffect(() => {
     const isUrl = (v?: string | null) => !!v && (v.startsWith('http://') || v.startsWith('https://'));
     if (!bannerUrl) {
-      setResolvedBannerUrl(null);
+      if (resolvedBannerUrl !== null) setResolvedBannerUrl(null);
       return;
     }
     if (isUrl(bannerUrl)) {
@@ -58,7 +62,7 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
       setCopied(true);
       toast.success('Community ID copied to clipboard!');
       setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
+    } catch {
       toast.error('Failed to copy ID');
     }
   };
@@ -86,28 +90,40 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
         <div className="p-6">
           {/* Community Name and Type Badge */}
           <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-foreground">{name}</h1>
-            <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${type === 'PUBLIC'
-              ? 'bg-green-500/10 text-green-500'
-              : 'bg-yellow-500/10 text-yellow-500'
-              }`}>
-              {type === 'PUBLIC' ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
-              {type}
-            </span>
-          </div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-foreground">{name}</h1>
+              <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${type === 'PUBLIC'
+                ? 'bg-turf-green-500/10 text-turf-green-600'
+                : 'bg-royal-gold-500/10 text-royal-gold-600'
+                }`}>
+                {type === 'PUBLIC' ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                {type}
+              </span>
+            </div>
 
-          {/* Invite Button for Instructors */}
-          {isInstructor && (
-            <button
-              onClick={() => setShowInviteModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white text-sm font-medium rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/30"
-            >
-              <Copy className="w-4 h-4" />
-              Share Community ID
-            </button>
-          )}
-        </div>
+            <div className="flex items-center gap-3">
+              {/* Join Button for public non-enrolled users */}
+              {!isEnrolled && !isInstructor && type === 'PUBLIC' && onEnroll && (
+                <button
+                  onClick={onEnroll}
+                  className="flex items-center gap-2 px-4 py-2 bg-tech-blue-500 hover:bg-tech-blue-600 text-white text-sm font-medium rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-tech-blue-500/30"
+                >
+                  Join Community
+                </button>
+              )}
+
+              {/* Invite Button for Instructors */}
+              {isInstructor && (
+                <button
+                  onClick={() => setShowInviteModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-tech-blue-500 hover:bg-tech-blue-600 text-white text-sm font-medium rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-tech-blue-500/30"
+                >
+                  <Copy className="w-4 h-4" />
+                  Share Community ID
+                </button>
+              )}
+            </div>
+          </div>
 
           {/* Description */}
           {description && (
@@ -158,7 +174,7 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
               <button
                 onClick={handleCopyId}
                 className={`p-2 rounded-md transition-all ${copied
-                  ? 'bg-green-500/20 text-green-500'
+                  ? 'bg-turf-green-500/20 text-turf-green-600'
                   : 'bg-primary/10 text-primary hover:bg-primary/20'
                   }`}
               >

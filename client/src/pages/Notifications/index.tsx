@@ -102,15 +102,15 @@ const NotificationsPage = () => {
   const getTypeColor = (type: Notification['type']) => {
     switch (type) {
       case 'assignment':
-        return 'bg-blue-500';
+        return 'bg-tech-blue-500';
       case 'grade':
-        return 'bg-green-500';
+        return 'bg-turf-green-500';
       case 'course':
-        return 'bg-purple-500';
+        return 'bg-frosted-blue-500';
       case 'announcement':
-        return 'bg-yellow-500';
+        return 'bg-royal-gold-500';
       default:
-        return 'bg-gray-500';
+        return 'bg-muted';
     }
   };
 

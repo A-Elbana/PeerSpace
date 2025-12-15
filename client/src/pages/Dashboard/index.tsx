@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import api from '../../services/api';
 import { removeTokens } from '../../utils/auth';
+import { PAGE_TITLES } from '../../constants/ui';
 
 // Role-specific Dashboards
 import StudentDashboard from './StudentDashboard';
@@ -31,7 +32,7 @@ const Dashboard: React.FC = () => {
 
   // Set page title
   useEffect(() => {
-    document.title = 'PeerSpace - Dashboard';
+    document.title = PAGE_TITLES.DASHBOARD;
   }, []);
 
   useEffect(() => {

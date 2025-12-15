@@ -1,6 +1,4 @@
-import React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { Button } from '../ui/button';
 
 export interface Course {
   id: string;
@@ -38,7 +36,8 @@ const MyCourses: React.FC<MyCoursesProps> = ({
         {courses.map((course) => (
           <div
             key={course.id}
-            className="flex items-center justify-between px-5 py-3 hover:bg-muted/50 transition-colors"
+            className="flex items-center justify-between px-5 py-3 hover:bg-muted/50 transition-colors cursor-pointer"
+            onClick={() => onViewCourse?.(course.id)}
           >
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <Avatar className="w-9 h-9 shrink-0">
@@ -56,15 +55,6 @@ const MyCourses: React.FC<MyCoursesProps> = ({
                 </p>
               </div>
             </div>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onViewCourse?.(course.id)}
-              className="text-xs text-muted-foreground hover:text-foreground ml-2 shrink-0"
-            >
-              View
-            </Button>
           </div>
         ))}
       </div>

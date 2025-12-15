@@ -20,10 +20,8 @@ export function useResolvedFileUrl(fileRef?: string | null) {
     let isMounted = true;
 
     if (!fileRef) {
-      setUrl(null);
-      return () => {
-        isMounted = false;
-      };
+      if (isMounted) setUrl(null);
+      return;
     }
 
     if (isHttpUrl(fileRef)) {

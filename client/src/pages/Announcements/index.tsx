@@ -109,9 +109,10 @@ const AnnouncementsPage = () => {
 
         // Fetch announcements from all accessible communities
         await fetchAnnouncementsForCommunities(communityList);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Failed to fetch initial data:', err);
-        if (err.response?.status === 401) {
+        const axiosError = err as { response?: { status?: number } };
+        if (axiosError.response?.status === 401) {
           removeTokens();
           navigate('/login');
         } else {
@@ -277,9 +278,10 @@ const AnnouncementsPage = () => {
       setNewAnnouncement({ title: '', body: '', cid: '' });
       setIsCreateModalOpen(false);
       toast.success('Announcement created successfully!');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to create announcement:', err);
-      toast.error(err.response?.data?.message || 'Failed to create announcement');
+      const axiosError = err as { response?: { data?: { message?: string } } };
+      toast.error(axiosError.response?.data?.message || 'Failed to create announcement');
     } finally {
       setIsCreatingAnnouncement(false);
     }
@@ -326,7 +328,7 @@ const AnnouncementsPage = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+            <div className="p-2 rounded-lg bg-tech-blue-500/10 dark:bg-tech-blue-500/20">
               <Megaphone className="h-6 w-6 text-blue-500" />
             </div>
             <div>
@@ -341,7 +343,7 @@ const AnnouncementsPage = () => {
           {isInstructor && (
             <Button
               onClick={() => setIsCreateModalOpen(true)}
-              className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white"
+              className="flex items-center gap-2 bg-tech-blue-500 hover:bg-tech-blue-600 text-white"
             >
               <Plus size={18} />
               <span>New Announcement</span>
@@ -405,7 +407,7 @@ const AnnouncementsPage = () => {
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                        <span className="text-xs font-medium px-2 py-1 rounded-full bg-tech-blue-500/10 dark:bg-tech-blue-500/20 text-tech-blue-600 dark:text-tech-blue-400">
                           {announcement.communityName}
                         </span>
                         <span className="text-xs text-muted-foreground flex items-center gap-1">
@@ -433,7 +435,7 @@ const AnnouncementsPage = () => {
                   {/* Meta info */}
                   <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                      <div className="w-6 h-6 rounded-full bg-tech-blue-500/10 dark:bg-tech-blue-500/20 flex items-center justify-center">
                         <User size={14} className="text-blue-500" />
                       </div>
                       <span className="text-sm text-muted-foreground">{announcement.ownerName}</span>
@@ -480,7 +482,7 @@ const AnnouncementsPage = () => {
 
                     {/* Add Comment */}
                     <div className="flex gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-tech-blue-500/10 dark:bg-tech-blue-500/20 flex items-center justify-center flex-shrink-0">
                         <User size={16} className="text-blue-500" />
                       </div>
                       <div className="flex-1 flex gap-2">
@@ -500,7 +502,7 @@ const AnnouncementsPage = () => {
                           size="icon"
                           onClick={() => handleAddComment(announcement.id)}
                           disabled={!newComment.trim()}
-                          className="bg-blue-500 hover:bg-blue-600 text-white"
+                          className="bg-tech-blue-500 hover:bg-tech-blue-600 text-white"
                         >
                           <Send size={16} />
                         </Button>
@@ -525,7 +527,7 @@ const AnnouncementsPage = () => {
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                <div className="p-2 rounded-lg bg-tech-blue-500/10 dark:bg-tech-blue-500/20">
                   <Megaphone className="h-5 w-5 text-blue-500" />
                 </div>
                 <h2 className="text-lg font-semibold text-foreground">New Announcement</h2>
@@ -595,7 +597,7 @@ const AnnouncementsPage = () => {
               <Button
                 onClick={handleCreateAnnouncement}
                 disabled={!newAnnouncement.title.trim() || !newAnnouncement.body.trim() || !newAnnouncement.cid || isCreatingAnnouncement}
-                className="bg-blue-500 hover:bg-blue-600 text-white"
+                className="bg-tech-blue-500 hover:bg-tech-blue-600 text-white"
               >
                 {isCreatingAnnouncement ? (
                   <>

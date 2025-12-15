@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Sidebar } from '../../components/dashboard';
 import type { Folder, Note } from './types';
+import { redirectToLogout } from '../../utils/navigation';
 import { FolderCard } from './components/FolderCard';
 import { NoteCard } from './components/NoteCard';
 import { DeleteConfirmationModal } from '../../components/common/DeleteConfirmationModal';
@@ -283,7 +284,7 @@ const Notes: React.FC = () => {
                                     const seg = String(fi.public_id).split('/').pop();
                                     display = seg + (fi.format ? `.${fi.format}` : '');
                                 }
-                            } catch (e) {}
+                            } catch (e) { }
                             return { id: fi.id, secure_url: fi.secure_url, name: display, resource_type: fi.resource_type };
                         }) : []);
                     }
@@ -358,7 +359,7 @@ const Notes: React.FC = () => {
 
     return (
         <div className="flex min-h-screen bg-background text-foreground font-sans">
-            <Sidebar onLogout={() => window.location.href = '/logout'} />
+            <Sidebar onLogout={redirectToLogout} />
 
             <main className="flex-1 ml-20 p-6 transition-all duration-300">
                 <div className="max-w-7xl mx-auto h-[calc(100vh-3rem)] flex flex-col">
@@ -489,11 +490,11 @@ const Notes: React.FC = () => {
                                                                     // update local folder list and currentFolder
                                                                     setFolders((s) => s.map(f => f.id === currentFolder.id ? { ...f, name: updated.title || updated.name || folderDraftName.trim() } : f));
                                                                     setCurrentFolder((f) => f ? { ...f, name: updated.title || updated.name || folderDraftName.trim() } : f);
-                                                                        toast.success('Notebook renamed');
+                                                                    toast.success('Notebook renamed');
                                                                 } catch (err) {
                                                                     // eslint-disable-next-line no-console
                                                                     console.error('Failed to update notebook name', err);
-                                                                        toast.error('Failed to rename notebook');
+                                                                    toast.error('Failed to rename notebook');
                                                                 } finally {
                                                                     setIsFolderNameSaving(false);
                                                                 }
@@ -515,11 +516,11 @@ const Notes: React.FC = () => {
                                                         setCurrentFolder((f) => f ? { ...f, name: updated.title || updated.name || folderDraftName.trim() } : f);
                                                         // clear draft
                                                         setFolderDraftName('');
-                                                            toast.success('Notebook renamed');
+                                                        toast.success('Notebook renamed');
                                                     } catch (err) {
                                                         // eslint-disable-next-line no-console
                                                         console.error('Failed to update notebook name', err);
-                                                            toast.error('Failed to rename notebook');
+                                                        toast.error('Failed to rename notebook');
                                                     } finally {
                                                         setIsFolderNameSaving(false);
                                                     }
@@ -626,7 +627,7 @@ const Notes: React.FC = () => {
                             <div className="space-y-8 w-full">
                                 <div>
                                     <h2 className="text-lg font-semibold mb-4 px-1 text-muted-foreground">Notebooks</h2>
-                                    <div className={`grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5`}> 
+                                    <div className={`grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5`}>
                                         {Array.from({ length: 4 }).map((_, i) => (
                                             <div
                                                 key={i}

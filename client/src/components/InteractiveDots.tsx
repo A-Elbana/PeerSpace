@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { useTheme } from '../hooks/useTheme';
 
 interface Point {
@@ -25,9 +25,9 @@ const InteractiveDots: React.FC = () => {
     const DAMPING = 0.9;
 
     // Colors
-    const COLORS = isDarkMode
+    const COLORS = useMemo(() => isDarkMode
         ? ['#3b82f6', '#ec4899', '#8b5cf6']
-        : ['#3b82f6', '#ec4899', '#60a5fa'];
+        : ['#3b82f6', '#ec4899', '#60a5fa'], [isDarkMode]);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -178,7 +178,7 @@ const InteractiveDots: React.FC = () => {
             window.removeEventListener('mouseout', handleMouseLeave);
             cancelAnimationFrame(animationFrameId);
         };
-    }, [isDarkMode]);
+    }, [isDarkMode, COLORS]);
 
     return (
         <canvas

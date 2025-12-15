@@ -110,9 +110,10 @@ const ManageCommunity: React.FC = () => {
       });
       toast.success('Community updated successfully');
       navigate(`/community/${communityId}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to update community:', error);
-      const message = error.response?.data?.message || 'Failed to update community';
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      const message = axiosError.response?.data?.message || 'Failed to update community';
       toast.error(message);
     } finally {
       setIsSaving(false);
@@ -127,9 +128,10 @@ const ManageCommunity: React.FC = () => {
       await communityApi.delete(communityId);
       toast.success('Community deleted successfully');
       navigate('/dashboard');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to delete community:', error);
-      const message = error.response?.data?.message || 'Failed to delete community';
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      const message = axiosError.response?.data?.message || 'Failed to delete community';
       toast.error(message);
     } finally {
       setIsDeleting(false);

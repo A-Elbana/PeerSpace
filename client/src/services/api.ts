@@ -10,6 +10,7 @@ import {
   removeTokens,
 } from "../utils/auth";
 
+
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 const api = axios.create({
@@ -21,13 +22,16 @@ const api = axios.create({
 
 // Track if we're currently refreshing to avoid multiple refresh calls
 let isRefreshing = false;
-let failedQueue: Array<{
-  resolve: (value?: any) => void;
-  reject: (reason?: any) => void;
-}> = [];
+
+interface FailedRequest {
+  resolve: (value?: unknown) => void;
+  reject: (reason?: unknown) => void;
+}
+
+let failedQueue: FailedRequest[] = [];
 
 const processQueue = (error: any = null, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
+  failedQueue.forEach(prom => {
     if (error) {
       prom.reject(error);
     } else {
@@ -74,7 +78,7 @@ api.interceptors.response.use(
       // If no refresh token, logout immediately
       if (!refreshToken) {
         removeTokens();
-        window.location.href = "/login";
+        window.location.href = '/login';
         return Promise.reject(error);
       }
 
@@ -121,7 +125,7 @@ api.interceptors.response.use(
         // Refresh failed, logout user
         processQueue(refreshError, null);
         removeTokens();
-        window.location.href = "/login";
+        window.location.href = '/login';
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -204,6 +208,7 @@ export const communityApi = {
     page?: number;
     limit?: number;
     type?: "PUBLIC" | "PRIVATE";
+    memberOnly?: boolean;
     search?: string;
     tags?: string;
   }): Promise<CommunitiesListResponse> => {
@@ -414,12 +419,12 @@ export const fileApi = {
     resource_type: string;
     format?: string;
     context:
-      | "POST"
-      | "SUBMISSION"
-      | "NOTE"
-      | "ASSIGNMENT"
-      | "COMMUNITY_BANNER"
-      | "USER_AVATAR";
+    | "POST"
+    | "SUBMISSION"
+    | "NOTE"
+    | "ASSIGNMENT"
+    | "COMMUNITY_BANNER"
+    | "USER_AVATAR";
     context_id: string;
     is_private?: boolean;
   }) => {
@@ -526,6 +531,232 @@ export const userApi = {
     activated: boolean;
   }> => {
     const response = await api.get(`/users/${id}`);
+    return response.data;
+  },
+};
+
+// Assignment API calls
+export const assignmentApi = {
+  create: async (data: {
+    title: string;
+    description?: string;
+    cid: string;
+    due_date?: string;
+    max_points?: number;
+    canBeLate?: boolean;
+    file_ids?: string[];
+  }): Promise<{
+    id: number;
+    title: string;
+    description?: string;
+    due_date: string | null;
+    max_points: number | null;
+    canBeLate: boolean;
+    assigner_uid: number;
+    cid: string;
+    Instructor: {
+      uid: number;
+      User: {
+        id: number;
+        fname: string;
+        lname: string;
+      };
+    };
+    Community: {
+      id: string;
+      name: string;
+    };
+  }> => {
+    const response = await api.post('/assignments', data);
+    return response.data;
+  },
+
+  getByCommunity: async (cid: string, params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    data: Array<{
+      id: number;
+      title: string;
+      description?: string;
+      due_date: string | null;
+      max_points: number | null;
+      canBeLate: boolean;
+      assigner_uid: number;
+      cid: string;
+      Instructor: {
+        uid: number;
+        User: {
+          id: number;
+          fname: string;
+          lname: string;
+        };
+      };
+      _count: {
+        Submission: number;
+      };
+    }>;
+    meta: PaginationMeta;
+  }> => {
+    const response = await api.get('/assignments', { params: { cid, ...params } });
+    return response.data;
+  },
+
+  getById: async (id: number): Promise<{
+    id: number;
+    title: string;
+    description?: string;
+    due_date: string | null;
+    max_points: number | null;
+    canBeLate: boolean;
+    assigner_uid: number;
+    cid: string;
+    Instructor: {
+      uid: number;
+      User: {
+        id: number;
+        fname: string;
+        lname: string;
+      };
+    };
+    Community: {
+      id: string;
+      name: string;
+    };
+  }> => {
+    const response = await api.get(`/assignments/${id}`);
+    return response.data;
+  },
+
+  update: async (id: number, data: {
+    title?: string;
+    description?: string;
+    due_date?: string | null;
+    max_points?: number | null;
+    canBeLate?: boolean;
+    file_ids?: string[];
+  }): Promise<{
+    message: string;
+    assignment: {
+      id: number;
+      title: string;
+      description?: string;
+      due_date: string | null;
+      max_points: number | null;
+      canBeLate: boolean;
+      assigner_uid: number;
+      cid: string;
+      Instructor: {
+        uid: number;
+        User: {
+          id: number;
+          fname: string;
+          lname: string;
+        };
+      };
+      Community: {
+        id: string;
+        name: string;
+      };
+    };
+  }> => {
+    const response = await api.put(`/assignments/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/assignments/${id}`);
+    return response.data;
+  },
+};
+
+// Submission API calls
+export const submissionApi = {
+  create: async (data: { aid: number; comment?: string; fileIds?: string[] }): Promise<{
+    success: boolean;
+    data: {
+      id: number;
+      aid: number;
+      sid: number;
+      subm_date: string;
+      grade: number | null;
+      feedback: string | null;
+      comment: string | null;
+    };
+  }> => {
+    const response = await api.post('/submissions', data);
+    return response.data;
+  },
+
+  update: async (id: number, data: { comment?: string }): Promise<{
+    success: boolean;
+    data: {
+      id: number;
+      aid: number;
+      sid: number;
+      subm_date: string;
+      grade: number | null;
+      feedback: string | null;
+      comment: string | null;
+    };
+  }> => {
+    const response = await api.put(`/submissions/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<{ success: boolean; message?: string }> => {
+    const response = await api.delete(`/submissions/${id}`);
+    return response.data;
+  },
+
+  getMySubmissions: async (params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    success: boolean;
+    data: Array<{
+      id: number;
+      aid: number;
+      sid: number;
+      subm_date: string;
+      grade: number | null;
+      feedback: string | null;
+      comment: string | null;
+      Assignment: {
+        id: number;
+        title: string;
+        cid: string;
+      };
+    }>;
+    meta: PaginationMeta;
+  }> => {
+    const response = await api.get('/submissions/mine', { params });
+    return response.data;
+  },
+
+  getByAssignment: async (aid: number, params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    data: Array<{
+      id: number;
+      aid: number;
+      sid: number;
+      subm_date: string;
+      grade: number | null;
+      feedback: string | null;
+      Student: {
+        uid: number;
+        User: {
+          id: number;
+          fname: string;
+          lname: string;
+        };
+      };
+    }>;
+    meta: PaginationMeta;
+  }> => {
+    const response = await api.get('/submissions', { params: { aid, ...params } });
     return response.data;
   },
 };

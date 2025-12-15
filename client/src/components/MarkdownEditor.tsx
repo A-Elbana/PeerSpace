@@ -3,6 +3,7 @@ import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
 import Placeholder from '@tiptap/extension-placeholder';
+import { cn } from '@/lib/utils';
 import {
     Bold,
     Italic,
@@ -18,17 +19,6 @@ import {
     Redo,
     Code2
 } from 'lucide-react';
-// Local utility for classes to avoid import issues
-function cn(...inputs: (string | undefined | null | false)[]) {
-    // fast implementation or simple join if tailwind-merge not available, 
-    // but better to rely on what installed?
-    // User said ignore installs. I'll just use simple join filter for now as fallback
-    // Or if I want to use the installed libs:
-    // import { clsx, type ClassValue } from "clsx"
-    // import { twMerge } from "tailwind-merge"
-    // I will stick to the simple local function I already have (defaultCn) and rename it to cn for consistency.
-    return inputs.filter(Boolean).join(' ');
-}
 
 // Ensure link styling is injected once so tiptap-rendered anchors pick up our color.
 const LINK_STYLE_ID = 'md-editor-link-style';
@@ -75,147 +65,149 @@ interface MarkdownEditorProps {
     style?: React.CSSProperties;
 }
 
+interface MenuButtonProps {
+    onClick: () => void;
+    isActive?: boolean;
+    disabled?: boolean;
+    children: React.ReactNode;
+    title?: string;
+}
+
+const MenuButton: React.FC<MenuButtonProps> = ({
+    onClick,
+    isActive,
+    disabled,
+    children,
+    title
+}) => (
+    <button
+        onClick={onClick}
+        disabled={disabled}
+        title={title}
+        className={cn(
+            "p-2 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground",
+            isActive && "bg-muted text-foreground font-medium",
+            disabled && "opacity-50 cursor-not-allowed"
+        )}
+        type="button"
+    >
+        {children}
+    </button>
+);
+
 const MenuBar = ({ editor }: { editor: Editor | null }) => {
     if (!editor) {
         return null;
     }
 
-    const Button = ({
-        onClick,
-        isActive,
-        disabled,
-        children,
-        title
-    }: {
-        onClick: () => void;
-        isActive?: boolean;
-        disabled?: boolean;
-        children: React.ReactNode;
-        title?: string;
-    }) => (
-        <button
-            onClick={onClick}
-            disabled={disabled}
-            title={title}
-            className={cn(
-                "p-2 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground",
-                isActive && "bg-muted text-foreground font-medium",
-                disabled && "opacity-50 cursor-not-allowed"
-            )}
-            type="button"
-        >
-            {children}
-        </button>
-    );
-
     return (
         <div className="flex flex-wrap items-center gap-1 p-2 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10 w-full">
-            <Button
+            <MenuButton
                 onClick={() => editor.chain().focus().toggleBold().run()}
                 disabled={!editor.can().chain().focus().toggleBold().run()}
                 isActive={editor.isActive('bold')}
                 title="Bold"
             >
                 <Bold size={16} />
-            </Button>
-            <Button
+            </MenuButton>
+            <MenuButton
                 onClick={() => editor.chain().focus().toggleItalic().run()}
                 disabled={!editor.can().chain().focus().toggleItalic().run()}
                 isActive={editor.isActive('italic')}
                 title="Italic"
             >
                 <Italic size={16} />
-            </Button>
-            <Button
+            </MenuButton>
+            <MenuButton
                 onClick={() => editor.chain().focus().toggleStrike().run()}
                 disabled={!editor.can().chain().focus().toggleStrike().run()}
                 isActive={editor.isActive('strike')}
                 title="Strikethrough"
             >
                 <Strikethrough size={16} />
-            </Button>
+            </MenuButton>
 
             <div className="w-px h-6 bg-border mx-1" />
 
-            <Button
+            <MenuButton
                 onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
                 isActive={editor.isActive('heading', { level: 1 })}
                 title="Heading 1"
             >
                 <Heading1 size={16} />
-            </Button>
-            <Button
+            </MenuButton>
+            <MenuButton
                 onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
                 isActive={editor.isActive('heading', { level: 2 })}
                 title="Heading 2"
             >
                 <Heading2 size={16} />
-            </Button>
-            <Button
+            </MenuButton>
+            <MenuButton
                 onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
                 isActive={editor.isActive('heading', { level: 3 })}
                 title="Heading 3"
             >
                 <Heading3 size={16} />
-            </Button>
+            </MenuButton>
 
             <div className="w-px h-6 bg-border mx-1" />
 
-            <Button
+            <MenuButton
                 onClick={() => editor.chain().focus().toggleBulletList().run()}
                 isActive={editor.isActive('bulletList')}
                 title="Bullet List"
             >
                 <List size={16} />
-            </Button>
-            <Button
+            </MenuButton>
+            <MenuButton
                 onClick={() => editor.chain().focus().toggleOrderedList().run()}
                 isActive={editor.isActive('orderedList')}
                 title="Ordered List"
             >
                 <ListOrdered size={16} />
-            </Button>
+            </MenuButton>
 
             <div className="w-px h-6 bg-border mx-1" />
 
-            <Button
+            <MenuButton
                 onClick={() => editor.chain().focus().toggleCode().run()}
                 isActive={editor.isActive('code')}
                 title="Code"
             >
                 <Code size={16} />
-            </Button>
-            <Button
+            </MenuButton>
+            <MenuButton
                 onClick={() => editor.chain().focus().toggleCodeBlock().run()}
                 isActive={editor.isActive('codeBlock')}
                 title="Code Block"
             >
                 <Code2 size={16} />
-            </Button>
-            <Button
+            </MenuButton>
+            <MenuButton
                 onClick={() => editor.chain().focus().toggleBlockquote().run()}
                 isActive={editor.isActive('blockquote')}
                 title="Blockquote"
             >
                 <Quote size={16} />
-            </Button>
+            </MenuButton>
 
             <div className="w-px h-6 bg-border mx-1" />
 
-            <Button
+            <MenuButton
                 onClick={() => editor.chain().focus().undo().run()}
                 disabled={!editor.can().chain().focus().undo().run()}
                 title="Undo"
             >
                 <Undo size={16} />
-            </Button>
-            <Button
+            </MenuButton>
+            <MenuButton
                 onClick={() => editor.chain().focus().redo().run()}
                 disabled={!editor.can().chain().focus().redo().run()}
                 title="Redo"
             >
                 <Redo size={16} />
-            </Button>
+            </MenuButton>
         </div>
     );
 };
@@ -259,7 +251,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             },
         },
         onUpdate: ({ editor }) => {
-            const markdownOutput = (editor.storage as any).markdown.getMarkdown();
+            const markdownOutput = (editor.storage as { markdown?: { getMarkdown: () => string } }).markdown?.getMarkdown() || '';
             onChange(markdownOutput);
         },
     });

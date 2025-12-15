@@ -77,10 +77,6 @@ const Settings: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
-  useEffect(() => {
-    fetchUserData();
-  }, []);
-
   const resolvedAvatarUrl = useResolvedFileUrl(avatarPreview || avatarUrl || null);
 
   const fetchUserData = async () => {
@@ -94,7 +90,7 @@ const Settings: React.FC = () => {
       setFname(data.fname || '');
       setLname(data.lname || '');
       setEmail(data.email || '');
-      setAvatarUrl(data.avatar_file_id || '');
+      setAvatarUrl(data.avatar_url || '');
     } catch (error) {
       console.error('Failed to fetch user data:', error);
       removeTokens();
@@ -103,6 +99,11 @@ const Settings: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchUserData();
+  }, [navigate]);
+
 
   const handleLogout = () => {
     removeTokens();
@@ -207,11 +208,12 @@ const Settings: React.FC = () => {
       setAvatarUrl(data.user.avatar_file_id || '');
       setAvatarPreview(null);
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to update profile:', error);
+      const axiosError = error as { response?: { data?: { message?: string } } };
       setMessage({
         type: 'error',
-        text: error.response?.data?.message || 'Failed to update profile'
+        text: axiosError.response?.data?.message || 'Failed to update profile'
       });
     } finally {
       setIsSaving(false);
@@ -251,9 +253,10 @@ const Settings: React.FC = () => {
       setNewPassword('');
       setConfirmPassword('');
       toast.success('Password updated successfully!');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to update password:', error);
-      toast.error(error.response?.data?.message || 'Failed to update password');
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      toast.error(axiosError.response?.data?.message || 'Failed to update password');
     } finally {
       setIsUpdatingPassword(false);
     }
@@ -271,11 +274,12 @@ const Settings: React.FC = () => {
       navigate('/login', {
         state: { message: 'Your account has been deleted successfully.' }
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to delete account:', error);
+      const axiosError = error as { response?: { data?: { message?: string } } };
       setMessage({
         type: 'error',
-        text: error.response?.data?.message || 'Failed to delete account'
+        text: axiosError.response?.data?.message || 'Failed to delete account'
       });
       setIsDeleting(false);
     }
