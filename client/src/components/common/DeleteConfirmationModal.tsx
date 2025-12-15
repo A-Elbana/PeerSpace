@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, X, Loader2 } from 'lucide-react';
 
 interface DeleteConfirmationModalProps {
     isOpen: boolean;
@@ -8,6 +8,7 @@ interface DeleteConfirmationModalProps {
     title: string;
     description: string;
     itemType?: string; // Made generic string and optional
+    isLoading?: boolean;
 }
 
 export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
@@ -16,7 +17,8 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
     onConfirm,
     title,
     description,
-    itemType = 'Item'
+    itemType = 'Item',
+    isLoading = false
 }) => {
     if (!isOpen) return null;
 
@@ -49,15 +51,24 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
                 <div className="flex justify-end gap-3">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 text-sm font-medium text-foreground bg-muted hover:bg-muted/80 rounded-lg transition-colors"
+                        disabled={isLoading}
+                        className={`px-4 py-2 text-sm font-medium text-foreground bg-muted hover:bg-muted/80 rounded-lg transition-colors ${isLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
                         Cancel
                     </button>
                     <button
                         onClick={onConfirm}
-                        className="px-4 py-2 text-sm font-medium text-destructive-foreground bg-destructive hover:bg-destructive/90 rounded-lg transition-colors"
+                        disabled={isLoading}
+                        className={`px-4 py-2 text-sm font-medium text-destructive-foreground bg-destructive hover:bg-destructive/90 rounded-lg transition-colors ${isLoading ? 'opacity-80 cursor-not-allowed' : ''}`}
                     >
-                        Delete
+                        {isLoading ? (
+                            <span className="inline-flex items-center gap-2">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Deleting…</span>
+                            </span>
+                        ) : (
+                            'Delete'
+                        )}
                     </button>
                 </div>
             </div>

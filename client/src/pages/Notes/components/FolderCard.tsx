@@ -21,6 +21,9 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, onClick, onDelet
             <h3 className="text-base font-semibold text-foreground text-center truncate w-full px-2">
                 {folder.name}
             </h3>
+            {typeof folder.noteCount === 'number' && (
+                <div className="text-xs text-muted-foreground mt-2">{folder.noteCount} {folder.noteCount === 1 ? 'note' : 'notes'}</div>
+            )}
 
             <button
                 onClick={(e) => {
