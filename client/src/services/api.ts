@@ -504,12 +504,12 @@ export const fileApi = {
     resource_type: string;
     format?: string;
     context:
-      | "POST"
-      | "SUBMISSION"
-      | "NOTE"
-      | "ASSIGNMENT"
-      | "COMMUNITY_BANNER"
-      | "USER_AVATAR";
+    | "POST"
+    | "SUBMISSION"
+    | "NOTE"
+    | "ASSIGNMENT"
+    | "COMMUNITY_BANNER"
+    | "USER_AVATAR";
     context_id: string;
     is_private?: boolean;
   }) => {
