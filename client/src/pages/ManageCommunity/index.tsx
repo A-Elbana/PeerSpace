@@ -4,6 +4,7 @@ import { ArrowLeft, Save, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Sidebar } from '../../components/dashboard';
 import { Button } from '../../components/ui/button';
+import { DeleteConfirmationModal } from '../../components/common/DeleteConfirmationModal';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { communityApi, type CommunityResponse } from '../../services/api';
@@ -271,53 +272,15 @@ const ManageCommunity: React.FC = () => {
           </div>
         </div>
 
-        {/* Delete Confirmation Modal */}
-        {showDeleteConfirm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-background border border-border rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-red-500/10 rounded-full">
-                  <AlertTriangle className="w-6 h-6 text-red-500" />
-                </div>
-                <h2 className="text-lg font-bold text-foreground">Delete Community</h2>
-              </div>
-
-              <p className="text-muted-foreground mb-6">
-                Are you sure you want to delete <span className="font-semibold text-foreground">{community.name}</span>? This action cannot be undone and all associated data will be permanently removed.
-              </p>
-
-              <div className="flex items-center gap-3 justify-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowDeleteConfirm(false)}
-                  disabled={isDeleting}
-                  className="border-border text-foreground hover:bg-muted"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                  className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white"
-                >
-                  {isDeleting ? (
-                    <>
-                      <Loader2 size={18} className="animate-spin" />
-                      <span>Deleting...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 size={18} />
-                      <span>Delete</span>
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+        <DeleteConfirmationModal
+          isOpen={showDeleteConfirm}
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={handleDelete}
+          title={`Delete ${community.name}`}
+          description={`Are you sure you want to delete ${community.name}? This action cannot be undone and all associated data will be permanently removed.`}
+          itemType="community"
+          isLoading={isDeleting}
+        />
       </main>
     </div>
   );

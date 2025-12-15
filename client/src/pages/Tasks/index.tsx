@@ -6,6 +6,7 @@ import api from '../../services/api';
 import { toast } from 'sonner';
 import { Button } from '../../components/ui/button';
 import { DeleteConfirmationModal } from '../../components/common/DeleteConfirmationModal';
+import TaskTable from '../../components/common/TaskTable';
 import { CreateTaskModal } from './CreateTaskModal';
 
 type UserRole = 'student' | 'instructor' | 'admin';
@@ -292,130 +293,7 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
         return matchesSearch && matchesPriority;
     });
 
-    const TaskTable = ({ taskList, title }: { taskList: Task[], title: string }) => (
-        <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4 text-foreground flex items-center gap-2">
-                {title}
-                <span className="text-sm font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                    {taskList.length}
-                </span>
-                {isFetchingTasks && <Loader2 className="w-4 h-4 text-muted-foreground animate-spin ml-2" />}
-            </h2>
-            <div className="bg-card rounded-xl border border-border overflow-hidden">
-                <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-6 py-4 bg-muted/30 border-b border-border text-sm font-medium text-muted-foreground">
-                    <div>Name</div>
-                    <div className="w-48 text-center">Assignees</div>
-                    <div className="w-32 text-center">Due date</div>
-                    <div className="w-24 text-center">Priority</div>
-                    <div className="w-12 text-center">Done</div>
-                    <div className="w-12"></div>
-                </div>
-
-                <div className="divide-y divide-border">
-                    {taskList.length === 0 ? (
-                        <div className="px-6 py-8 text-center text-muted-foreground">
-                            No {title.toLowerCase()} tasks found.
-                        </div>
-                    ) : (
-                        taskList.map((task) => (
-                            <div
-                                key={task.id}
-                                className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-6 py-4 hover:bg-muted/20 transition-colors group cursor-pointer"
-                                onClick={() => navigate(`/tasks/${task.id}`)}
-                            >
-                                {/* Task Name & Assignment Relation */}
-                                <div className="flex flex-col min-w-0 justify-center">
-                                    <div className={`font-medium truncate ${task.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
-                                        {task.name}
-                                    </div>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded-full ${task.completed ? 'opacity-50' : ''}`}>
-                                            <Link className="w-3 h-3" />
-                                            {task.assignmentRelation || 'No Relation'}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Assignees */}
-                                <div className="w-48 flex items-center justify-center">
-                                    <div className={`flex -space-x-2 ${task.completed ? 'opacity-50' : ''}`}>
-                                        {task.assignees.length > 0 ? (
-                                            <>
-                                                {task.assignees.slice(0, 4).map((assignee, index) => (
-                                                    <div
-                                                        key={assignee.id}
-                                                        className={`w-8 h-8 rounded-full ${getAvatarColor(
-                                                            index
-                                                        )} flex items-center justify-center text-white text-xs font-bold border-2 border-background shadow-sm`}
-                                                        title={`${assignee.fname} ${assignee.lname}`}
-                                                    >
-                                                        {getInitials(assignee.fname, assignee.lname)}
-                                                    </div>
-                                                ))}
-                                                {task.assignees.length > 4 && (
-                                                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-xs font-bold border-2 border-background shadow-sm">
-                                                        +{task.assignees.length - 4}
-                                                    </div>
-                                                )}
-                                            </>
-                                        ) : (
-                                            <span className="text-xs text-muted-foreground">-</span>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Due Date */}
-                                <div className="w-32 flex items-center justify-center">
-                                    <div className={`flex items-center gap-2 text-sm ${task.completed ? 'text-muted-foreground' : 'text-foreground'}`}>
-                                        <Calendar className="w-4 h-4 text-muted-foreground" />
-                                        <span>{task.dueDate || '-'}</span>
-                                    </div>
-                                </div>
-
-                                {/* Priority */}
-                                <div className="w-24 flex items-center justify-center">
-                                    <Flag
-                                        className={`w-5 h-5 ${task.completed ? 'text-muted-foreground' : getPriorityColor(task.priority)}`}
-                                        fill="currentColor"
-                                    />
-                                </div>
-
-                                {/* Mark Complete Button */}
-                                <div className="w-12 flex items-center justify-center">
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); toggleTaskCompletion(task); }}
-                                        disabled={updatingTaskIds.includes(task.id)}
-                                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${task.completed
-                                            ? 'text-green-500 hover:text-green-600 bg-green-500/10'
-                                            : 'text-muted-foreground hover:text-green-500 hover:bg-green-500/10'
-                                            }`}
-                                        title={task.completed ? "Mark as incomplete" : "Mark as complete"}
-                                    >
-                                        {updatingTaskIds.includes(task.id) ? (
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                            task.completed ? <CheckCircle className="w-5 h-5" /> : <Circle className="w-5 h-5" />
-                                        )}
-                                    </button>
-                                </div>
-
-                                {/* Delete Action */}
-                                <div className="w-12 flex items-center justify-center">
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); handleDeleteClick(task); }}
-                                        className="w-8 h-8 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
-                                        title="Delete Task"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </div>
-                        ))
-                    )}
-                </div>
-            </div>
-        </div>
-    );
+    
 
     return (
         <div className="flex min-h-screen bg-background text-foreground">
@@ -477,7 +355,15 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
                         </div>
                     </div>
 
-                    <TaskTable taskList={filteredTasks} title="Tasks" />
+                    <TaskTable
+                        taskList={filteredTasks}
+                        title="Tasks"
+                        isFetching={isFetchingTasks}
+                        updatingTaskIds={updatingTaskIds}
+                        onRowClick={(id) => navigate(`/tasks/${id}`)}
+                        onToggleComplete={toggleTaskCompletion}
+                        onDelete={(task) => handleDeleteClick(task)}
+                    />
 
                     {/* Pagination controls (server-driven) */}
                     <div className="flex justify-end mt-6">
