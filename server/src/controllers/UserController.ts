@@ -27,15 +27,47 @@ export const getAllUsers = async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
+    const search = req.query.search as string | undefined;
+    const roleFilter = req.query.role as string | undefined;
+
+    // Build where clause
+    const whereClause: any = {};
+
+    // Search by ID, name, or email
+    if (search && search.trim()) {
+      const searchTerm = search.trim();
+      const searchId = parseInt(searchTerm);
+
+      if (!isNaN(searchId)) {
+        // If search is a number, search by ID
+        whereClause.id = searchId;
+      } else {
+        // Otherwise search by name or email
+        whereClause.OR = [
+          { fname: { contains: searchTerm, mode: "insensitive" } },
+          { lname: { contains: searchTerm, mode: "insensitive" } },
+          { email: { contains: searchTerm, mode: "insensitive" } },
+        ];
+      }
+    }
+
+    // Filter by role
+    if (roleFilter && roleFilter !== "all") {
+      const roleUpper = roleFilter.toUpperCase() as Role;
+      if (Object.values(Role).includes(roleUpper)) {
+        whereClause.role = roleUpper;
+      }
+    }
 
     const users = await prisma.user.findMany({
+      where: whereClause,
       skip,
       take: limit,
       select: userSelect,
       orderBy: { id: "asc" },
     });
 
-    const total = await prisma.user.count();
+    const total = await prisma.user.count({ where: whereClause });
 
     res.status(200).json({
       data: users,
@@ -427,4 +459,3 @@ export const createAdmin = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Failed to create admin" });
   }
 };
-

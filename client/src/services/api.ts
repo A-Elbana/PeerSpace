@@ -204,8 +204,21 @@ export const communityApi = {
     page?: number;
     limit?: number;
     type?: "PUBLIC" | "PRIVATE";
+    search?: string;
+    tags?: string;
   }): Promise<CommunitiesListResponse> => {
-    const response = await api.get("/communities", { params });
+    // Filter out empty/undefined parameters
+    const cleanParams: any = {};
+    if (params) {
+      if (params.page) cleanParams.page = params.page;
+      if (params.limit) cleanParams.limit = params.limit;
+      if (params.type) cleanParams.type = params.type;
+      if (params.search && params.search.trim())
+        cleanParams.search = params.search.trim();
+      if (params.tags && params.tags.trim())
+        cleanParams.tags = params.tags.trim();
+    }
+    const response = await api.get("/communities", { params: cleanParams });
     return response.data;
   },
 
@@ -289,6 +302,29 @@ export const postApi = {
     }
   ): Promise<PostsListResponse> => {
     const response = await api.get("/posts", { params: { cid, ...params } });
+    return response.data;
+  },
+
+  getAll: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    tags?: string;
+    communityId?: string;
+  }): Promise<PostsListResponse> => {
+    // Filter out empty/undefined parameters
+    const cleanParams: any = {};
+    if (params) {
+      if (params.page) cleanParams.page = params.page;
+      if (params.limit) cleanParams.limit = params.limit;
+      if (params.search && params.search.trim())
+        cleanParams.search = params.search.trim();
+      if (params.tags && params.tags.trim())
+        cleanParams.tags = params.tags.trim();
+      if (params.communityId && params.communityId.trim())
+        cleanParams.communityId = params.communityId.trim();
+    }
+    const response = await api.get("/posts/all", { params: cleanParams });
     return response.data;
   },
 
@@ -405,6 +441,91 @@ export const fileApi = {
 
   delete: async (id: string) => {
     const response = await api.delete(`/files/${id}`);
+    return response.data;
+  },
+};
+
+// Admin API calls
+export const adminApi = {
+  getStats: async (): Promise<{
+    totalUsers: number;
+    totalCommunities: number;
+    totalPosts: number;
+  }> => {
+    const response = await api.get("/admin/stats");
+    return response.data;
+  },
+
+  getCommunitiesTimeSeries: async (
+    months: number = 6
+  ): Promise<{
+    data: Array<{ date: string; count: number }>;
+  }> => {
+    const response = await api.get("/admin/analytics/communities/time-series", {
+      params: { months },
+    });
+    return response.data;
+  },
+
+  getPostsTimeSeries: async (params?: {
+    months?: number;
+    communityId?: string;
+    tag?: string;
+    resolvedOnly?: boolean;
+  }): Promise<{
+    data: Array<{ date: string; count: number }>;
+  }> => {
+    const response = await api.get("/admin/analytics/posts/time-series", {
+      params,
+    });
+    return response.data;
+  },
+};
+
+// User API calls
+export const userApi = {
+  getAll: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    role?: string;
+  }): Promise<{
+    data: Array<{
+      id: number;
+      email: string;
+      fname: string;
+      lname: string;
+      role: string;
+      avatar_file_id?: string;
+      activated: boolean;
+    }>;
+    meta: PaginationMeta;
+  }> => {
+    // Filter out empty/undefined parameters
+    const cleanParams: any = {};
+    if (params) {
+      if (params.page) cleanParams.page = params.page;
+      if (params.limit) cleanParams.limit = params.limit;
+      if (params.search && params.search.trim())
+        cleanParams.search = params.search.trim();
+      if (params.role && params.role !== "all") cleanParams.role = params.role;
+    }
+    const response = await api.get("/users", { params: cleanParams });
+    return response.data;
+  },
+
+  getById: async (
+    id: number
+  ): Promise<{
+    id: number;
+    email: string;
+    fname: string;
+    lname: string;
+    role: string;
+    avatar_file_id?: string;
+    activated: boolean;
+  }> => {
+    const response = await api.get(`/users/${id}`);
     return response.data;
   },
 };

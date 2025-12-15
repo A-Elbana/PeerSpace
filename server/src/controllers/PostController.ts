@@ -390,3 +390,172 @@ export const togglePostResolved = async (req: PostRequest, res: Response) => {
     res.status(500).json({ message: "Failed to toggle post resolution" });
   }
 };
+
+/**
+ * Get all posts with search and filters (Admin only)
+ * This endpoint is for admin dashboard to search across all posts
+ */
+export const getAllPosts = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).userId;
+    const userRole = (req as any).role;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+    const search = req.query.search as string | undefined;
+    const tagSearch = req.query.tags as string | undefined;
+    const communityId = req.query.communityId as string | undefined;
+
+    console.log("[getAllPosts] Request params:", {
+      userId,
+      userRole,
+      page,
+      limit,
+      search,
+      tagSearch,
+      communityId,
+    });
+
+    // Build where clause
+    const whereClause: any = {};
+
+    // Search by ID or title
+    if (search && search.trim()) {
+      const searchTerm = search.trim();
+      const searchId = parseInt(searchTerm);
+
+      if (!isNaN(searchId)) {
+        // Search by post ID
+        whereClause.id = searchId;
+      } else {
+        // Search by title
+        whereClause.title = { contains: searchTerm, mode: "insensitive" };
+      }
+    }
+
+    // Filter by tag
+    if (tagSearch && tagSearch.trim()) {
+      whereClause.PostTag = {
+        some: {
+          tag: {
+            contains: tagSearch.trim(),
+            mode: "insensitive",
+          },
+        },
+      };
+    }
+
+    // For non-admin users, only show posts from communities they have access to
+    if (userRole !== "ADMIN") {
+      // Get user's accessible community IDs
+      const enrollments = await prisma.enrollment.findMany({
+        where: { sid: userId },
+        select: { cid: true },
+      });
+
+      const manages = await prisma.manages.findMany({
+        where: { iid: userId },
+        select: { cid: true },
+      });
+
+      const publicCommunities = await prisma.community.findMany({
+        where: { type: CommunityType.PUBLIC },
+        select: { id: true },
+      });
+
+      const accessibleCommunityIds = [
+        ...enrollments.map((e) => e.cid),
+        ...manages.map((m) => m.cid),
+        ...publicCommunities.map((c) => c.id),
+      ];
+
+      // If communityId filter is provided, intersect with accessible communities
+      if (communityId && communityId.trim()) {
+        const requestedCommunityId = communityId.trim();
+        if (accessibleCommunityIds.includes(requestedCommunityId)) {
+          whereClause.cid = requestedCommunityId;
+        } else {
+          // User doesn't have access to requested community, return empty
+          whereClause.cid = "IMPOSSIBLE_COMMUNITY_ID";
+        }
+      } else {
+        // No specific community filter, show all accessible communities
+        whereClause.cid = { in: accessibleCommunityIds };
+      }
+    } else {
+      // Admin user - apply community filter if provided
+      if (communityId && communityId.trim()) {
+        whereClause.cid = communityId.trim();
+      }
+    }
+
+    console.log(
+      "[getAllPosts] Where clause:",
+      JSON.stringify(whereClause, null, 2)
+    );
+
+    const posts = await prisma.post.findMany({
+      where: whereClause,
+      skip,
+      take: limit,
+      orderBy: { post_date: "desc" },
+      include: {
+        User: {
+          select: {
+            id: true,
+            fname: true,
+            lname: true,
+            avatar_file_id: true,
+          },
+        },
+        Community: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        PostTag: {
+          select: {
+            tag: true,
+          },
+        },
+        _count: {
+          select: { Comment: true },
+        },
+      },
+    });
+
+    // Format posts with tags
+    const formattedPosts = posts.map((post) => {
+      const tags = post.PostTag.map((pt) => pt.tag);
+      const { PostTag, ...postData } = post;
+      return { ...postData, tags };
+    });
+
+    const total = await prisma.post.count({ where: whereClause });
+
+    res.status(200).json({
+      data: formattedPosts,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error: any) {
+    console.error("Get All Posts Error:", error);
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      userId: (req as any).userId,
+      userRole: (req as any).role,
+      search: req.query.search,
+      tags: req.query.tags,
+    });
+    res.status(500).json({
+      message: "Failed to fetch posts",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};

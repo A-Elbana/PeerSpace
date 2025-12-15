@@ -145,6 +145,10 @@ export const getCommunities = async (req: Request, res: Response) => {
   // Filter by type (optional)
   const typeFilter = (req.query.type as string | undefined)?.toUpperCase();
 
+  // Search parameters
+  const search = req.query.search as string | undefined;
+  const tagSearch = req.query.tags as string | undefined;
+
   try {
     let whereClause: any = {};
 
@@ -207,6 +211,37 @@ export const getCommunities = async (req: Request, res: Response) => {
       }
     }
 
+    // Add search filter if provided
+    if (search && search.trim()) {
+      const searchTerm = search.trim();
+
+      // Check if search is a UUID (community ID)
+      const isUUID =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          searchTerm
+        );
+
+      if (isUUID) {
+        // Search by ID
+        whereClause =
+          whereClause.AND || whereClause.OR
+            ? { AND: [whereClause, { id: searchTerm }] }
+            : { ...whereClause, id: searchTerm };
+      } else {
+        // Search by name
+        const nameSearch = {
+          name: { contains: searchTerm, mode: "insensitive" as const },
+        };
+        whereClause =
+          whereClause.AND || whereClause.OR
+            ? { AND: [whereClause, nameSearch] }
+            : { ...whereClause, ...nameSearch };
+      }
+    }
+
+    // Note: Tag filtering not implemented as CommunityTag table doesn't exist in schema
+    // This would require a database migration to add community tags functionality
+
     const communities = await prisma.community.findMany({
       where: whereClause,
       skip,
@@ -251,6 +286,7 @@ export const getCommunities = async (req: Request, res: Response) => {
             banner_url = null;
           }
         }
+
         return { ...c, banner_url };
       })
     );

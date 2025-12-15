@@ -6,10 +6,12 @@ import {
   deletePost,
   getPostsByCommunity,
   togglePostResolved,
+  getAllPosts,
 } from "../controllers/PostController";
 import {
   authenticateToken,
   optionalAuthenticateToken,
+  authorizeRole,
 } from "../middleware/authMiddleware";
 import {
   loadPost,
@@ -172,6 +174,60 @@ router.post("/", authenticateToken, requirePostMembership, createPost);
  *         description: Server error
  */
 router.get("/", optionalAuthenticateToken, getPostsByCommunity);
+
+/**
+ * @swagger
+ * /api/posts/all:
+ *   get:
+ *     summary: Get all posts with search and filters
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *     description: Admin endpoint to search and filter posts across all communities
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by post ID or title
+ *       - in: query
+ *         name: tags
+ *         schema:
+ *           type: string
+ *         description: Filter by tag (partial match)
+ *       - in: query
+ *         name: communityId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Filter by community ID
+ *     responses:
+ *       200:
+ *         description: List of posts with pagination metadata
+ *       403:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  "/all",
+  (req, res, next) => {
+    console.log("[POST /all] Route hit, query:", req.query);
+    next();
+  },
+  authenticateToken,
+  getAllPosts
+);
 
 /**
  * @swagger

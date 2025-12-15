@@ -33,6 +33,9 @@ import {
     DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu';
 
+// API
+import { adminApi, userApi, communityApi, postApi } from '../../services/api';
+
 interface AdminDashboardProps {
     user: {
         id: string;
@@ -58,75 +61,33 @@ interface CommunityItem {
     id: string;
     name: string;
     type: string;
-    visibility: 'public' | 'private';
-    tags: string[];
-    memberCount: number;
+    tags?: string[];
+    _count?: {
+        Enrollment: number;
+        Post: number;
+    };
 }
 
 interface PostItem {
     id: number;
     title: string;
-    communityId: string;
-    communityName: string;
-    authorName: string;
-    tags: string[];
-    createdAt: string;
+    cid: string;
+    Community?: {
+        id: string;
+        name: string;
+    };
+    User?: {
+        fname: string;
+        lname: string;
+    };
+    tags?: string[];
+    post_date: string;
 }
 
 interface ChartDataPoint {
     date: string;
     count: number;
 }
-
-// Dummy data for charts
-const generateTimeSeriesData = (months: number, baseValue: number, growth: number): ChartDataPoint[] => {
-    const data: ChartDataPoint[] = [];
-    const now = new Date();
-    for (let i = months - 1; i >= 0; i--) {
-        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthStr = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-        data.push({
-            date: monthStr,
-            count: Math.floor(baseValue + (months - i) * growth + Math.random() * growth * 0.5),
-        });
-    }
-    return data;
-};
-
-// Dummy data
-const DUMMY_USERS: UserItem[] = [
-    { id: 1, fname: 'John', lname: 'Doe', email: 'john.doe@university.edu', role: 'student' },
-    { id: 2, fname: 'Jane', lname: 'Smith', email: 'jane.smith@university.edu', role: 'instructor' },
-    { id: 3, fname: 'Alice', lname: 'Johnson', email: 'alice.j@university.edu', role: 'student' },
-    { id: 4, fname: 'Bob', lname: 'Wilson', email: 'bob.wilson@university.edu', role: 'student' },
-    { id: 5, fname: 'Charlie', lname: 'Brown', email: 'charlie.b@university.edu', role: 'instructor' },
-    { id: 6, fname: 'Diana', lname: 'Prince', email: 'diana.p@university.edu', role: 'admin' },
-    { id: 7, fname: 'Edward', lname: 'Norton', email: 'edward.n@university.edu', role: 'student' },
-    { id: 8, fname: 'Fiona', lname: 'Green', email: 'fiona.g@university.edu', role: 'student' },
-];
-
-const DUMMY_COMMUNITIES: CommunityItem[] = [
-    { id: 'comm-1', name: 'Database Systems', type: 'course', visibility: 'public', tags: ['database', 'sql', 'backend'], memberCount: 45 },
-    { id: 'comm-2', name: 'Algorithms', type: 'course', visibility: 'public', tags: ['algorithms', 'dsa', 'coding'], memberCount: 62 },
-    { id: 'comm-3', name: 'Operating Systems', type: 'course', visibility: 'public', tags: ['os', 'systems', 'linux'], memberCount: 38 },
-    { id: 'comm-4', name: 'Software Engineering', type: 'course', visibility: 'private', tags: ['agile', 'scrum', 'development'], memberCount: 51 },
-    { id: 'comm-5', name: 'Computer Networks', type: 'course', visibility: 'public', tags: ['networking', 'tcp', 'protocols'], memberCount: 29 },
-    { id: 'comm-6', name: 'Study Group - CS Majors', type: 'study_group', visibility: 'private', tags: ['study', 'cs', 'collaboration'], memberCount: 124 },
-    { id: 'comm-7', name: 'Machine Learning Club', type: 'study_group', visibility: 'public', tags: ['ml', 'ai', 'python'], memberCount: 87 },
-];
-
-const DUMMY_POSTS: PostItem[] = [
-    { id: 1, title: 'Introduction to SQL Joins', communityId: 'comm-1', communityName: 'Database Systems', authorName: 'Jane Smith', tags: ['sql', 'joins', 'tutorial'], createdAt: '2024-12-10' },
-    { id: 2, title: 'Understanding Big O Notation', communityId: 'comm-2', communityName: 'Algorithms', authorName: 'Charlie Brown', tags: ['big-o', 'complexity', 'theory'], createdAt: '2024-12-11' },
-    { id: 3, title: 'Process vs Thread Discussion', communityId: 'comm-3', communityName: 'Operating Systems', authorName: 'Jane Smith', tags: ['process', 'thread', 'discussion'], createdAt: '2024-12-12' },
-    { id: 4, title: 'Agile Methodology Tips', communityId: 'comm-4', communityName: 'Software Engineering', authorName: 'John Doe', tags: ['agile', 'tips', 'methodology'], createdAt: '2024-12-13' },
-    { id: 5, title: 'TCP/IP Fundamentals', communityId: 'comm-5', communityName: 'Computer Networks', authorName: 'Alice Johnson', tags: ['tcp', 'ip', 'networking'], createdAt: '2024-12-14' },
-    { id: 6, title: 'Normalization Best Practices', communityId: 'comm-1', communityName: 'Database Systems', authorName: 'Bob Wilson', tags: ['normalization', 'database', 'best-practices'], createdAt: '2024-12-14' },
-    { id: 7, title: 'Dynamic Programming Patterns', communityId: 'comm-2', communityName: 'Algorithms', authorName: 'Edward Norton', tags: ['dp', 'patterns', 'algorithms'], createdAt: '2024-12-14' },
-];
-
-const communitiesOverTimeData = generateTimeSeriesData(6, 3, 2);
-const postsOverTimeData = generateTimeSeriesData(6, 10, 8);
 
 const chartConfig: ChartConfig = {
     count: {
@@ -156,6 +117,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(true);
 
+    // Data states
+    const [users, setUsers] = useState<UserItem[]>([]);
+    const [communities, setCommunities] = useState<CommunityItem[]>([]);
+    const [posts, setPosts] = useState<PostItem[]>([]);
+    const [communitiesChartData, setCommunitiesChartData] = useState<ChartDataPoint[]>([]);
+    const [postsChartData, setPostsChartData] = useState<ChartDataPoint[]>([]);
+
     // User filter states
     const [userSearch, setUserSearch] = useState('');
     const [userRoleFilter, setUserRoleFilter] = useState<string>('all');
@@ -181,74 +149,125 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
         totalPosts: 0,
     });
 
+    // Fetch initial data
     useEffect(() => {
-        // Simulate API fetch
         const fetchData = async () => {
             setIsLoading(true);
-            // In real implementation, fetch from API
-            await new Promise(resolve => setTimeout(resolve, 500));
-            setStats({
-                totalUsers: DUMMY_USERS.length,
-                totalCommunities: DUMMY_COMMUNITIES.length,
-                totalPosts: DUMMY_POSTS.length,
-            });
-            setIsLoading(false);
+            try {
+                // Fetch stats
+                const statsData = await adminApi.getStats();
+                setStats(statsData);
+
+                // Fetch chart data
+                const communitiesData = await adminApi.getCommunitiesTimeSeries(6);
+                setCommunitiesChartData(communitiesData.data);
+
+                const postsData = await adminApi.getPostsTimeSeries({ months: 6 });
+                setPostsChartData(postsData.data);
+            } catch (error) {
+                console.error('Failed to fetch dashboard data:', error);
+            } finally {
+                setIsLoading(false);
+            }
         };
         fetchData();
     }, []);
 
-    // Filtered data - only show if there's a search query
-    const filteredUsers = userSearch.trim() ? DUMMY_USERS.filter(u => {
-        const matchesSearch = `${u.fname} ${u.lname}`.toLowerCase().includes(userSearch.toLowerCase()) ||
-            u.id.toString() === userSearch;
-        const matchesRole = userRoleFilter === 'all' || u.role === userRoleFilter;
-        return matchesSearch && matchesRole;
-    }) : [];
+    // Fetch users when search changes
+    useEffect(() => {
+        const fetchUsers = async () => {
+            if (!userSearch.trim()) {
+                setUsers([]);
+                return;
+            }
 
-    const filteredCommunities = communitySearch.trim() || communityTagSearch.trim() ? DUMMY_COMMUNITIES.filter(c => {
-        const matchesSearch = c.name.toLowerCase().includes(communitySearch.toLowerCase()) ||
-            c.id === communitySearch;
-        const matchesVisibility = communityVisibilityFilter === 'all' || c.visibility === communityVisibilityFilter;
-        const matchesTags = !communityTagSearch.trim() || 
-            c.tags.some(tag => tag.toLowerCase().includes(communityTagSearch.toLowerCase()));
-        return matchesSearch && matchesVisibility && matchesTags;
-    }) : [];
+            try {
+                const response = await userApi.getAll({
+                    search: userSearch,
+                    role: userRoleFilter !== 'all' ? userRoleFilter : undefined,
+                    limit: 50,
+                });
+                setUsers(response.data);
+            } catch (error) {
+                console.error('Failed to fetch users:', error);
+                setUsers([]);
+            }
+        };
 
-    const filteredPosts = postSearch.trim() || postTagSearch.trim() ? DUMMY_POSTS.filter(p => {
-        const matchesSearch = p.title.toLowerCase().includes(postSearch.toLowerCase()) ||
-            p.id.toString() === postSearch;
-        const matchesTags = !postTagSearch.trim() || 
-            p.tags.some(tag => tag.toLowerCase().includes(postTagSearch.toLowerCase()));
-        return matchesSearch && matchesTags;
-    }) : [];
+        const debounce = setTimeout(fetchUsers, 300);
+        return () => clearTimeout(debounce);
+    }, [userSearch, userRoleFilter]);
 
-    // Get posts data filtered by community ID for chart (always shows data, filters are optional)
-    const getFilteredPostsChartData = () => {
-        let multiplier = 1;
-        
-        // Apply community filter if provided
-        if (chartCommunityIdFilter.trim()) {
-            const community = DUMMY_COMMUNITIES.find(c => c.id === chartCommunityIdFilter);
-            if (!community) return null; // Return null to indicate invalid community
-            multiplier *= 0.4;
-        }
-        
-        // Apply tag filter if provided
-        if (chartTagFilter.trim()) {
-            multiplier *= 0.6;
-        }
-        
-        // Apply resolved filter
-        if (chartResolvedOnly) {
-            multiplier *= 0.3;
-        }
-        
-        // In real implementation, filter the chart data accordingly
-        return postsOverTimeData.map(d => ({
-            ...d,
-            count: Math.floor(d.count * multiplier + Math.random() * 3),
-        }));
-    };
+    // Fetch communities when search changes
+    useEffect(() => {
+        const fetchCommunities = async () => {
+            if (!communitySearch.trim() && !communityTagSearch.trim()) {
+                setCommunities([]);
+                return;
+            }
+
+            try {
+                const response = await communityApi.getAll({
+                    search: communitySearch,
+                    tags: communityTagSearch,
+                    type: communityVisibilityFilter !== 'all' ? communityVisibilityFilter.toUpperCase() as 'PUBLIC' | 'PRIVATE' : undefined,
+                    limit: 50,
+                });
+                setCommunities(response.data);
+            } catch (error) {
+                console.error('Failed to fetch communities:', error);
+                setCommunities([]);
+            }
+        };
+
+        const debounce = setTimeout(fetchCommunities, 300);
+        return () => clearTimeout(debounce);
+    }, [communitySearch, communityTagSearch, communityVisibilityFilter]);
+
+    // Fetch posts when search changes
+    useEffect(() => {
+        const fetchPosts = async () => {
+            if (!postSearch.trim() && !postTagSearch.trim()) {
+                setPosts([]);
+                return;
+            }
+
+            try {
+                const response = await postApi.getAll({
+                    search: postSearch,
+                    tags: postTagSearch,
+                    limit: 50,
+                });
+                setPosts(response.data);
+            } catch (error) {
+                console.error('Failed to fetch posts:', error);
+                setPosts([]);
+            }
+        };
+
+        const debounce = setTimeout(fetchPosts, 300);
+        return () => clearTimeout(debounce);
+    }, [postSearch, postTagSearch]);
+
+    // Fetch posts chart data when filters change
+    useEffect(() => {
+        const fetchPostsChart = async () => {
+            try {
+                const response = await adminApi.getPostsTimeSeries({
+                    months: 6,
+                    communityId: chartCommunityIdFilter || undefined,
+                    tag: chartTagFilter || undefined,
+                    resolvedOnly: chartResolvedOnly,
+                });
+                setPostsChartData(response.data);
+            } catch (error) {
+                console.error('Failed to fetch posts chart data:', error);
+            }
+        };
+
+        const debounce = setTimeout(fetchPostsChart, 300);
+        return () => clearTimeout(debounce);
+    }, [chartCommunityIdFilter, chartTagFilter, chartResolvedOnly]);
 
     if (isLoading) {
         return (
@@ -320,7 +339,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                                 <h2 className="text-lg font-semibold text-foreground">Communities Over Time</h2>
                             </div>
                             <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                                <AreaChart data={communitiesOverTimeData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                <AreaChart data={communitiesChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="communitiesGradient" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="var(--color-count)" stopOpacity={0.3} />
@@ -380,33 +399,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                                     </label>
                                 </div>
                             </div>
-                            {getFilteredPostsChartData() === null ? (
-                                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                                    No community found with ID: {chartCommunityIdFilter}
-                                </div>
-                            ) : (
-                                <ChartContainer config={postsChartConfig} className="h-[300px] w-full">
-                                    <AreaChart data={getFilteredPostsChartData()!} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                                        <defs>
-                                            <linearGradient id="postsGradient" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="var(--color-count)" stopOpacity={0.3} />
-                                                <stop offset="95%" stopColor="var(--color-count)" stopOpacity={0} />
-                                            </linearGradient>
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                                        <XAxis dataKey="date" className="text-xs" tick={{ fill: 'var(--muted-foreground)' }} />
-                                        <YAxis className="text-xs" tick={{ fill: 'var(--muted-foreground)' }} />
-                                        <ChartTooltip content={<ChartTooltipContent />} />
-                                        <Area
-                                            type="monotone"
-                                            dataKey="count"
-                                            stroke="var(--color-count)"
-                                            fill="url(#postsGradient)"
-                                            strokeWidth={2}
-                                        />
-                                    </AreaChart>
-                                </ChartContainer>
-                            )}
+                            <ChartContainer config={postsChartConfig} className="h-[300px] w-full">
+                                <AreaChart data={postsChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                    <defs>
+                                        <linearGradient id="postsGradient" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="var(--color-count)" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="var(--color-count)" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                                    <XAxis dataKey="date" className="text-xs" tick={{ fill: 'var(--muted-foreground)' }} />
+                                    <YAxis className="text-xs" tick={{ fill: 'var(--muted-foreground)' }} />
+                                    <ChartTooltip content={<ChartTooltipContent />} />
+                                    <Area
+                                        type="monotone"
+                                        dataKey="count"
+                                        stroke="var(--color-count)"
+                                        fill="url(#postsGradient)"
+                                        strokeWidth={2}
+                                    />
+                                </AreaChart>
+                            </ChartContainer>
                         </div>
                     </div>
 
@@ -457,11 +470,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                                         <Users className="w-10 h-10 mx-auto mb-2 opacity-50" />
                                         <p>Enter an ID or name to search users</p>
                                     </div>
-                                ) : filteredUsers.length === 0 ? (
+                                ) : users.length === 0 ? (
                                     <div className="p-8 text-center text-muted-foreground">No users found</div>
                                 ) : (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-0">
-                                        {filteredUsers.map(u => (
+                                        {users.map(u => (
                                             <div
                                                 key={u.id}
                                                 onClick={() => navigate(`/users/${u.id}`)}
@@ -538,11 +551,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                                         <Building2 className="w-10 h-10 mx-auto mb-2 opacity-50" />
                                         <p>Enter an ID, name, or tag to search communities</p>
                                     </div>
-                                ) : filteredCommunities.length === 0 ? (
+                                ) : communities.length === 0 ? (
                                     <div className="p-8 text-center text-muted-foreground">No communities found</div>
                                 ) : (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-0">
-                                        {filteredCommunities.map(community => (
+                                        {communities.map(community => (
                                             <div
                                                 key={community.id}
                                                 onClick={() => navigate(`/community/${community.id}`)}
@@ -553,25 +566,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                                                         <p className="font-medium text-foreground truncate">
                                                             {community.name}
                                                         </p>
-                                                        {community.visibility === 'private' ? (
+                                                        {community.type === 'PRIVATE' ? (
                                                             <Lock className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                                                         ) : (
                                                             <Globe className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                                                         )}
                                                     </div>
                                                     <p className="text-sm text-muted-foreground truncate">
-                                                        ID: {community.id} • {community.memberCount} members
+                                                        ID: {community.id} • {community._count?.Enrollment || 0} members
                                                     </p>
-                                                    <div className="flex flex-wrap gap-1 mt-1">
-                                                        {community.tags.slice(0, 2).map(tag => (
-                                                            <span key={tag} className="text-xs px-1.5 py-0.5 bg-muted rounded text-muted-foreground">
-                                                                {tag}
-                                                            </span>
-                                                        ))}
-                                                        {community.tags.length > 2 && (
-                                                            <span className="text-xs text-muted-foreground">+{community.tags.length - 2}</span>
-                                                        )}
-                                                    </div>
+                                                    {community.tags && community.tags.length > 0 && (
+                                                        <div className="flex flex-wrap gap-1 mt-1">
+                                                            {community.tags.slice(0, 2).map(tag => (
+                                                                <span key={tag} className="text-xs px-1.5 py-0.5 bg-muted rounded text-muted-foreground">
+                                                                    {tag}
+                                                                </span>
+                                                            ))}
+                                                            {community.tags.length > 2 && (
+                                                                <span className="text-xs text-muted-foreground">+{community.tags.length - 2}</span>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                                             </div>
@@ -612,11 +627,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                                         <FileText className="w-10 h-10 mx-auto mb-2 opacity-50" />
                                         <p>Enter an ID, title, or tag to search posts</p>
                                     </div>
-                                ) : filteredPosts.length === 0 ? (
+                                ) : posts.length === 0 ? (
                                     <div className="p-8 text-center text-muted-foreground">No posts found</div>
                                 ) : (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-0">
-                                        {filteredPosts.map(post => (
+                                        {posts.map(post => (
                                             <div
                                                 key={post.id}
                                                 onClick={() => navigate(`/posts/${post.id}`)}
@@ -627,18 +642,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                                                         {post.title}
                                                     </p>
                                                     <p className="text-sm text-muted-foreground truncate">
-                                                        ID: {post.id} • {post.communityName}
+                                                        ID: {post.id} • {post.Community?.name || 'Unknown'}
                                                     </p>
-                                                    <div className="flex flex-wrap gap-1 mt-1">
-                                                        {post.tags.slice(0, 2).map(tag => (
-                                                            <span key={tag} className="text-xs px-1.5 py-0.5 bg-muted rounded text-muted-foreground">
-                                                                {tag}
-                                                            </span>
-                                                        ))}
-                                                        {post.tags.length > 2 && (
-                                                            <span className="text-xs text-muted-foreground">+{post.tags.length - 2}</span>
-                                                        )}
-                                                    </div>
+                                                    {post.tags && post.tags.length > 0 && (
+                                                        <div className="flex flex-wrap gap-1 mt-1">
+                                                            {post.tags.slice(0, 2).map(tag => (
+                                                                <span key={tag} className="text-xs px-1.5 py-0.5 bg-muted rounded text-muted-foreground">
+                                                                    {tag}
+                                                                </span>
+                                                            ))}
+                                                            {post.tags.length > 2 && (
+                                                                <span className="text-xs text-muted-foreground">+{post.tags.length - 2}</span>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                                             </div>
