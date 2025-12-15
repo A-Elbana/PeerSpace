@@ -5,7 +5,7 @@ import { isAuthenticated, setTokens } from '../utils/auth';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import type { UserRole } from '../types';
-import { Mail, Lock, User, Moon, Sun, Eye, EyeOff, Home, GraduationCap, BookOpen } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, GraduationCap, BookOpen, Home, Sun, Moon } from 'lucide-react';
 
 import { SIGNUP_FEATURES } from '../constants/features';
 import { useTheme } from '../hooks/useTheme';
@@ -115,8 +115,9 @@ const Signup: React.FC = () => {
       console.error('Signup failed', err);
 
       // Extract detailed error message from response
-      const errorMessage = err.response?.data?.message;
-      const statusCode = err.response?.status;
+      const axiosError = err as { response?: { status?: number; data?: { message?: string } } };
+      const errorMessage = axiosError.response?.data?.message;
+      const statusCode = axiosError.response?.status;
 
       // Provide user-friendly error messages based on status code
       if (statusCode === 409) {

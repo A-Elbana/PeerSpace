@@ -12,7 +12,7 @@ import {
   CreateCommunityModal,
 } from '../../components/dashboard';
 import { Button } from '../../components/ui/button';
-import api, { communityApi, type CommunityResponse } from '../../services/api';
+import api, { communityApi, assignmentApi, submissionApi, type CommunityResponse } from '../../services/api';
 
 // Types
 import type { ManagedCourse } from '../../components/dashboard/ManageCourses';
@@ -58,7 +58,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
       setIsLoading(true);
 
       // Fetch communities managed by the instructor
-      const communitiesResponse = await communityApi.getAll({ limit: 50 });
+      const communitiesResponse = await communityApi.getAll({ limit: 50, memberOnly: true });
 
       // Map communities to ManagedCourse format
       const managedCourses: ManagedCourse[] = communitiesResponse.data.map((community: CommunityResponse) => ({
@@ -72,8 +72,41 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
 
       setCourses(managedCourses);
 
-      // For now, submissions and questions remain empty until those APIs are implemented
-      setSubmissions([]);
+      // Fetch assignments for all communities
+      const assignmentPromises = communitiesResponse.data.map(async (community: CommunityResponse) => {
+        try {
+          const assignmentsResponse = await assignmentApi.getByCommunity(community.id, { limit: 50 });
+          return assignmentsResponse.data;
+        } catch {
+          return [];
+        }
+      });
+
+      const allAssignments = (await Promise.all(assignmentPromises)).flat();
+
+      // Fetch submissions for each assignment to find ungraded ones
+      const submissionPromises = allAssignments.map(async (assignment) => {
+        try {
+          const submissionsResponse = await submissionApi.getByAssignment(assignment.id, { limit: 100 });
+          return submissionsResponse.data
+            .filter(sub => sub.grade === null) // Only ungraded submissions
+            .map(sub => ({
+              id: sub.id.toString(),
+              studentName: `${sub.Student.User.fname} ${sub.Student.User.lname}`,
+              assignmentTitle: assignment.title,
+              courseName: communitiesResponse.data.find(c => c.id === assignment.cid)?.name || 'Unknown',
+              submittedAt: sub.subm_date,
+              status: 'pending' as const,
+            }));
+        } catch {
+          return [];
+        }
+      });
+
+      const allPendingSubmissions = (await Promise.all(submissionPromises)).flat();
+      setSubmissions(allPendingSubmissions);
+
+      // Questions remain empty for now
       setQuestions([]);
 
     } catch (error) {
@@ -83,9 +116,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
     }
   };
 
-  const handleCreateCourse = () => {
-    navigate('/courses/new');
-  };
+
 
   const handleCreateCommunity = async (data: CreateCommunityData) => {
     setIsCreatingCommunity(true);
@@ -96,9 +127,9 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
         description: data.description,
         type: data.type,
       });
-      
+
       const communityId = response.data.id;
-      
+
       // If there's a banner file, upload it with the correct community ID
       if (data.bannerFile) {
         try {
@@ -142,17 +173,17 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
 
             const fileRecord = fileResponse.data.data;
 
-              // Step 4: Update community with banner_file_id (store File.id, not URL)
-              await communityApi.update(communityId, {
-                banner_file_id: fileRecord.id,
-              });
+            // Step 4: Update community with banner_file_id (store File.id, not URL)
+            await communityApi.update(communityId, {
+              banner_file_id: fileRecord.id,
+            });
           }
         } catch (uploadError) {
           console.error('Failed to upload banner:', uploadError);
           // Community is created, but banner upload failed - non-critical
         }
       }
-      
+
       // Optionally refresh the dashboard data or show success message
       await fetchDashboardData();
     } finally {
@@ -233,7 +264,6 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
           <ManageCourses
             title="My Communities"
             courses={courses}
-            onAddCourse={handleCreateCourse}
             onViewCourse={(id) => navigate(`/community/${id}`)}
             onManageCourse={(id) => navigate(`/community/${id}/manage`)}
           />

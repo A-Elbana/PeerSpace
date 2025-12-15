@@ -4,8 +4,6 @@ import { Sidebar as ProSidebar, Menu, MenuItem } from 'react-pro-sidebar';
 import {
   LayoutDashboard,
   Compass,
-  FileText,
-  MessageSquare,
   Settings,
   LogOut,
   Sun,
@@ -13,6 +11,8 @@ import {
   Megaphone,
   Book,
   CheckSquare,
+  ClipboardList,
+  FileCheck,
 } from 'lucide-react';
 import { useTheme } from '../../hooks/useTheme';
 import api from '../../services/api';
@@ -36,12 +36,11 @@ interface SidebarProps {
 const mainNavItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { id: 'explore', label: 'Explore', icon: Compass, path: '/explore' },
+  { id: 'assignments', label: 'Assignments', icon: ClipboardList, path: '/assignments' },
+  { id: 'submissions', label: 'My Submissions', icon: FileCheck, path: '/submissions' },
   { id: 'announcements', label: 'Announcements', icon: Megaphone, path: '/announcements' },
-  { id: 'resources', label: 'Resources', icon: FileText, path: '/resources' },
-  { id: 'posts', label: 'Posts', icon: MessageSquare, path: '/posts' },
   { id: 'notes', label: 'Notes', icon: Book, path: '/notes' },
   { id: 'tasks', label: 'Tasks', icon: CheckSquare, path: '/tasks', roleRestriction: ['student'] },
-  { id: 'feedbacks', label: 'Feedbacks', icon: MessageSquare, path: '/feedbacks' },
 ];
 
 const secondaryNavItems: NavItem[] = [
@@ -179,24 +178,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
             },
           }}
         >
-          {mainNavItems.filter(shouldShowItem).map((item) => {
-            const Icon = item.icon;
-            return (
-              <MenuItem
-                key={item.id}
-                icon={<Icon size={20} />}
-                active={isActive(item.path)}
-                onClick={() => item.path && navigate(item.path)}
-              >
-                {item.label}
-              </MenuItem>
-            );
-          })}
-
-          {/* Divider */}
-          <div className="my-4 mx-3 border-t border-border" />
-
-          {secondaryNavItems.map((item) => {
+          {mainNavItems.map((item) => {
             const Icon = item.icon;
             return (
               <MenuItem
@@ -214,7 +196,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Logout Button */}
+        {/* Bottom Actions */}
         <Menu
           menuItemStyles={{
             button: {
@@ -249,6 +231,19 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
           }}
         >
           <div className="border-t border-sidebar-border pt-4 pb-4">
+            {secondaryNavItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <MenuItem
+                  key={item.id}
+                  icon={<Icon size={20} />}
+                  active={isActive(item.path)}
+                  onClick={() => item.path && navigate(item.path)}
+                >
+                  {item.label}
+                </MenuItem>
+              );
+            })}
             <MenuItem
               icon={isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
               onClick={toggleTheme}

@@ -2,16 +2,25 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Sidebar } from '../components/dashboard';
-import { Flame, Clock, Filter, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, MoreHorizontal, Loader2, Sparkles, Users, BookOpen, Rocket, Send, Megaphone, Lock, Search, X, Tag, Maximize2 } from 'lucide-react';
-import api, { communityApi, postApi, type CommunityResponse, type PostResponse } from '../services/api';
+import { Flame, Clock, Filter, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, MoreHorizontal, Loader2, Sparkles, Users, BookOpen, Rocket, Send, Megaphone, Lock, Search, X, Tag, Maximize2, PenSquare, Trash2 } from 'lucide-react';
+import api, { communityApi, postApi, assignmentApi, submissionApi, type CommunityResponse, type PostResponse } from '../services/api';
 import { removeTokens } from '../utils/auth';
 import { MarkdownEditor } from '../components/MarkdownEditor';
+import { MarkdownView } from '../components/MarkdownView';
+import { PostModal } from '../components/posts';
+import { ConfirmationModal } from '../components/ui/ConfirmationModal';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
 
 // Available post tags
 const POST_TAGS = [
-    { id: 'math', label: 'Math', color: 'bg-blue-500', textColor: 'text-blue-500', bgLight: 'bg-blue-500/10' },
-    { id: 'scientific', label: 'Scientific', color: 'bg-green-500', textColor: 'text-green-500', bgLight: 'bg-green-500/10' },
-    { id: 'puzzles', label: 'Puzzles', color: 'bg-purple-500', textColor: 'text-purple-500', bgLight: 'bg-purple-500/10' },
+    { id: 'math', label: 'Math', color: 'bg-tech-blue-500', textColor: 'text-tech-blue-600', bgLight: 'bg-tech-blue-500/10' },
+    { id: 'scientific', label: 'Scientific', color: 'bg-turf-green-500', textColor: 'text-turf-green-600', bgLight: 'bg-turf-green-500/10' },
+    { id: 'puzzles', label: 'Puzzles', color: 'bg-royal-gold-500', textColor: 'text-royal-gold-600', bgLight: 'bg-royal-gold-500/10' },
 ] as const;
 
 interface ExploreProps {
@@ -34,6 +43,209 @@ interface CommunityWithMeta extends CommunityResponse {
     postCount?: number;
 }
 
+// Helper Components (defined before Explore component to avoid hoisting issues)
+interface PostCardProps {
+    communityId: string;
+    subreddit: string;
+    author: string;
+    time: string;
+    title: string;
+    content: string | null;
+    image?: string;
+    upvotes: number;
+    comments: number;
+    postType: string | null;
+    onNavigate: (communityId: string) => void;
+    currentUser?: UserData | null;
+    postAuthorId?: number;
+    onEdit?: () => void;
+    onDelete?: () => void;
+}
+
+const PostCard = ({ communityId, subreddit, author, time, title, content, image, upvotes, comments, postType, onNavigate, currentUser, postAuthorId, onEdit, onDelete }: PostCardProps) => {
+    const tags = postType?.split(',').map((t: string) => t.trim().toLowerCase()) || [];
+    const isAnnouncement = tags.includes('announcement');
+
+    const isAuthor = currentUser?.id === postAuthorId;
+    const isInstructor = currentUser?.role === 'instructor';
+    const isAdmin = currentUser?.role === 'admin';
+    const canManage = isAuthor || isInstructor || isAdmin;
+
+    const getTagStyle = (tag: string) => {
+        const styles: Record<string, { bg: string; text: string }> = {
+            announcement: { bg: 'bg-royal-gold-500', text: 'text-white' },
+            math: { bg: 'bg-tech-blue-500/10', text: 'text-tech-blue-600' },
+            scientific: { bg: 'bg-turf-green-500/10', text: 'text-turf-green-600' },
+            puzzles: { bg: 'bg-royal-gold-500/10', text: 'text-royal-gold-600' },
+            discussion: { bg: 'bg-muted', text: 'text-muted-foreground' },
+        };
+        return styles[tag] || styles.discussion;
+    };
+
+    return (
+        <div className={`bg-card rounded-xl border ${isAnnouncement ? 'border-royal-gold-500/50 ring-1 ring-royal-gold-500/20' : 'border-border'} hover:border-tech-blue-500/30 hover:shadow-lg hover:shadow-tech-blue-500/5 transition-all duration-300 overflow-hidden group`}>
+            <div className="flex">
+                {isAnnouncement ? (
+                    <div className="w-12 bg-royal-gold-500/10 flex flex-col items-center justify-center py-3 border-r border-royal-gold-500/30">
+                        <div className="w-8 h-8 rounded-full bg-royal-gold-500 flex items-center justify-center shadow-lg shadow-royal-gold-500/30 animate-pulse">
+                            <Megaphone size={16} className="text-white" />
+                        </div>
+                    </div>
+                ) : (
+                    <div className="w-10 bg-gradient-to-b from-muted/50 to-muted/30 flex flex-col items-center py-3 gap-1">
+                        <button className="text-muted-foreground hover:text-orange-500 transition-colors"><ArrowBigUp size={24} /></button>
+                        <span className="text-sm font-bold text-foreground">{upvotes}</span>
+                        <button className="text-muted-foreground hover:text-blue-500 transition-colors"><ArrowBigDown size={24} /></button>
+                    </div>
+                )}
+                <div className="p-3 flex-1 relative">
+                    {canManage && (
+                        <div className="absolute top-2 right-2">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <button className="p-1 hover:bg-muted rounded-full transition-colors text-muted-foreground outline-none focus:ring-2 focus:ring-ring">
+                                        <MoreHorizontal size={16} />
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-32">
+                                    <DropdownMenuItem onClick={() => onEdit && onEdit()}>
+                                        <PenSquare size={12} className="mr-2" /> Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={() => onDelete && onDelete()}
+                                        className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                    >
+                                        <Trash2 size={12} className="mr-2" /> Delete
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                    )}
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 flex-wrap pr-8">
+                        <div className="w-5 h-5 rounded-full bg-tech-blue-500 flex items-center justify-center text-[10px] text-white font-bold shadow-sm">{subreddit.substring(0, 1)}</div>
+                        <button
+                            onClick={() => onNavigate && onNavigate(communityId)}
+                            className="font-bold text-foreground hover:underline hover:text-blue-500 transition-colors cursor-pointer"
+                        >
+                            {subreddit}
+                        </button>
+                        {tags.length > 0 && tags.map((tag: string, index: number) => {
+                            const style = getTagStyle(tag);
+                            return (
+                                <span
+                                    key={index}
+                                    className={`px-2 py-0.5 ${style.bg} ${style.text} text-[10px] font-bold rounded-full capitalize`}
+                                >
+                                    {tag}
+                                </span>
+                            );
+                        })}
+                        <span>•</span>
+                        <span>Posted by u/{author}</span>
+                        <span>•</span>
+                        <span>{time}</span>
+                    </div>
+                    <h3 className={`text-lg font-semibold mb-2 leading-snug ${isAnnouncement ? 'text-yellow-600 dark:text-yellow-400' : 'text-foreground'}`}>{title}</h3>
+                    {content && <MarkdownView content={content} className="text-sm mb-3" />}
+                    {image && (
+                        <div className="mb-3 rounded-lg overflow-hidden border border-border">
+                            <img src={image} alt="Post content" className="w-full h-auto object-cover" />
+                        </div>
+                    )}
+                    <div className="flex items-center gap-1 text-muted-foreground text-xs font-bold">
+                        <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted rounded-md transition-colors">
+                            <MessageSquare size={16} /> {comments} Comments
+                        </button>
+                        <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted rounded-md transition-colors">
+                            <Share2 size={16} /> Share
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+interface CommunityItemProps {
+    communityId: string;
+    name: string;
+    description: string | null;
+    color: string;
+    isJoining: boolean;
+    onJoin: () => void;
+    isStudent: boolean;
+    isPrivate?: boolean;
+    isEnrolled?: boolean;
+    onNavigate: (communityId: string) => void;
+}
+
+const CommunityItem = ({ communityId, name, description, color, isJoining, onJoin, isStudent, isPrivate, isEnrolled, onNavigate }: CommunityItemProps) => (
+    <div className="flex items-center justify-between group p-2 -mx-2 rounded-lg hover:bg-muted/50 transition-colors">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className={`w-8 h-8 rounded-full ${color} flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-md relative`}>
+                {name.substring(0, 1).toUpperCase()}
+                {isPrivate && (
+                    <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-background rounded-full flex items-center justify-center border border-border">
+                        <Lock size={10} className="text-frosted-blue-500" />
+                    </div>
+                )}
+            </div>
+            <div className="min-w-0">
+                <button
+                    onClick={() => onNavigate(communityId)}
+                    className="text-sm font-medium text-foreground group-hover:text-tech-blue-600 transition-colors truncate flex items-center gap-1 hover:underline cursor-pointer text-left"
+                >
+                    {name}
+                    {isPrivate && <Lock size={12} className="text-frosted-blue-500 flex-shrink-0" />}
+                </button>
+                <div className="text-xs text-muted-foreground truncate">{description}</div>
+            </div>
+        </div>
+        {isStudent && !isPrivate && (
+            isEnrolled ? (
+                <span className="px-3 py-1 bg-turf-green-500/10 text-turf-green-600 text-xs font-bold rounded-full flex-shrink-0 ml-2">
+                    Enrolled
+                </span>
+            ) : (
+                <button
+                    onClick={onJoin}
+                    disabled={isJoining}
+                    className="px-3 py-1 bg-tech-blue-500 text-white text-xs font-bold rounded-full hover:bg-tech-blue-600 transition-all duration-300 disabled:opacity-50 flex-shrink-0 ml-2 shadow-sm hover:shadow-md"
+                >
+                    {isJoining ? <Loader2 size={12} className="animate-spin" /> : 'Enroll'}
+                </button>
+            )
+        )}
+    </div>
+);
+
+interface DeadlineItemProps {
+    course: string;
+    task: string;
+    due: string;
+    isInstructor?: boolean;
+    onClick?: () => void;
+}
+
+const DeadlineItem = ({ course, task, due, isInstructor, onClick }: DeadlineItemProps) => (
+    <div
+        onClick={onClick}
+        className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-all duration-200 cursor-pointer group"
+    >
+        <div className={`w-1.5 h-12 ${isInstructor ? 'bg-royal-gold-500' : 'bg-red-500'} rounded-full flex-shrink-0 group-hover:scale-110 transition-transform`} />
+        <div className="flex-1 min-w-0">
+            <div className="text-sm font-bold text-foreground truncate group-hover:text-tech-blue-600 transition-colors">{task}</div>
+            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                <span className="truncate">{course}</span>
+                <span>•</span>
+                <span className={`${isInstructor ? 'text-royal-gold-600' : 'text-red-500'} font-medium`}>
+                    {isInstructor ? 'Pending: ' : 'Due '}{due}
+                </span>
+            </div>
+        </div>
+    </div>
+);
+
 const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
     const [activeTab, setActiveTab] = useState('popular');
     const navigate = useNavigate();
@@ -50,12 +262,23 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
     const [joiningCommunityId, setJoiningCommunityId] = useState<string | null>(null);
     const [enrolledCommunityIds, setEnrolledCommunityIds] = useState<Set<string>>(new Set());
 
-    // Set page title
-    useEffect(() => {
-        document.title = 'PeerSpace - Explore';
-    }, []);
+    // Community Pagination
+    const COMMUNITIES_PER_PAGE = 4;
+    const [publicPage, setPublicPage] = useState(1);
+    const [privatePage, setPrivatePage] = useState(1);
+    const [hasMorePublic, setHasMorePublic] = useState(true);
+    const [hasMorePrivate, setHasMorePrivate] = useState(true);
+    const [isLoadingPublic, setIsLoadingPublic] = useState(false);
+    const [isLoadingPrivate, setIsLoadingPrivate] = useState(false);
 
-    // Lazy loading states
+    // Edit/Delete State
+    const [editingPost, setEditingPost] = useState<PostResponse | null>(null);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [deletePostId, setDeletePostId] = useState<number | null>(null);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // Initial load state
     const [displayedPosts, setDisplayedPosts] = useState<PostResponse[]>([]);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [hasMore, setHasMore] = useState(true);
@@ -71,6 +294,77 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
     const filterRef = useRef<HTMLDivElement>(null);
     const communityFilterRef = useRef<HTMLDivElement>(null);
     const [isEditorOpen, setIsEditorOpen] = useState(false);
+
+    // Deadline/Submission state
+    const [deadlines, setDeadlines] = useState<any[]>([]);
+    const [pendingSubmissions, setPendingSubmissions] = useState<any[]>([]);
+
+    const handleLoadMorePublic = async () => {
+        if (isLoadingPublic || !hasMorePublic) return;
+        setIsLoadingPublic(true);
+        try {
+            const nextPage = publicPage + 1;
+            const response = await communityApi.getAll({ type: 'PUBLIC', limit: COMMUNITIES_PER_PAGE, page: nextPage });
+
+            if (response.data.length > 0) {
+                setCommunities(prev => [...prev, ...response.data]);
+                setPublicPage(nextPage);
+                setHasMorePublic(response.data.length === COMMUNITIES_PER_PAGE);
+
+                // Check enrollment for new communities
+                // Note: ideally we should refactor checkEnrollment to be reusable, but for now we trust the flow or ignore immediate check for new badges until refresh
+                // or we can just run the check for these new ones:
+                await checkEnrollmentStatus(response.data, user);
+            } else {
+                setHasMorePublic(false);
+            }
+        } catch (error) {
+            console.error('Failed to load more public communities', error);
+        } finally {
+            setIsLoadingPublic(false);
+        }
+    };
+
+    const handleLoadMorePrivate = async () => {
+        if (isLoadingPrivate || !hasMorePrivate) return;
+        setIsLoadingPrivate(true);
+        try {
+            const nextPage = privatePage + 1;
+            const response = await communityApi.getAll({ type: 'PRIVATE', limit: COMMUNITIES_PER_PAGE, page: nextPage });
+
+            if (response.data.length > 0) {
+                setPrivateCommunities(prev => [...prev, ...response.data]);
+                setPrivatePage(nextPage);
+                setHasMorePrivate(response.data.length === COMMUNITIES_PER_PAGE);
+                await checkEnrollmentStatus(response.data, user);
+            } else {
+                setHasMorePrivate(false);
+            }
+        } catch (error) {
+            console.error('Failed to load more private communities', error);
+        } finally {
+            setIsLoadingPrivate(false);
+        }
+    };
+
+    const checkEnrollmentStatus = async (communitiesToCheck: CommunityWithMeta[], currentUser: UserData | null) => {
+        if (!currentUser) return;
+        await Promise.all(
+            communitiesToCheck.map(async (community) => {
+                try {
+                    const membersResponse = await communityApi.getMembers(community.id, { limit: 100 });
+                    const isEnrolled = membersResponse.data.students.some(
+                        (student: { id: number }) => student.id === currentUser.id
+                    );
+                    if (isEnrolled) {
+                        setEnrolledCommunityIds(prev => new Set(prev).add(community.id));
+                    }
+                } catch {
+                    // ignore
+                }
+            })
+        );
+    };
 
     // Load more posts
     const loadMorePosts = useCallback(() => {
@@ -150,12 +444,14 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                 setUser(normalizedUser);
 
                 // Fetch public communities
-                const communitiesResponse = await communityApi.getAll({ type: 'PUBLIC', limit: 50 });
+                const communitiesResponse = await communityApi.getAll({ type: 'PUBLIC', limit: COMMUNITIES_PER_PAGE, page: 1 });
                 setCommunities(communitiesResponse.data);
+                setHasMorePublic(communitiesResponse.data.length === COMMUNITIES_PER_PAGE);
 
                 // Fetch private communities (user's enrolled/managed private communities)
-                const privateCommunitiesResponse = await communityApi.getAll({ type: 'PRIVATE', limit: 50 });
+                const privateCommunitiesResponse = await communityApi.getAll({ type: 'PRIVATE', limit: COMMUNITIES_PER_PAGE, page: 1 });
                 setPrivateCommunities(privateCommunitiesResponse.data);
+                setHasMorePrivate(privateCommunitiesResponse.data.length === COMMUNITIES_PER_PAGE);
 
                 // Check enrollment status for all communities
                 const allCommunities = [...communitiesResponse.data, ...privateCommunitiesResponse.data];
@@ -172,7 +468,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                             if (isEnrolled) {
                                 enrolledIds.add(community.id);
                             }
-                        } catch (err) {
+                        } catch {
                             // User might not have access to some communities
                             console.log(`Could not fetch members for community ${community.id}`);
                         }
@@ -183,6 +479,75 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
 
                 // Fetch posts from all public communities
                 await fetchPostsFromCommunities(communitiesResponse.data);
+
+                // Fetch deadlines/submissions based on role
+                if (normalizedUser.role === 'student') {
+                    // Fetch assignments for enrolled communities
+                    const enrolledCommunities = allCommunities.filter(c => enrolledIds.has(c.id));
+                    const assignmentPromises = enrolledCommunities.map(async (community) => {
+                        try {
+                            const assignmentsResponse = await assignmentApi.getByCommunity(community.id, { limit: 50 });
+                            return assignmentsResponse.data.map((a: any) => ({
+                                ...a,
+                                communityName: community.name,
+                            }));
+                        } catch {
+                            return [];
+                        }
+                    });
+                    const allAssignments = (await Promise.all(assignmentPromises)).flat();
+
+                    // Fetch student's submissions to filter out already submitted assignments
+                    let submittedAssignmentIds = new Set<number>();
+                    try {
+                        const mySubmissions = await submissionApi.getMySubmissions({ limit: 100 });
+                        submittedAssignmentIds = new Set(mySubmissions.data.map(sub => sub.aid));
+                    } catch (error) {
+                        console.error('Failed to fetch submissions:', error);
+                    }
+
+                    // Filter out submitted assignments and sort by due date
+                    const sortedAssignments = allAssignments
+                        .filter(a => a.due_date && !submittedAssignmentIds.has(a.id))
+                        .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
+                        .slice(0, 3);
+                    setDeadlines(sortedAssignments);
+                } else if (normalizedUser.role === 'instructor') {
+                    // Fetch assignments with ungraded submissions (grouped by assignment)
+                    const assignmentPromises = allCommunities.map(async (community) => {
+                        try {
+                            const assignmentsResponse = await assignmentApi.getByCommunity(community.id, { limit: 50 });
+                            return assignmentsResponse.data.map((a: any) => ({ ...a, communityName: community.name }));
+                        } catch {
+                            return [];
+                        }
+                    });
+                    const allAssignments = (await Promise.all(assignmentPromises)).flat();
+
+                    // For each assignment, count ungraded submissions
+                    const assignmentsWithPendingCount = await Promise.all(
+                        allAssignments.map(async (assignment) => {
+                            try {
+                                const submissionsResponse = await submissionApi.getByAssignment(assignment.id, { limit: 100 });
+                                const ungradedCount = submissionsResponse.data.filter(sub => sub.grade === null).length;
+                                return {
+                                    ...assignment,
+                                    ungradedCount
+                                };
+                            } catch {
+                                return { ...assignment, ungradedCount: 0 };
+                            }
+                        })
+                    );
+
+                    // Filter to only assignments with ungraded submissions, sort by count, take top 3
+                    const pendingAssignments = assignmentsWithPendingCount
+                        .filter(a => a.ungradedCount > 0)
+                        .sort((a, b) => b.ungradedCount - a.ungradedCount)
+                        .slice(0, 3);
+
+                    setPendingSubmissions(pendingAssignments);
+                }
 
             } catch (error) {
                 console.error('Failed to fetch data:', error);
@@ -247,12 +612,50 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
             setSelectedCommunity('');
             setSelectedTags([]);
             toast.success('Post created successfully!');
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Failed to create post:', err);
-            toast.error(err.response?.data?.message || 'Failed to create post');
+            const axiosError = err as { response?: { data?: { message?: string } } };
+            toast.error(axiosError.response?.data?.message || 'Failed to create post');
         } finally {
             setIsCreatingPost(false);
         }
+    };
+
+    const handleDeletePost = (postId: number) => {
+        setDeletePostId(postId);
+        setShowDeleteModal(true);
+    };
+
+    const confirmDeletePost = async () => {
+        if (!deletePostId) return;
+
+        setIsDeleting(true);
+        try {
+            await postApi.delete(deletePostId);
+            setPosts(prev => prev.filter(p => p.id !== deletePostId));
+            setDisplayedPosts(prev => prev.filter(p => p.id !== deletePostId));
+            toast.success('Post deleted successfully');
+            setShowDeleteModal(false);
+        } catch (error) {
+            console.error('Failed to delete post:', error);
+            toast.error('Failed to delete post');
+        } finally {
+            setIsDeleting(false);
+            setDeletePostId(null);
+        }
+    };
+
+    const handleEditPost = (post: PostResponse) => {
+        setEditingPost(post);
+        setShowEditModal(true);
+    };
+
+    const handleEditSuccess = (updatedPost: PostResponse) => {
+        setPosts(prev => prev.map(p => p.id === updatedPost.id ? updatedPost : p));
+        setDisplayedPosts(prev => prev.map(p => p.id === updatedPost.id ? updatedPost : p));
+        setShowEditModal(false);
+        setEditingPost(null);
+        toast.success('Post updated successfully');
     };
 
     const handleJoinCommunity = async (communityId: string) => {
@@ -273,13 +676,14 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
             // Add to enrolled set
             setEnrolledCommunityIds(prev => new Set([...prev, communityId]));
             toast.success('Successfully enrolled in community!');
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Failed to join community:', err);
+            const axiosError = err as { response?: { status?: number; data?: { message?: string } } };
             // If already enrolled error from backend, add to enrolled set
-            if (err.response?.status === 409) {
+            if (axiosError.response?.status === 409) {
                 setEnrolledCommunityIds(prev => new Set([...prev, communityId]));
             }
-            toast.error(err.response?.data?.message || 'Failed to join community');
+            toast.error(axiosError.response?.data?.message || 'Failed to join community');
         } finally {
             setJoiningCommunityId(null);
         }
@@ -306,192 +710,61 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
 
     // Render the page immediately and show skeletons for backend-driven parts while loading.
 
+    // ...existing code...
+
     return (
-        <div className="flex min-h-screen bg-background text-foreground font-sans">
-            <Sidebar onLogout={onLogout} />
+        <>
+            <div className="flex min-h-screen bg-background text-foreground font-sans">
+                <Sidebar onLogout={onLogout} />
 
-            {/* Main Content Area */}
-            <main className="flex-1 ml-20 p-6 transition-all duration-300 flex justify-center">
-                <div className="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Main Content Area */}
+                <main className="flex-1 ml-20 p-6 transition-all duration-300 flex justify-center">
+                    <div className="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-3 gap-0 m-0 p-0">
 
-                    {/* Feed Column (Center) */}
-                    <div className="lg:col-span-2 space-y-4">
-                        {/* Welcome Header with decorative elements */}
-                        <div className="mb-4 relative">
-                            <div className="absolute -top-4 -left-4 w-24 h-24 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full blur-2xl pointer-events-none" />
-                            <div className="relative">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-                                        Welcome back, {user?.fname || 'there'}!
-                                    </h1>
-                                    <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse" />
+                        {/* Feed Column (Center) */}
+                        <div className="lg:col-span-2 space-y-4 m-0 p-0">
+                            {/* Welcome Header with decorative elements */}
+                            <div className="mb-4 relative">
+                                <div className="absolute -top-4 -left-4 w-24 h-24 bg-tech-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+                                <div className="relative">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+                                            Welcome back, {user?.fname || 'User'}!
+                                        </h1>
+                                        <Sparkles className="w-5 h-5 text-royal-gold-500 animate-pulse" />
+                                    </div>
+                                    <p className="text-muted-foreground text-sm">Explore public communities and join the conversation.</p>
                                 </div>
-                                <p className="text-muted-foreground text-sm">Explore public communities and join the conversation.</p>
                             </div>
-                        </div>
 
-                        {/* Create Post Input */}
-                        <div className="bg-card p-4 rounded-xl border border-border flex flex-col gap-3 relative overflow-hidden group">
-                            {/* Animated border gradient on hover */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-purple-500/0 to-pink-500/0 group-hover:from-blue-500/5 group-hover:via-purple-500/5 group-hover:to-pink-500/5 transition-all duration-500 rounded-xl" />
+                            {/* Create Post Input */}
+                            <div className="bg-card p-4 rounded-xl border border-border flex flex-col gap-3 relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+                                {/* Subtle hover effect */}
+                                <div className="absolute inset-0 bg-tech-blue-500/0 group-hover:bg-tech-blue-500/5 transition-all duration-300 rounded-xl" />
 
-                            <div className="flex items-start gap-3 relative">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-lg shadow-blue-500/20">
-                                    {user?.fname?.[0] ?? 'U'}
-                                </div>
-                                <div className="flex-1 bg-muted/50 border border-input rounded-md flex flex-col overflow-hidden focus-within:border-ring transition-colors">
-                                    <div className="flex border-b border-input">
-                                        <select
-                                            value={selectedCommunity}
-                                            onChange={(e) => setSelectedCommunity(e.target.value)}
-                                            className="flex-1 px-3 py-2 bg-muted text-muted-foreground text-sm font-medium hover:bg-muted/80 transition-colors cursor-pointer focus:outline-none"
-                                        >
-                                            <option value="">Select Community</option>
-                                            {communities.map((community) => (
-                                                <option key={community.id} value={community.id}>
-                                                    {community.name}
-                                                </option>
-                                            ))}
-                                        </select>
+                                <div className="flex items-start gap-3 relative">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-lg shadow-blue-500/20">
+                                        {user?.fname?.[0] || 'U'}
                                     </div>
-
-                                    {/* Tags Selection */}
-                                    <div className="px-3 py-2 border-b border-input bg-muted/30 flex items-center gap-2 flex-wrap">
-                                        <Tag size={12} className="text-muted-foreground flex-shrink-0" />
-                                        {POST_TAGS.map((tag) => {
-                                            const isSelected = selectedTags.includes(tag.id);
-                                            return (
-                                                <button
-                                                    key={tag.id}
-                                                    onClick={() => {
-                                                        if (isSelected) {
-                                                            setSelectedTags(prev => prev.filter(t => t !== tag.id));
-                                                        } else {
-                                                            setSelectedTags(prev => [...prev, tag.id]);
-                                                        }
-                                                    }}
-                                                    className={`text-xs font-medium px-2 py-0.5 rounded-full transition-all ${isSelected
-                                                        ? `${tag.bgLight} ${tag.textColor} ring-1 ring-current`
-                                                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                                                        }`}
-                                                >
-                                                    {tag.label}
-                                                </button>
-                                            );
-                                        })}
-                                        {selectedTags.length > 0 && (
-                                            <button
-                                                onClick={() => setSelectedTags([])}
-                                                className="ml-auto text-muted-foreground hover:text-foreground transition-colors"
+                                    <div className="flex-1 bg-muted/50 border border-input rounded-md flex flex-col overflow-hidden focus-within:border-ring transition-colors">
+                                        <div className="flex border-b border-input">
+                                            <select
+                                                value={selectedCommunity}
+                                                onChange={(e) => setSelectedCommunity(e.target.value)}
+                                                className="flex-1 px-3 py-2 bg-muted text-muted-foreground text-sm font-medium hover:bg-muted/80 transition-colors cursor-pointer focus:outline-none"
                                             >
-                                                <X size={12} />
-                                            </button>
-                                        )}
-                                    </div>
-
-                                    <input
-                                        type="text"
-                                        placeholder="Post title..."
-                                        value={newPostTitle}
-                                        onChange={(e) => setNewPostTitle(e.target.value)}
-                                        className="bg-transparent px-4 py-2 text-sm font-medium focus:outline-none text-foreground placeholder-muted-foreground border-b border-input"
-                                    />
-                                    <textarea
-                                        placeholder="What's on your mind? (Shift+Enter for new line)"
-                                        value={newPostBody}
-                                        onChange={(e) => setNewPostBody(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && !e.shiftKey && selectedCommunity && newPostTitle.trim() && newPostBody.trim()) {
-                                                e.preventDefault();
-                                                handleCreatePost();
-                                            }
-                                        }}
-                                        rows={2}
-                                        className="flex-1 bg-transparent px-4 py-2 text-sm focus:outline-none text-foreground placeholder-muted-foreground resize-none min-h-[60px]"
-                                    />
-                                </div>
-                                <button
-                                    onClick={handleCreatePost}
-                                    disabled={!user || !selectedCommunity || !newPostTitle.trim() || !newPostBody.trim() || isCreatingPost}
-                                    className="p-2.5 bg-frosted-blue-500 hover:bg-frosted-blue-600 rounded-full text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 group/btn mt-1"
-                                >
-                                    {isCreatingPost ? (
-                                        <Loader2 size={18} className="animate-spin" />
-                                    ) : (
-                                        <Send size={18} className="transform -rotate-45" />
-                                    )}
-                                </button>
-                                <button
-                                    onClick={() => setIsEditorOpen(true)}
-                                    className="absolute bottom-2 right-14 p-2 text-muted-foreground hover:text-primary transition-colors hover:bg-muted/50 rounded-full"
-                                    title="Open full editor"
-                                >
-                                    <Maximize2 size={16} />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Editor Overlay */}
-                        {isEditorOpen && (
-                            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                                <div className="bg-card w-full max-w-4xl h-[80vh] rounded-xl shadow-2xl border border-border flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-                                    <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
-                                        <h3 className="font-semibold text-lg flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold shadow-md">
-                                                {user?.fname?.[0] ?? 'U'}
-                                            </div>
-                                            Create Post
-                                        </h3>
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={handleCreatePost}
-                                                disabled={!user || !selectedCommunity || !newPostTitle.trim() || !newPostBody.trim() || isCreatingPost}
-                                                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                            >
-                                                {isCreatingPost ? (
-                                                    <Loader2 size={16} className="animate-spin mr-2 inline" />
-                                                ) : (
-                                                    <Send size={16} className="mr-2 inline" />
-                                                )}
-                                                Post
-                                            </button>
-                                            <button
-                                                onClick={() => setIsEditorOpen(false)}
-                                                className="p-2 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground"
-                                            >
-                                                <X size={20} />
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div className="p-4 space-y-4 flex-1 overflow-y-auto bg-background">
-                                        <div className="flex gap-4">
-                                            <div className="flex-1">
-                                                <select
-                                                    value={selectedCommunity}
-                                                    onChange={(e) => setSelectedCommunity(e.target.value)}
-                                                    className="w-full px-4 py-2 bg-muted text-muted-foreground text-sm font-medium rounded-lg hover:bg-muted/80 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring"
-                                                >
-                                                    <option value="">Select Community</option>
-                                                    {communities.map((community) => (
-                                                        <option key={community.id} value={community.id}>
-                                                            {community.name}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div className="flex-1 relative">
-                                                <input
-                                                    type="text"
-                                                    placeholder="Post title..."
-                                                    value={newPostTitle}
-                                                    onChange={(e) => setNewPostTitle(e.target.value)}
-                                                    className="w-full px-4 py-2 bg-muted/50 border border-input rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder-muted-foreground"
-                                                />
-                                            </div>
+                                                <option value="">Select Community</option>
+                                                {communities.map((community) => (
+                                                    <option key={community.id} value={community.id}>
+                                                        {community.name}
+                                                    </option>
+                                                ))}
+                                            </select>
                                         </div>
 
-                                        <div className="flex flex-wrap gap-2">
+                                        {/* Tags Selection */}
+                                        <div className="px-3 py-2 border-b border-input bg-muted/30 flex items-center gap-2 flex-wrap">
+                                            <Tag size={12} className="text-muted-foreground flex-shrink-0" />
                                             {POST_TAGS.map((tag) => {
                                                 const isSelected = selectedTags.includes(tag.id);
                                                 return (
@@ -504,7 +777,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                                                 setSelectedTags(prev => [...prev, tag.id]);
                                                             }
                                                         }}
-                                                        className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${isSelected
+                                                        className={`text-xs font-medium px-2 py-0.5 rounded-full transition-all ${isSelected
                                                             ? `${tag.bgLight} ${tag.textColor} ring-1 ring-current`
                                                             : 'bg-muted text-muted-foreground hover:bg-muted/80'
                                                             }`}
@@ -513,209 +786,333 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                                     </button>
                                                 );
                                             })}
-                                        </div>
-
-                                        <div className="border border-input rounded-lg overflow-hidden min-h-[300px]">
-                                            <MarkdownEditor
-                                                value={newPostBody}
-                                                onChange={setNewPostBody}
-                                                placeholder="Write something amazing..."
-                                                className="min-h-[300px]"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Filter Bar */}
-                        <div className="flex items-center gap-4 text-sm font-medium text-muted-foreground mb-2">
-                            <button
-                                onClick={() => setActiveTab('popular')}
-                                className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${activeTab === 'popular' ? 'text-primary bg-muted' : ''}`}
-                            >
-                                <Flame size={18} /> Popular
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('new')}
-                                className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${activeTab === 'new' ? 'text-primary bg-muted' : ''}`}
-                            >
-                                <Clock size={18} /> New
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('top')}
-                                className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${activeTab === 'top' ? 'text-primary bg-muted' : ''}`}
-                            >
-                                <ArrowBigUp size={18} /> Top
-                            </button>
-
-                            {/* Filter by Post Title */}
-                            <div className="relative ml-auto" ref={filterRef}>
-                                <button
-                                    onClick={() => setIsFilterOpen(!isFilterOpen)}
-                                    className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${postTitleSearch ? 'text-primary bg-muted' : ''}`}
-                                >
-                                    <Filter size={18} />
-                                    {postTitleSearch && (
-                                        <span className="text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">1</span>
-                                    )}
-                                </button>
-
-                                {/* Filter Dropdown */}
-                                {isFilterOpen && (
-                                    <div className="absolute right-0 top-full mt-2 w-72 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                                        <div className="p-3">
-                                            <label className="text-xs font-medium text-muted-foreground mb-2 block">Search by post title</label>
-                                            <div className="relative">
-                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                                <input
-                                                    type="text"
-                                                    placeholder="Search posts..."
-                                                    value={filterSearch}
-                                                    onChange={(e) => {
-                                                        setFilterSearch(e.target.value);
-                                                        setPostTitleSearch(e.target.value);
-                                                    }}
-                                                    className="w-full pl-9 pr-3 py-2 bg-muted/50 border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder-muted-foreground"
-                                                    autoFocus
-                                                />
-                                            </div>
-                                            {postTitleSearch && (
+                                            {selectedTags.length > 0 && (
                                                 <button
-                                                    onClick={() => {
-                                                        setPostTitleSearch('');
-                                                        setFilterSearch('');
-                                                    }}
-                                                    className="mt-2 w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors flex items-center gap-2 text-destructive rounded-lg"
+                                                    onClick={() => setSelectedTags([])}
+                                                    className="ml-auto text-muted-foreground hover:text-foreground transition-colors"
                                                 >
-                                                    <X size={16} />
-                                                    Clear search
+                                                    <X size={12} />
                                                 </button>
                                             )}
                                         </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
 
-                        {/* Active Search Badge */}
-                        {postTitleSearch && (
-                            <div className="flex items-center gap-2 mb-3">
-                                <span className="text-sm text-muted-foreground">Searching:</span>
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full">
-                                    "{postTitleSearch}"
-                                    <button
-                                        onClick={() => {
-                                            setPostTitleSearch('');
-                                            setFilterSearch('');
-                                        }}
-                                        className="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
-                                    >
-                                        <X size={14} />
-                                    </button>
-                                </span>
-                            </div>
-                        )}
-
-                        {/* Posts List */}
-                        {isLoading ? (
-                            <>
-                                {[1,2,3].map(i => (
-                                    <div key={i} className="bg-card rounded-xl border border-border p-4 mb-3 animate-pulse">
-                                        <div className="flex gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-muted/30" />
-                                            <div className="flex-1">
-                                                <div className="h-4 bg-muted/30 rounded w-1/3 mb-2" />
-                                                <div className="h-3 bg-muted/30 rounded w-1/2 mb-2" />
-                                                <div className="h-3 bg-muted/30 rounded w-full" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </>
-                        ) : (postTitleSearch ? posts.filter(p => p.title.toLowerCase().includes(postTitleSearch.toLowerCase())).length === 0 : posts.length === 0) ? (
-                            <div className="bg-card rounded-xl border border-border p-12 text-center relative overflow-hidden">
-                                {/* Decorative background elements */}
-                                <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                                    <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full blur-3xl" />
-                                    <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-gradient-to-tr from-green-500/10 to-blue-500/10 rounded-full blur-3xl" />
-                                </div>
-
-                                {/* Illustration */}
-                                <div className="relative mb-6">
-                                    <div className="w-24 h-24 mx-auto bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center">
-                                        <Rocket className="w-12 h-12 text-blue-500" />
-                                    </div>
-                                    <div className="absolute top-0 right-1/3 animate-pulse">
-                                        <Sparkles className="w-6 h-6 text-yellow-500" />
-                                    </div>
-                                    <div className="absolute bottom-0 left-1/3 animate-pulse delay-300">
-                                        <Sparkles className="w-4 h-4 text-purple-500" />
-                                    </div>
-                                </div>
-
-                                <h3 className="text-lg font-semibold text-foreground mb-2">
-                                    {postTitleSearch ? 'No posts found' : 'No posts yet'}
-                                </h3>
-                                <p className="text-muted-foreground text-sm mb-4">
-                                    {postTitleSearch
-                                        ? 'Try a different search term'
-                                        : 'Be the first to share something with the community!'
-                                    }
-                                </p>
-                                <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                                    <BookOpen className="w-4 h-4" />
-                                    <span>{postTitleSearch ? 'Clear the search to see all posts' : 'Select a community above and start a conversation'}</span>
-                                </div>
-                            </div>
-                            ) : (
-                            <>
-                                {displayedPosts
-                                    .filter(post => !postTitleSearch || post.title.toLowerCase().includes(postTitleSearch.toLowerCase()))
-                                    .map((post) => (
-                                        <PostCard
-                                            key={post.id}
-                                            communityId={post.cid}
-                                            subreddit={getCommunityName(post.cid)}
-                                            author={`${post.User.fname}_${post.User.lname.charAt(0).toLowerCase()}`}
-                                            time={formatTimeAgo(post.post_date)}
-                                            title={post.title}
-                                            content={post.body || ''}
-                                            upvotes={0}
-                                            comments={post._count?.Comment || 0}
-                                            postType={post.type}
-                                            onNavigate={(id: string) => navigate(`/community/${id}`)}
+                                        <input
+                                            type="text"
+                                            placeholder="Post title..."
+                                            value={newPostTitle}
+                                            onChange={(e) => setNewPostTitle(e.target.value)}
+                                            className="bg-transparent px-4 py-2 text-sm font-medium focus:outline-none text-foreground placeholder-muted-foreground border-b border-input"
                                         />
-                                    ))}
+                                        <textarea
+                                            placeholder="What's on your mind? (Shift+Enter for new line)"
+                                            value={newPostBody}
+                                            onChange={(e) => setNewPostBody(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && !e.shiftKey && selectedCommunity && newPostTitle.trim() && newPostBody.trim()) {
+                                                    e.preventDefault();
+                                                    handleCreatePost();
+                                                }
+                                            }}
+                                            rows={2}
+                                            className="flex-1 bg-transparent px-4 py-2 text-sm focus:outline-none text-foreground placeholder-muted-foreground resize-none min-h-[60px]"
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={handleCreatePost}
+                                        disabled={!user || !selectedCommunity || !newPostTitle.trim() || !newPostBody.trim() || isCreatingPost}
+                                        className="p-2.5 bg-frosted-blue-500 hover:bg-frosted-blue-600 rounded-full text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 group/btn mt-1"
+                                    >
+                                        {isCreatingPost ? (
+                                            <Loader2 size={18} className="animate-spin" />
+                                        ) : (
+                                            <Send size={18} className="transform -rotate-45" />
+                                        )}
+                                    </button>
+                                    <button
+                                        onClick={() => setIsEditorOpen(true)}
+                                        className="absolute bottom-2 right-14 p-2 text-muted-foreground hover:text-primary transition-colors hover:bg-muted/50 rounded-full"
+                                        title="Open full editor"
+                                    >
+                                        <Maximize2 size={16} />
+                                    </button>
+                                </div>
+                            </div>
 
-                                {/* Load More Trigger */}
-                                <div ref={loadMoreRef} className="py-4">
-                                    {isLoadingMore && (
-                                        <div className="flex items-center justify-center gap-3">
-                                            <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
-                                            <span className="text-sm text-muted-foreground">Loading more posts...</span>
+                            {/* Editor Overlay */}
+                            {isEditorOpen && (
+                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                                    <div className="bg-card w-full max-w-4xl h-[80vh] rounded-xl shadow-2xl border border-border flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                                        <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
+                                            <h3 className="font-semibold text-lg flex items-center gap-2">
+                                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold shadow-md">
+                                                    {user?.fname?.[0] || 'U'}
+                                                </div>
+                                                Create Post
+                                            </h3>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={handleCreatePost}
+                                                    disabled={!user || !selectedCommunity || !newPostTitle.trim() || !newPostBody.trim() || isCreatingPost}
+                                                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                >
+                                                    {isCreatingPost ? (
+                                                        <Loader2 size={16} className="animate-spin mr-2 inline" />
+                                                    ) : (
+                                                        <Send size={16} className="mr-2 inline" />
+                                                    )}
+                                                    Post
+                                                </button>
+                                                <button
+                                                    onClick={() => setIsEditorOpen(false)}
+                                                    className="p-2 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground"
+                                                >
+                                                    <X size={20} />
+                                                </button>
+                                            </div>
                                         </div>
-                                    )}
-                                    {!hasMore && displayedPosts.length > 0 && (
-                                        <div className="text-center py-4">
-                                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-muted/50 rounded-full">
-                                                <Sparkles className="w-4 h-4 text-purple-500" />
-                                                <span className="text-sm text-muted-foreground">You've seen all posts!</span>
+
+                                        <div className="p-4 space-y-4 flex-1 overflow-y-auto bg-background">
+                                            <div className="flex gap-4">
+                                                <div className="flex-1">
+                                                    <select
+                                                        value={selectedCommunity}
+                                                        onChange={(e) => setSelectedCommunity(e.target.value)}
+                                                        className="w-full px-4 py-2 bg-muted text-muted-foreground text-sm font-medium rounded-lg hover:bg-muted/80 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring"
+                                                    >
+                                                        <option value="">Select Community</option>
+                                                        {communities.map((community) => (
+                                                            <option key={community.id} value={community.id}>
+                                                                {community.name}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div className="flex-1 relative">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Post title..."
+                                                        value={newPostTitle}
+                                                        onChange={(e) => setNewPostTitle(e.target.value)}
+                                                        className="w-full px-4 py-2 bg-muted/50 border border-input rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder-muted-foreground"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-wrap gap-2">
+                                                {POST_TAGS.map((tag) => {
+                                                    const isSelected = selectedTags.includes(tag.id);
+                                                    return (
+                                                        <button
+                                                            key={tag.id}
+                                                            onClick={() => {
+                                                                if (isSelected) {
+                                                                    setSelectedTags(prev => prev.filter(t => t !== tag.id));
+                                                                } else {
+                                                                    setSelectedTags(prev => [...prev, tag.id]);
+                                                                }
+                                                            }}
+                                                            className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${isSelected
+                                                                ? `${tag.bgLight} ${tag.textColor} ring-1 ring-current`
+                                                                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                                                                }`}
+                                                        >
+                                                            {tag.label}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            <div className="border border-input rounded-lg overflow-hidden min-h-[300px]">
+                                                <MarkdownEditor
+                                                    value={newPostBody}
+                                                    onChange={setNewPostBody}
+                                                    placeholder="Write something amazing..."
+                                                    className="min-h-[300px]"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Filter Bar */}
+                            <div className="flex items-center gap-4 text-sm font-medium text-muted-foreground mb-2">
+                                <button
+                                    onClick={() => setActiveTab('popular')}
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${activeTab === 'popular' ? 'text-primary bg-muted' : ''}`}
+                                >
+                                    <Flame size={18} /> Popular
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('new')}
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${activeTab === 'new' ? 'text-primary bg-muted' : ''}`}
+                                >
+                                    <Clock size={18} /> New
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('top')}
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${activeTab === 'top' ? 'text-primary bg-muted' : ''}`}
+                                >
+                                    <ArrowBigUp size={18} /> Top
+                                </button>
+
+                                {/* Filter by Post Title */}
+                                <div className="relative ml-auto" ref={filterRef}>
+                                    <button
+                                        onClick={() => setIsFilterOpen(!isFilterOpen)}
+                                        className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${postTitleSearch ? 'text-primary bg-muted' : ''}`}
+                                    >
+                                        <Filter size={18} />
+                                        {postTitleSearch && (
+                                            <span className="text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">1</span>
+                                        )}
+                                    </button>
+
+                                    {/* Filter Dropdown */}
+                                    {isFilterOpen && (
+                                        <div className="absolute right-0 top-full mt-2 w-72 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                            <div className="p-3">
+                                                <label className="text-xs font-medium text-muted-foreground mb-2 block">Search by post title</label>
+                                                <div className="relative">
+                                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Search posts..."
+                                                        value={filterSearch}
+                                                        onChange={(e) => {
+                                                            setFilterSearch(e.target.value);
+                                                            setPostTitleSearch(e.target.value);
+                                                        }}
+                                                        className="w-full pl-9 pr-3 py-2 bg-muted/50 border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder-muted-foreground"
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                                {postTitleSearch && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setPostTitleSearch('');
+                                                            setFilterSearch('');
+                                                        }}
+                                                        className="mt-2 w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors flex items-center gap-2 text-destructive rounded-lg"
+                                                    >
+                                                        <X size={16} />
+                                                        Clear search
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     )}
                                 </div>
-                            </>
-                        )}
+                            </div>
+
+                            {/* Active Search Badge */}
+                            {postTitleSearch && (
+                                <div className="flex items-center gap-2 mb-3">
+                                    <span className="text-sm text-muted-foreground">Searching:</span>
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full">
+                                        "{postTitleSearch}"
+                                        <button
+                                            onClick={() => {
+                                                setPostTitleSearch('');
+                                                setFilterSearch('');
+                                            }}
+                                            className="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+                                        >
+                                            <X size={14} />
+                                        </button>
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Posts List */}
+                            {(postTitleSearch ? posts.filter(p => p.title.toLowerCase().includes(postTitleSearch.toLowerCase())).length === 0 : posts.length === 0) ? (
+                                <div className="bg-card rounded-xl border border-border p-12 text-center relative overflow-hidden">
+                                    {/* Decorative background elements */}
+                                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                                        <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full blur-3xl" />
+                                        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-gradient-to-tr from-green-500/10 to-blue-500/10 rounded-full blur-3xl" />
+                                    </div>
+
+                                    {/* Illustration */}
+                                    <div className="relative mb-6">
+                                        <div className="w-24 h-24 mx-auto bg-tech-blue-500/10 rounded-full flex items-center justify-center">
+                                            <Rocket className="w-12 h-12 text-tech-blue-600" />
+                                        </div>
+                                        <div className="absolute top-0 right-1/3 animate-pulse">
+                                            <Sparkles className="w-6 h-6 text-yellow-500" />
+                                        </div>
+                                        <div className="absolute bottom-0 left-1/3 animate-pulse delay-300">
+                                            <Sparkles className="w-4 h-4 text-purple-500" />
+                                        </div>
+                                    </div>
+
+                                    <h3 className="text-lg font-semibold text-foreground mb-2">
+                                        {postTitleSearch ? 'No posts found' : 'No posts yet'}
+                                    </h3>
+                                    <p className="text-muted-foreground text-sm mb-4">
+                                        {postTitleSearch
+                                            ? 'Try a different search term'
+                                            : 'Be the first to share something with the community!'
+                                        }
+                                    </p>
+                                    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                                        <BookOpen className="w-4 h-4" />
+                                        <span>{postTitleSearch ? 'Clear the search to see all posts' : 'Select a community above and start a conversation'}</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    {displayedPosts
+                                        .filter(post => !postTitleSearch || post.title.toLowerCase().includes(postTitleSearch.toLowerCase()))
+                                        .map((post) => (
+                                            <PostCard
+                                                key={post.id}
+                                                communityId={post.cid}
+                                                subreddit={getCommunityName(post.cid)}
+                                                author={`${post.User.fname}_${post.User.lname.charAt(0).toLowerCase()}`}
+                                                time={formatTimeAgo(post.post_date)}
+                                                title={post.title}
+                                                content={post.body || ''}
+                                                upvotes={0}
+                                                comments={post._count?.Comment || 0}
+                                                postType={post.type}
+                                                onNavigate={(id: string) => navigate(`/community/${id}`)}
+                                                currentUser={user}
+                                                postAuthorId={post.owner_uid}
+                                                onEdit={() => handleEditPost(post)}
+                                                onDelete={() => handleDeletePost(post.id)}
+                                            />
+                                        ))}
+
+                                    {/* Load More Trigger */}
+                                    <div ref={loadMoreRef} className="py-4">
+                                        {isLoadingMore && (
+                                            <div className="flex items-center justify-center gap-3">
+                                                <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                                                <span className="text-sm text-muted-foreground">Loading more posts...</span>
+                                            </div>
+                                        )}
+                                        {!hasMore && displayedPosts.length > 0 && (
+                                            <div className="text-center py-4">
+                                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-muted/50 rounded-full">
+                                                    <Sparkles className="w-4 h-4 text-purple-500" />
+                                                    <span className="text-sm text-muted-foreground">You've seen all posts!</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
 
                     {/* Right Sidebar */}
-                    <div className="hidden lg:block space-y-6 sticky top-6 self-start h-fit">
+                    <div className="hidden lg:block space-y-6 sticky top-6 self-start h-fit m-0 p-0">
 
                         {/* Public Communities */}
                         <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
                             {/* Decorative corner accent */}
-                            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-blue-500/10 to-transparent rounded-bl-full" />
+                            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-tech-blue-500/10 to-transparent rounded-bl-full" />
 
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="font-bold text-foreground text-sm uppercase tracking-wider flex items-center gap-2">
@@ -766,11 +1163,11 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                             {communityFilterSearch && (
                                 <div className="flex items-center gap-1.5 mb-3 text-xs">
                                     <span className="text-muted-foreground">Filtering:</span>
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 text-blue-500 font-medium rounded-full">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-tech-blue-500/10 text-tech-blue-600 font-medium rounded-full">
                                         "{communityFilterSearch}"
                                         <button
                                             onClick={() => setCommunityFilterSearch('')}
-                                            className="hover:bg-blue-500/20 rounded-full transition-colors"
+                                            className="hover:bg-tech-blue-500/20 rounded-full transition-colors"
                                         >
                                             <X size={12} />
                                         </button>
@@ -779,29 +1176,25 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                             )}
 
                             <div className="space-y-4">
-                                {isLoading ? (
-                                    <div className="space-y-3">
-                                        {[1,2,3].map(i => (
-                                            <div key={i} className="flex items-center gap-3 p-2">
-                                                <div className="w-8 h-8 rounded-full bg-muted/30" />
-                                                <div className="flex-1">
-                                                    <div className="h-3 bg-muted/30 rounded w-2/3 mb-2" />
-                                                    <div className="h-2 bg-muted/30 rounded w-1/2" />
-                                                </div>
-                                            </div>
-                                        ))}
+                                {communities.filter(c => c.name.toLowerCase().includes(communityFilterSearch.toLowerCase())).length === 0 ? (
+                                    <div className="text-center py-6">
+                                        <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center">
+                                            <Users className="w-8 h-8 text-muted-foreground" />
+                                        </div>
+                                        <p className="text-sm text-muted-foreground">
+                                            {communityFilterSearch ? 'No communities match your search.' : 'No public communities found.'}
+                                        </p>
                                     </div>
                                 ) : (
                                     communities
                                         .filter(c => c.name.toLowerCase().includes(communityFilterSearch.toLowerCase()))
-                                        .slice(0, 5)
                                         .map((community, index) => (
                                             <CommunityItem
                                                 key={community.id}
                                                 communityId={community.id}
                                                 name={community.name}
                                                 description={community.description || 'No description'}
-                                                color={['bg-blue-500', 'bg-green-500', 'bg-red-500', 'bg-yellow-500', 'bg-purple-500'][index % 5]}
+                                                color={['bg-tech-blue-500', 'bg-turf-green-500', 'bg-destructive', 'bg-royal-gold-500', 'bg-frosted-blue-500'][index % 5]}
                                                 isJoining={joiningCommunityId === community.id}
                                                 onJoin={() => handleJoinCommunity(community.id)}
                                                 isStudent={user?.role === 'student'}
@@ -811,9 +1204,14 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                         ))
                                 )}
                             </div>
-                            {communities.filter(c => c.name.toLowerCase().includes(communityFilterSearch.toLowerCase())).length > 5 && (
-                                <button className="w-full mt-4 py-2 rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground">
-                                    View All ({communities.filter(c => c.name.toLowerCase().includes(communityFilterSearch.toLowerCase())).length})
+                            {hasMorePublic && (
+                                <button
+                                    onClick={handleLoadMorePublic}
+                                    disabled={isLoadingPublic}
+                                    className="w-full mt-4 py-2 rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground flex items-center justify-center"
+                                >
+                                    {isLoadingPublic ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
+                                    Show More
                                 </button>
                             )}
                         </div>
@@ -821,33 +1219,29 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                         {/* Private Communities */}
                         <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
                             {/* Decorative corner accent */}
-                            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-purple-500/10 to-transparent rounded-bl-full" />
+                            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-frosted-blue-500/10 to-transparent rounded-bl-full" />
 
                             <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider flex items-center gap-2">
                                 <Lock className="w-4 h-4 text-purple-500" />
                                 Private Communities
                             </h3>
                             <div className="space-y-4">
-                                {isLoading ? (
-                                    <div className="space-y-3">
-                                        {[1,2,3].map(i => (
-                                            <div key={i} className="flex items-center gap-3 p-2">
-                                                <div className="w-8 h-8 rounded-full bg-muted/30" />
-                                                <div className="flex-1">
-                                                    <div className="h-3 bg-muted/30 rounded w-2/3 mb-2" />
-                                                    <div className="h-2 bg-muted/30 rounded w-1/2" />
-                                                </div>
-                                            </div>
-                                        ))}
+                                {privateCommunities.length === 0 ? (
+                                    <div className="text-center py-6">
+                                        <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full flex items-center justify-center">
+                                            <Lock className="w-8 h-8 text-muted-foreground" />
+                                        </div>
+                                        <p className="text-sm text-muted-foreground">No private communities yet.</p>
+                                        <p className="text-xs text-muted-foreground mt-1">Join or create one to see it here.</p>
                                     </div>
                                 ) : (
-                                    privateCommunities.slice(0, 5).map((community, index) => (
+                                    privateCommunities.map((community, index) => (
                                         <CommunityItem
                                             key={community.id}
                                             communityId={community.id}
                                             name={community.name}
                                             description={community.description || 'No description'}
-                                            color={['bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-violet-500', 'bg-fuchsia-500'][index % 5]}
+                                            color={['bg-frosted-blue-500', 'bg-royal-gold-500', 'bg-tech-blue-500', 'bg-turf-green-500', 'bg-destructive'][index % 5]}
                                             isJoining={joiningCommunityId === community.id}
                                             onJoin={() => handleJoinCommunity(community.id)}
                                             isStudent={user?.role === 'student'}
@@ -858,9 +1252,14 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                     ))
                                 )}
                             </div>
-                            {privateCommunities.length > 5 && (
-                                <button className="w-full mt-4 py-2 rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground">
-                                    View All ({privateCommunities.length})
+                            {hasMorePrivate && (
+                                <button
+                                    onClick={handleLoadMorePrivate}
+                                    disabled={isLoadingPrivate}
+                                    className="w-full mt-4 py-2 rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground flex items-center justify-center"
+                                >
+                                    {isLoadingPrivate ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
+                                    Show More
                                 </button>
                             )}
                         </div>
@@ -868,7 +1267,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                         {/* Dynamic Widget based on Role */}
                         <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
                             {/* Decorative gradient */}
-                            <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-50" />
+                            <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-tech-blue-500 via-frosted-blue-500 to-turf-green-500 opacity-50" />
 
                             <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider flex items-center gap-2">
                                 <Clock className="w-4 h-4 text-purple-500" />
@@ -877,167 +1276,67 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                             <div className="space-y-3">
                                 {user?.role === 'instructor' ? (
                                     <>
-                                        <DeadlineItem course="Database" task="Grade Phase 3 Reports" due="12 pending" isInstructor />
-                                        <DeadlineItem course="Algorithms" task="Review Midterm Questions" due="Today" isInstructor />
+                                        {pendingSubmissions.length > 0 ? (
+                                            pendingSubmissions.map((assignment, idx) => (
+                                                <DeadlineItem
+                                                    key={idx}
+                                                    course={assignment.communityName}
+                                                    task={assignment.title}
+                                                    due={`${assignment.ungradedCount} submission${assignment.ungradedCount !== 1 ? 's' : ''} to grade`}
+                                                    isInstructor
+                                                    onClick={() => navigate(`/community/${assignment.cid}/assignment/${assignment.id}`)}
+                                                />
+                                            ))
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground text-center py-4">No pending submissions</p>
+                                        )}
                                     </>
                                 ) : (
                                     <>
-                                        <DeadlineItem course="Database" task="Phase 3 Report" due="Tomorrow" />
-                                        <DeadlineItem course="Web Dev" task="React Project" due="In 3 days" />
+                                        {deadlines.length > 0 ? (
+                                            deadlines.map((assignment, idx) => (
+                                                <DeadlineItem
+                                                    key={idx}
+                                                    course={assignment.communityName}
+                                                    task={assignment.title}
+                                                    due={assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : 'No due date'}
+                                                    onClick={() => navigate(`/community/${assignment.cid}/assignment/${assignment.id}`)}
+                                                />
+                                            ))
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground text-center py-4">No upcoming deadlines</p>
+                                        )}
                                     </>
                                 )}
                             </div>
                         </div>
                     </div>
-                </div>
-            </main>
-        </div>
+                </main>
+            </div>
+
+            {
+                editingPost && (
+                    <PostModal
+                        isOpen={showEditModal}
+                        onClose={() => setShowEditModal(false)}
+                        onSuccess={handleEditSuccess}
+                        post={editingPost as PostResponse}
+                    />
+                )
+            }
+
+            <ConfirmationModal
+                isOpen={showDeleteModal}
+                onClose={() => setShowDeleteModal(false)}
+                onConfirm={confirmDeletePost}
+                title="Delete Post"
+                message="Are you sure you want to delete this post? This action cannot be undone."
+                confirmText="Delete"
+                isDestructive
+                isLoading={isDeleting}
+            />
+        </>
     );
 };
-
-// Helper Components
-
-const PostCard = ({ communityId, subreddit, author, time, title, content, image, upvotes, comments, postType, onNavigate }: any) => {
-    const tags = postType?.split(',').map((t: string) => t.trim().toLowerCase()) || [];
-    const isAnnouncement = tags.includes('announcement');
-
-    const getTagStyle = (tag: string) => {
-        const styles: Record<string, { bg: string; text: string }> = {
-            announcement: { bg: 'bg-gradient-to-r from-yellow-500 to-orange-500', text: 'text-white' },
-            math: { bg: 'bg-blue-500/10', text: 'text-blue-500' },
-            scientific: { bg: 'bg-green-500/10', text: 'text-green-500' },
-            puzzles: { bg: 'bg-purple-500/10', text: 'text-purple-500' },
-            discussion: { bg: 'bg-gray-500/10', text: 'text-gray-500' },
-        };
-        return styles[tag] || styles.discussion;
-    };
-
-    return (
-        <div className={`bg-card rounded-xl border ${isAnnouncement ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-border'} hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-300 overflow-hidden group`}>
-            <div className="flex">
-                {/* Announcement Indicator or Vote Bar */}
-                {isAnnouncement ? (
-                    <div className="w-12 bg-gradient-to-b from-yellow-500/20 to-orange-500/20 flex flex-col items-center justify-center py-3 border-r border-yellow-500/30">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg shadow-yellow-500/30 animate-pulse">
-                            <Megaphone size={16} className="text-white" />
-                        </div>
-                    </div>
-                ) : (
-                    <div className="w-10 bg-gradient-to-b from-muted/50 to-muted/30 flex flex-col items-center py-3 gap-1">
-                        <button className="text-muted-foreground hover:text-orange-500 transition-colors"><ArrowBigUp size={24} /></button>
-                        <span className="text-sm font-bold text-foreground">{upvotes}</span>
-                        <button className="text-muted-foreground hover:text-blue-500 transition-colors"><ArrowBigDown size={24} /></button>
-                    </div>
-                )}
-
-                {/* Content */}
-                <div className="p-3 flex-1">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 flex-wrap">
-                        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-[10px] text-white font-bold shadow-sm">{subreddit.substring(0, 1)}</div>
-                        <button
-                            onClick={() => onNavigate && onNavigate(communityId)}
-                            className="font-bold text-foreground hover:underline hover:text-blue-500 transition-colors cursor-pointer"
-                        >
-                            {subreddit}
-                        </button>
-                        {/* Display all tags */}
-                        {tags.length > 0 && tags.map((tag: string, index: number) => {
-                            const style = getTagStyle(tag);
-                            return (
-                                <span
-                                    key={index}
-                                    className={`px-2 py-0.5 ${style.bg} ${style.text} text-[10px] font-bold rounded-full capitalize`}
-                                >
-                                    {tag}
-                                </span>
-                            );
-                        })}
-                        <span>•</span>
-                        <span>Posted by u/{author}</span>
-                        <span>•</span>
-                        <span>{time}</span>
-                    </div>
-
-                    <h3 className={`text-lg font-semibold mb-2 leading-snug ${isAnnouncement ? 'text-yellow-600 dark:text-yellow-400' : 'text-foreground'}`}>{title}</h3>
-                    {content && <p className="text-muted-foreground text-sm mb-3 line-clamp-3">{content}</p>}
-
-                    {image && (
-                        <div className="mb-3 rounded-lg overflow-hidden border border-border">
-                            <img src={image} alt="Post content" className="w-full h-auto object-cover" />
-                        </div>
-                    )}
-
-                    <div className="flex items-center gap-1 text-muted-foreground text-xs font-bold">
-                        <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted rounded-md transition-colors">
-                            <MessageSquare size={16} /> {comments} Comments
-                        </button>
-                        <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted rounded-md transition-colors">
-                            <Share2 size={16} /> Share
-                        </button>
-                        <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted rounded-md transition-colors">
-                            <MoreHorizontal size={16} /> More
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const CommunityItem = ({ communityId, name, description, color, isJoining, onJoin, isStudent, isPrivate, isEnrolled, onNavigate }: any) => (
-    <div className="flex items-center justify-between group p-2 -mx-2 rounded-lg hover:bg-muted/50 transition-colors">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className={`w-8 h-8 rounded-full ${color} flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-md relative`}>
-                {name.substring(0, 1).toUpperCase()}
-                {isPrivate && (
-                    <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-background rounded-full flex items-center justify-center border border-border">
-                        <Lock size={10} className="text-purple-500" />
-                    </div>
-                )}
-            </div>
-            <div className="min-w-0">
-                <button
-                    onClick={() => onNavigate(communityId)}
-                    className="text-sm font-medium text-foreground group-hover:text-blue-500 transition-colors truncate flex items-center gap-1 hover:underline cursor-pointer text-left"
-                >
-                    {name}
-                    {isPrivate && <Lock size={12} className="text-purple-500 flex-shrink-0" />}
-                </button>
-                <div className="text-xs text-muted-foreground truncate">{description}</div>
-            </div>
-        </div>
-        {isStudent && !isPrivate && (
-            isEnrolled ? (
-                <span className="px-3 py-1 bg-green-500/10 text-green-600 text-xs font-bold rounded-full flex-shrink-0 ml-2">
-                    Enrolled
-                </span>
-            ) : (
-                <button
-                    onClick={onJoin}
-                    disabled={isJoining}
-                    className="px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs font-bold rounded-full hover:from-blue-600 hover:to-purple-600 transition-all duration-300 disabled:opacity-50 flex-shrink-0 ml-2 shadow-sm hover:shadow-md"
-                >
-                    {isJoining ? <Loader2 size={12} className="animate-spin" /> : 'Enroll'}
-                </button>
-            )
-        )}
-    </div>
-);
-
-const DeadlineItem = ({ course, task, due, isInstructor }: any) => (
-    <div className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-all duration-200 cursor-pointer group">
-        <div className={`w-1.5 h-12 ${isInstructor ? 'bg-gradient-to-b from-yellow-400 to-orange-500' : 'bg-gradient-to-b from-red-400 to-pink-500'} rounded-full flex-shrink-0 group-hover:scale-110 transition-transform`} />
-        <div className="flex-1 min-w-0">
-            <div className="text-sm font-bold text-foreground truncate group-hover:text-blue-500 transition-colors">{task}</div>
-            <div className="text-xs text-muted-foreground flex items-center gap-1">
-                <span className="truncate">{course}</span>
-                <span>•</span>
-                <span className={`${isInstructor ? 'text-yellow-600' : 'text-red-500'} font-medium`}>
-                    {isInstructor ? 'Pending: ' : 'Due '}{due}
-                </span>
-            </div>
-        </div>
-    </div>
-);
 
 export default Explore;

@@ -1,5 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
+import { redirectToLogout } from './utils/navigation';
+import { TOASTER_CONFIG } from './constants/ui';
+import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Logout from './pages/Logout';
@@ -10,6 +13,10 @@ import Notifications from './pages/Notifications';
 import Announcements from './pages/Announcements';
 import Community from './pages/Community';
 import ManageCommunity from './pages/ManageCommunity';
+import AssignmentDetails from './pages/Assignments/AssignmentDetails';
+import Assignments from './pages/Assignments/Assignments';
+import { Submissions, SubmissionDetail } from './pages/Submissions';
+import Schedule from './pages/Schedule/Schedule';
 import FileAttachmentTest from './pages/FileTest';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
@@ -25,29 +32,8 @@ import LandingPage from './pages/LandingPage';
  */
 function App() {
   return (
-    <>
-      <Toaster
-        position="top-right"
-        richColors
-        closeButton
-        toastOptions={{
-          style: {
-            background: '#1a1a2e',
-            border: '1px solid #2a2a4a',
-            color: '#ffffff',
-            padding: '16px 20px',
-            fontSize: '15px',
-            minWidth: '320px',
-            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.4)',
-          },
-          classNames: {
-            success: 'bg-green-600 border-green-700 text-white',
-            error: 'bg-red-600 border-red-700 text-white',
-            warning: 'bg-yellow-600 border-yellow-700 text-white',
-            info: 'bg-blue-600 border-blue-700 text-white',
-          },
-        }}
-      />
+    <ErrorBoundary>
+      <Toaster {...TOASTER_CONFIG} />
       <Router>
         <Routes>
           <Route path="/" element={<LandingPage />} />
@@ -84,7 +70,7 @@ function App() {
             path="/explore"
             element={
               <ProtectedRoute>
-                <Explore onLogout={() => window.location.href = '/logout'} />
+                <Explore onLogout={redirectToLogout} />
               </ProtectedRoute>
             }
           />
@@ -126,6 +112,33 @@ function App() {
           />
 
           <Route
+            path="/assignments"
+            element={
+              <ProtectedRoute>
+                <Assignments />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/submissions"
+            element={
+              <ProtectedRoute>
+                <Submissions />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/submission/:submissionId"
+            element={
+              <ProtectedRoute>
+                <SubmissionDetail />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/notifications"
             element={
               <ProtectedRoute>
@@ -148,6 +161,24 @@ function App() {
             element={
               <ProtectedRoute>
                 <Community />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/community/:communityId/assignment/:assignmentId"
+            element={
+              <ProtectedRoute>
+                <AssignmentDetails />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/schedule"
+            element={
+              <ProtectedRoute>
+                <Schedule />
               </ProtectedRoute>
             }
           />
@@ -176,7 +207,7 @@ function App() {
           <Route path="*" element={<LandingPage />} />
         </Routes>
       </Router>
-    </>
+    </ErrorBoundary>
   );
 }
 

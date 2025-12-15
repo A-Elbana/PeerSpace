@@ -6,9 +6,9 @@ import { useResolvedFileUrl } from '../../../hooks/useResolvedFileUrl';
 
 // Available post tags
 const POST_TAGS = [
-  { id: 'math', label: 'Math', color: 'bg-blue-500', textColor: 'text-blue-500', bgLight: 'bg-blue-500/10' },
-  { id: 'scientific', label: 'Scientific', color: 'bg-green-500', textColor: 'text-green-500', bgLight: 'bg-green-500/10' },
-  { id: 'puzzles', label: 'Puzzles', color: 'bg-purple-500', textColor: 'text-purple-500', bgLight: 'bg-purple-500/10' },
+  { id: 'math', label: 'Math', color: 'bg-tech-blue-500', textColor: 'text-tech-blue-600', bgLight: 'bg-tech-blue-500/10' },
+  { id: 'scientific', label: 'Scientific', color: 'bg-turf-green-500', textColor: 'text-turf-green-600', bgLight: 'bg-turf-green-500/10' },
+  { id: 'puzzles', label: 'Puzzles', color: 'bg-royal-gold-500', textColor: 'text-royal-gold-600', bgLight: 'bg-royal-gold-500/10' },
 ] as const;
 
 interface CreatePostProps {
@@ -63,9 +63,10 @@ const CreatePost: React.FC<CreatePostProps> = ({
       setNewPostBody('');
       setSelectedTags([]);
       toast.success('Post created successfully!');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to create post:', err);
-      toast.error(err.response?.data?.message || 'Failed to create post');
+      const axiosError = err as { response?: { data?: { message?: string } } };
+      toast.error(axiosError.response?.data?.message || 'Failed to create post');
     } finally {
       setIsCreatingPost(false);
     }
@@ -84,7 +85,7 @@ const CreatePost: React.FC<CreatePostProps> = ({
             className="w-10 h-10 rounded-full object-cover flex-shrink-0 border border-border"
           />
         ) : (
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-lg shadow-blue-500/20">
+          <div className="w-10 h-10 rounded-full bg-tech-blue-500 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-lg shadow-tech-blue-500/20">
             {userFirstName[0]}
           </div>
         )}
@@ -147,7 +148,7 @@ const CreatePost: React.FC<CreatePostProps> = ({
         <button
           onClick={handleCreatePost}
           disabled={!newPostTitle.trim() || !newPostBody.trim() || isCreatingPost}
-          className="p-2.5 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-full text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-blue-500/30 group/btn mt-1"
+          className="p-2.5 bg-tech-blue-500 hover:bg-tech-blue-600 rounded-full text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-tech-blue-500/30 group/btn mt-1"
         >
           {isCreatingPost ? (
             <Loader2 size={18} className="animate-spin" />

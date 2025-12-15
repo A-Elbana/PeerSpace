@@ -15,7 +15,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, onClick, onDelet
             onClick={() => onClick(folder)}
             className="group relative flex flex-col items-center justify-center p-6 bg-card hover:bg-muted/50 border border-border rounded-xl cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-1"
         >
-            <div className={`w-16 h-16 mb-4 rounded-2xl flex items-center justify-center ${folder.color || 'bg-blue-500/10 text-blue-500'}`}>
+            <div className={`w-16 h-16 mb-4 rounded-2xl flex items-center justify-center ${folder.color || 'bg-tech-blue-500/10 text-tech-blue-600'}`}>
                 <FolderIcon size={32} fill="currentColor" className="opacity-80" />
             </div>
             <h3 className="text-base font-semibold text-foreground text-center truncate w-full px-2">
