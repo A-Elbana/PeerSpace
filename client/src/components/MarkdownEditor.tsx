@@ -101,7 +101,7 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
     }
 
     return (
-        <div className="flex flex-wrap items-center gap-1 p-2 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10 w-full">
+        <div className="flex flex-wrap items-center gap-1 p-2 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10 w-full rounded-t-xl">
             <MenuButton
                 onClick={() => editor.chain().focus().toggleBold().run()}
                 disabled={!editor.can().chain().focus().toggleBold().run()}

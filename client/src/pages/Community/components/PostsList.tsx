@@ -115,7 +115,7 @@ const PostCard: React.FC<{
         )}
 
         {/* Post Content */}
-        <div className="flex-1 p-4 relative">
+        <div className="flex-1 p-4 relative overflow-hidden">
           {/* Post Header */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
