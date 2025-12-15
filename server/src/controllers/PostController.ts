@@ -137,7 +137,7 @@ export const getPostById = async (req: PostRequest, res: Response) => {
     const files = await prisma.file.findMany({
       where: {
         context: "POST",
-        context_id: postId,
+        context_id: String(postId),
       },
       select: {
         id: true,
@@ -336,7 +336,7 @@ export const deletePost = async (req: PostRequest, res: Response) => {
     const files = await prisma.file.findMany({
       where: {
         context: "POST",
-        context_id: req.post.id,
+        context_id: String(req.post.id),
       },
     });
 
@@ -358,7 +358,7 @@ export const deletePost = async (req: PostRequest, res: Response) => {
     await prisma.file.deleteMany({
       where: {
         context: "POST",
-        context_id: req.post.id,
+        context_id: String(req.post.id),
       },
     });
 

@@ -144,7 +144,7 @@ export const getNoteById = async (req: NoteRequest, res: Response) => {
   const files = await prisma.file.findMany({
     where: {
       context: "NOTE",
-      context_id: req.note.id,
+      context_id: String(req.note.id),
     },
     select: {
       id: true,
@@ -264,7 +264,7 @@ export const deleteNote = async (req: NoteRequest, res: Response) => {
     const files = await prisma.file.findMany({
       where: {
         context: "NOTE",
-        context_id: note.id,
+        context_id: String(note.id),
       },
     });
 
@@ -286,7 +286,7 @@ export const deleteNote = async (req: NoteRequest, res: Response) => {
     await prisma.file.deleteMany({
       where: {
         context: "NOTE",
-        context_id: note.id,
+        context_id: String(note.id),
       },
     });
 

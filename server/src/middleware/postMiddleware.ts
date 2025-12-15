@@ -1,7 +1,11 @@
 import { Request, Response, NextFunction } from "express";
 import prisma from "../config/prisma";
 import { Role, CommunityType } from "../generated/prisma/client";
-import { isValidUUID, isUserMemberOfCommunity, isUserManagerOfCommunity } from "../utils/helpers";
+import {
+  isValidUUID,
+  isUserMemberOfCommunity,
+  isUserManagerOfCommunity,
+} from "../utils/helpers";
 
 /**
  * Extended Request with post data
@@ -23,7 +27,15 @@ export const loadPost = async (
 ) => {
   const postId = parseInt(req.params.id || req.params.postId || "");
 
+  console.log(
+    "[loadPost] Attempting to load post with ID:",
+    req.params.id,
+    "parsed:",
+    postId
+  );
+
   if (isNaN(postId)) {
+    console.log("[loadPost] Invalid post ID");
     return res.status(400).json({ message: "Invalid post ID" });
   }
 
@@ -96,7 +108,9 @@ export const authorizePostAccess = async (
   if (!isMember) {
     return res
       .status(403)
-      .json({ message: "You must be a member to access this private community" });
+      .json({
+        message: "You must be a member to access this private community",
+      });
   }
 
   next();
@@ -181,7 +195,9 @@ export const requirePostMembership = async (
     if (!isMember) {
       return res
         .status(403)
-        .json({ message: "You must be a member of this community to create posts" });
+        .json({
+          message: "You must be a member of this community to create posts",
+        });
     }
 
     req.community = community;
@@ -191,4 +207,3 @@ export const requirePostMembership = async (
     res.status(500).json({ message: "Failed to verify membership" });
   }
 };
-
