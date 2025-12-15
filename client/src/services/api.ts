@@ -345,6 +345,17 @@ export const postApi = {
     return response.data;
   },
 
+  // Get posts created by the authenticated user
+  getMyPosts: async (params?: { page?: number; limit?: number; }): Promise<{ message?: string; data: PostResponse[]; meta: PaginationMeta; }> => {
+    const cleanParams: any = {};
+    if (params) {
+      if (params.page) cleanParams.page = params.page;
+      if (params.limit) cleanParams.limit = params.limit;
+    }
+    const response = await api.get('/posts/me', { params: cleanParams });
+    return response.data;
+  },
+
   getById: async (id: number): Promise<PostResponse> => {
     const response = await api.get(`/posts/${id}`);
     return response.data;
