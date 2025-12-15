@@ -20,10 +20,13 @@ import {
 } from 'lucide-react';
 import { Sidebar } from '../../components/dashboard';
 import { Button } from '../../components/ui/button';
+import DropdownSearch from '../../components/ui/DropdownSearch';
 import { DeleteConfirmationModal } from '../../components/common/DeleteConfirmationModal';
 import { MarkdownEditor, MarkdownPreview } from '../../components/MarkdownEditor';
 import api from '../../services/api';
 import { toast } from 'sonner';
+import TagChip from '../../components/common/TagChip';
+import SubtaskCard from './components/SubtaskCard';
 
 type UserRole = 'student' | 'instructor' | 'admin';
 
@@ -60,6 +63,7 @@ interface Task {
     priority: 'low' | 'medium' | 'high';
     status: boolean;
     assignmentRelation: string | null;
+    assignmentRelationId?: number | null;
     tags: string[];
     files: TaskFile[];
     parentTask: string | null;
@@ -127,30 +131,30 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
                         const mapped = mapBackendTask(backendTask);
                         setTask(mapped);
                         setEditedTask(mapped);
+                        // fetch subtasks for this task
+                        try {
+                            const stRes = await api.get(`/tasks/${taskId}/subtasks`);
+                            const backendSubtasks = stRes.data?.data ?? stRes.data ?? [];
+                            const mappedSub = (Array.isArray(backendSubtasks) ? backendSubtasks : []).map(mapBackendTask);
+                            setSubtasks(mappedSub);
+                        } catch (e) {
+                            console.error('Failed to load subtasks:', e);
+                        }
                     } catch (err) {
                         console.error('Failed to fetch task:', err);
                         // keep behavior of showing not found
                     }
                 }
 
-                // Fetch user's communities and assignments for relation dropdown
+                // Fetch user's assignments across enrolled communities for relation dropdown
                 try {
                     setAssignmentsLoading(true);
-                    // fetch communities (showing public + user's private memberships)
-                    const commRes = await api.get('/communities', { params: { limit: 100 } });
-                    const communities = commRes.data?.data || [];
-
-                    // Fetch assignments for each community in parallel
-                    const assignmentPromises = communities.map((c: any) =>
-                        api.get('/assignments', { params: { cid: c.id, limit: 100 } }).then(r => ({ community: c, assignments: r.data?.data || [] })).catch(() => ({ community: c, assignments: [] }))
-                    );
-
-                    const settled = await Promise.all(assignmentPromises);
-                    const merged: Array<{ id: number; title: string; community: string }> = [];
-                    settled.forEach((s: any) => {
-                        s.assignments.forEach((a: any) => {
-                            merged.push({ id: a.id, title: a.title, community: s.community.name });
-                        });
+                    const res = await api.get('/assignments/me', { params: { limit: 500 } });
+                    // Support both { data: { data: [...] } } and direct array responses
+                    const items = res.data?.data ?? res.data ?? [];
+                    const merged: Array<{ id: number; title: string; community: string }> = (Array.isArray(items) ? items : []).map((a: any) => {
+                        const communityName = a.Community?.name ?? a.community?.name ?? a.cid ?? 'Unknown';
+                        return { id: a.id, title: a.title, community: communityName };
                     });
                     setAssignments(merged);
                 } catch (err) {
@@ -170,6 +174,16 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
 
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [newTag, setNewTag] = useState('');
+    const [isTagSaving, setIsTagSaving] = useState(false);
+    const [stagedTags, setStagedTags] = useState<string[]>([]);
+    const [subtasks, setSubtasks] = useState<Task[]>([]);
+    const [eligibleTasks, setEligibleTasks] = useState<Array<{ id: number; title: string }>>([]);
+    const [isSubtaskDropdownOpen, setIsSubtaskDropdownOpen] = useState(false);
+    const [subtaskSearchQuery, setSubtaskSearchQuery] = useState('');
+    const [isLinkingSubtask, setIsLinkingSubtask] = useState(false);
+    const [openingSubtaskId, setOpeningSubtaskId] = useState<string | null>(null);
+    const [unlinkingSubtaskId, setUnlinkingSubtaskId] = useState<string | null>(null);
 
     // file upload handlers removed (attachments disabled)
 
@@ -228,11 +242,14 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
         }
 
         let assignmentRelation = null;
+        let assignmentRelationId: number | null = null;
         if (t.TaskAssignmentRelation) {
             if (Array.isArray(t.TaskAssignmentRelation)) {
                 assignmentRelation = t.TaskAssignmentRelation[0]?.Assignment?.title ?? null;
+                assignmentRelationId = t.TaskAssignmentRelation[0]?.Assignment?.id ?? null;
             } else {
                 assignmentRelation = t.TaskAssignmentRelation.Assignment?.title ?? null;
+                assignmentRelationId = t.TaskAssignmentRelation.Assignment?.id ?? null;
             }
         }
 
@@ -258,6 +275,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
             priority,
             status: t.status === 2,
             assignmentRelation,
+            assignmentRelationId,
             tags,
             files: Array.isArray(t.File) ? t.File.map((f: any) => ({ id: String(f.id), name: f.name, url: f.secure_url ?? f.url ?? '', type: f.resource_type ?? 'file' })) : [],
             parentTask: t.Task?.title ?? null,
@@ -280,12 +298,79 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
             };
 
             const res = await api.patch(`/tasks/${Number(task.id)}`, payload);
-            const updated = res.data?.task ?? res.data;
+            // After updating task fields, handle assignment link/unlink if it changed
+            const originalAssignmentId = task.assignmentRelationId ?? null;
+            const newAssignmentId = editedTask.assignmentRelationId ?? null;
+
+            if (originalAssignmentId !== newAssignmentId) {
+                try {
+                    if (originalAssignmentId && !newAssignmentId) {
+                        await api.delete(`/tasks/${Number(task.id)}/assignment`);
+                    } else if (!originalAssignmentId && newAssignmentId) {
+                        await api.post(`/tasks/${Number(task.id)}/assignment`, { assignment_id: newAssignmentId });
+                    } else if (originalAssignmentId && newAssignmentId && originalAssignmentId !== newAssignmentId) {
+                        // replace: unlink then link
+                        try {
+                            await api.delete(`/tasks/${Number(task.id)}/assignment`);
+                        } catch (e) {
+                            // ignore unlink errors and try to link new one
+                        }
+                        await api.post(`/tasks/${Number(task.id)}/assignment`, { assignment_id: newAssignmentId });
+                    }
+                } catch (e) {
+                    console.error('Failed to update task-assignment relation:', e);
+                    toast.error('Failed to update assignment relation');
+                }
+            }
+
+            // Handle staged tag changes: do not add/remove until user saves — now apply them
+            try {
+                const originalTags = task.tags ?? [];
+                const newTags = stagedTags ?? originalTags;
+
+                const tagsToAdd = newTags.filter(t => !originalTags.includes(t));
+                const tagsToRemove = originalTags.filter(t => !newTags.includes(t));
+
+                // perform removals first
+                for (const tag of tagsToRemove) {
+                    try {
+                        await api.delete(`/tasks/${Number(task.id)}/tags/${encodeURIComponent(tag)}`);
+                    } catch (e) {
+                        console.error('Failed to remove tag during save:', tag, e);
+                    }
+                }
+
+                for (const tag of tagsToAdd) {
+                    try {
+                        await api.post(`/tasks/${Number(task.id)}/tags`, { tag });
+                    } catch (e) {
+                        console.error('Failed to add tag during save:', tag, e);
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to sync tags during save:', e);
+            }
+
+            // Re-fetch full task to get canonical state (including relation and tags)
+            const refreshed = await api.get(`/tasks/${Number(task.id)}`);
+            const updated = refreshed.data?.task ?? refreshed.data ?? res.data?.task ?? res.data;
             const mapped = mapBackendTask(updated);
             setTask(mapped);
             setEditedTask(mapped);
+            setStagedTags([]);
+            setNewTag('');
             setIsEditing(false);
             toast.success('Task updated');
+
+            // refresh subtasks after save (assignment/linking may have changed)
+            try {
+                const stRes = await api.get(`/tasks/${Number(task.id)}/subtasks`);
+                const backendSubtasks = stRes.data?.data ?? stRes.data ?? [];
+                const mappedSub = (Array.isArray(backendSubtasks) ? backendSubtasks : []).map(mapBackendTask);
+                setSubtasks(mappedSub);
+            } catch (e) {
+                console.error('Failed to refresh subtasks:', e);
+            }
         } catch (err) {
             console.error('Failed to save task:', err);
             toast.error('Failed to save task');
@@ -296,6 +381,8 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
 
     const handleCancel = () => {
         setEditedTask(task);
+        setStagedTags([]);
+        setNewTag('');
         setIsEditing(false);
     };
 
@@ -308,6 +395,73 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
         } catch (err) {
             console.error('Failed to delete task:', err);
             toast.error('Failed to delete task');
+        }
+    };
+
+    const fetchEligibleTasks = async () => {
+        if (!task) return;
+        try {
+            // fetch user's tasks that have no parent (parent_only=true)
+            const res = await api.get('/tasks', { params: { limit: 500, parent_only: true } });
+            const items = res.data?.data ?? res.data ?? [];
+            const list = (Array.isArray(items) ? items : []).filter((t: any) => String(t.id) !== String(task.id)).map((t: any) => ({ id: t.id, title: t.title ?? t.name ?? 'Untitled' }));
+            setEligibleTasks(list);
+        } catch (e) {
+            console.error('Failed to fetch eligible subtasks:', e);
+        }
+    };
+
+    // ensure eligible tasks are loaded when the main task is available
+    useEffect(() => {
+        if (task) {
+            fetchEligibleTasks();
+        }
+    }, [task?.id]);
+
+    const linkSubtask = async (childId: number) => {
+        if (!task) return;
+        setIsLinkingSubtask(true);
+        try {
+            await api.patch(`/tasks/${childId}`, { parent_task: Number(task.id) });
+            toast.success('Subtask linked');
+            // refresh subtasks
+            const stRes = await api.get(`/tasks/${Number(task.id)}/subtasks`);
+            const backendSubtasks = stRes.data?.data ?? stRes.data ?? [];
+            const mappedSub = (Array.isArray(backendSubtasks) ? backendSubtasks : []).map(mapBackendTask);
+            setSubtasks(mappedSub);
+            // remove from eligible list
+            setEligibleTasks(prev => prev.filter(t => t.id !== childId));
+            setIsSubtaskDropdownOpen(false);
+        } catch (e: any) {
+            console.error('Failed to link subtask:', e);
+            const serverMessage = e?.response?.data?.message ?? e?.message ?? '';
+            if (typeof serverMessage === 'string' && (serverMessage.includes('Circular') || serverMessage.includes("own parent"))) {
+                toast.error('Cannot link task: circular parent relationship would be created');
+            } else {
+                toast.error('Failed to link subtask');
+            }
+        } finally {
+            setIsLinkingSubtask(false);
+        }
+    };
+
+    const unlinkSubtask = async (childId: number) => {
+        if (!task) return;
+        setUnlinkingSubtaskId(String(childId));
+        try {
+            await api.patch(`/tasks/${childId}`, { parent_task: null });
+            toast.success('Subtask unlinked');
+            const stRes = await api.get(`/tasks/${Number(task.id)}/subtasks`);
+            const backendSubtasks = stRes.data?.data ?? stRes.data ?? [];
+            const mappedSub = (Array.isArray(backendSubtasks) ? backendSubtasks : []).map(mapBackendTask);
+            setSubtasks(mappedSub);
+            // refresh eligible tasks
+            await fetchEligibleTasks();
+        } catch (e) {
+            console.error('Failed to unlink subtask:', e);
+            toast.error('Failed to unlink subtask');
+        } finally {
+            setUnlinkingSubtaskId(null);
         }
     };
 
@@ -446,7 +600,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
                                                     <button
                                                         type="button"
                                                         onClick={() => {
-                                                            setEditedTask(editedTask ? { ...editedTask, assignmentRelation: null } : null);
+                                                            setEditedTask(editedTask ? { ...editedTask, assignmentRelation: null, assignmentRelationId: null } : null);
                                                             setIsRelationDropdownOpen(false);
                                                             setRelationSearchQuery('');
                                                         }}
@@ -475,12 +629,12 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
                                                                     key={assignment.id}
                                                                     type="button"
                                                                     onClick={() => {
-                                                                        setEditedTask(editedTask ? { ...editedTask, assignmentRelation: assignment.title } : null);
+                                                                        setEditedTask(editedTask ? { ...editedTask, assignmentRelation: assignment.title, assignmentRelationId: assignment.id } : null);
                                                                         setIsRelationDropdownOpen(false);
                                                                         setRelationSearchQuery('');
                                                                     }}
                                                                     className={`w-full px-3 py-2 text-left hover:bg-muted/50 transition-colors ${
-                                                                        editedTask?.assignmentRelation === assignment.title ? 'bg-primary/10' : ''
+                                                                        editedTask?.assignmentRelationId === assignment.id ? 'bg-primary/10' : ''
                                                                     }`}
                                                                 >
                                                                     <div className="text-sm font-medium truncate">{assignment.title}</div>
@@ -507,7 +661,11 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            onClick={() => setIsEditing(true)}
+                                            onClick={() => {
+                                                setStagedTags(task?.tags ?? []);
+                                                setNewTag('');
+                                                setIsEditing(true);
+                                            }}
                                         >
                                             <Edit2 className="w-4 h-4 mr-2" />
                                             Edit
@@ -661,24 +819,145 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
                         </div>
 
                         {/* Tags */}
-                        {task.tags.length > 0 && (
-                            <div className="mb-6">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Tag className="w-4 h-4 text-muted-foreground" />
-                                    <span className="text-sm font-medium text-muted-foreground">Tags</span>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {task.tags.map((tag, index) => (
-                                        <span
-                                            key={index}
-                                            className="px-3 py-1 bg-primary/10 text-primary text-sm rounded-full"
-                                        >
-                                            {tag}
-                                        </span>
-                                    ))}
-                                </div>
+                        <div className="mb-6">
+                            <div className="flex items-center gap-2 mb-3">
+                                <Tag className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-sm font-medium text-muted-foreground">Tags</span>
                             </div>
-                        )}
+                            <div className="flex flex-wrap gap-2 mb-3">
+                                {(() => {
+                                    const original = task.tags ?? [];
+                                    const staged = stagedTags ?? original;
+                                    const additions = staged.filter(t => !original.includes(t));
+
+                                    if (original.length === 0 && additions.length === 0) {
+                                        return <span className="text-sm text-muted-foreground">No tags</span>;
+                                    }
+
+                                    return (
+                                        <>
+                                            {original.map((tag, index) => {
+                                                const removed = isEditing && !staged.includes(tag);
+                                                return (
+                                                    <TagChip
+                                                        key={`orig-${index}-${tag}`}
+                                                        label={tag}
+                                                        removable={isEditing}
+                                                        className={removed ? 'opacity-50 line-through' : ''}
+                                                        onRemove={() => {
+                                                            // mark for removal by removing from stagedTags
+                                                            setStagedTags(prev => prev.filter(t => t !== tag));
+                                                        }}
+                                                    />
+                                                );
+                                            })}
+
+                                            {additions.map((tag, idx) => (
+                                                <TagChip
+                                                    key={`add-${idx}-${tag}`}
+                                                    label={tag}
+                                                    removable={isEditing}
+                                                    onRemove={() => {
+                                                        // remove staged addition
+                                                        setStagedTags(prev => prev.filter(t => t !== tag));
+                                                    }}
+                                                />
+                                            ))}
+                                        </>
+                                    );
+                                })()}
+                            </div>
+
+                            {isEditing && (
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="text"
+                                        placeholder="Add tag"
+                                        value={newTag}
+                                        onChange={(e) => setNewTag(e.target.value)}
+                                        className="px-3 py-1 rounded-md bg-muted/50 text-sm w-48 focus:outline-none"
+                                    />
+                                    <Button
+                                            size="sm"
+                                            onClick={async () => {
+                                                if (!editedTask || !task) return;
+                                                const tag = newTag.trim();
+                                                if (!tag) return;
+                                                if ((stagedTags ?? []).includes(tag) || (task.tags ?? []).includes(tag)) {
+                                                    toast.error('Tag already added');
+                                                    return;
+                                                }
+                                                try {
+                                                    setIsTagSaving(true);
+                                                    // stage locally; do not call API until save
+                                                    setStagedTags(prev => [...prev, tag]);
+                                                    setNewTag('');
+                                                } catch (e) {
+                                                    console.error('Failed to stage tag:', e);
+                                                    toast.error('Failed to add tag');
+                                                } finally {
+                                                    setIsTagSaving(false);
+                                                }
+                                            }}
+                                            disabled={isTagSaving}
+                                        >
+                                            {isTagSaving ? (
+                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            ) : null}
+                                            Add
+                                        </Button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Subtasks */}
+                        <div className="mb-6">
+                            <div className="flex items-center gap-2 mb-3">
+                                <svg className="w-4 h-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2v6M12 16v6M5 8h14M5 20h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                <span className="text-sm font-medium text-muted-foreground">Subtasks</span>
+                            </div>
+
+                                    <div className={`flex flex-col gap-2 mb-3 ${openingSubtaskId ? 'pointer-events-none opacity-60' : ''}`}>
+                                {subtasks.length === 0 ? (
+                                    <span className="text-sm text-muted-foreground">No subtasks</span>
+                                ) : (
+                                    subtasks.map((st) => (
+                                                <SubtaskCard
+                                                    key={st.id}
+                                                    subtask={{ id: st.id, title: st.title }}
+                                                    openingSubtaskId={openingSubtaskId}
+                                                    unlinkingSubtaskId={unlinkingSubtaskId}
+                                                    onOpen={async () => {
+                                                        setOpeningSubtaskId(st.id);
+                                                        setIsSubtaskDropdownOpen(false);
+                                                        try {
+                                                            await new Promise((res) => setTimeout(res, 200));
+                                                            navigate(`/tasks/${st.id}`);
+                                                        } finally {
+                                                            setOpeningSubtaskId(null);
+                                                        }
+                                                    }}
+                                                    onUnlink={async () => { await unlinkSubtask(Number(st.id)); }}
+                                                    disabled={!!openingSubtaskId || !!unlinkingSubtaskId}
+                                                />
+                                    ))
+                                )}
+                            </div>
+
+                            <div className="mb-2 max-w-md">
+                                <DropdownSearch
+                                    options={eligibleTasks.map(t => ({ value: String(t.id), label: t.title }))}
+                                    value={null}
+                                    onChange={async (opt) => {
+                                        if (!opt) return;
+                                        // link selected task as subtask
+                                        await linkSubtask(Number(opt.value));
+                                    }}
+                                    placeholder="Add existing task as subtask..."
+                                    maxHeight={192}
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     {/* Description */}
