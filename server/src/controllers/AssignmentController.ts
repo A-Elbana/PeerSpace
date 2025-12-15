@@ -310,7 +310,7 @@ export const getAssignmentById = async (
   const files = await prisma.file.findMany({
     where: {
       context: "ASSIGNMENT",
-      context_id: req.assignment.id,
+      context_id: String(req.assignment.id),
     },
     select: {
       id: true,
@@ -448,7 +448,7 @@ export const deleteAssignment = async (
       const files = await tx.file.findMany({
         where: {
           context: "ASSIGNMENT",
-          context_id: assignment.id,
+          context_id: String(assignment.id),
         },
       });
 
