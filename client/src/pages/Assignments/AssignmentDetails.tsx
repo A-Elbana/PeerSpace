@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/button';
 import api, { assignmentApi, submissionApi, communityApi, fileApi } from '../../services/api';
 import { Sidebar } from '../../components/dashboard';
 import { AssignmentModal } from '../../components/assignments';
-import { MarkdownView } from '../../components/MarkdownView';
+import { MarkdownPreview } from '../../components/MarkdownEditor';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 
 interface AssignmentDetailsData {
@@ -454,7 +454,7 @@ const AssignmentDetails: React.FC = () => {
                             <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
                                 <h2 className="text-lg font-semibold mb-4 text-foreground">Description</h2>
                                 {assignment.description ? (
-                                    <MarkdownView content={assignment.description} />
+                                    <MarkdownPreview content={assignment.description} />
                                 ) : (
                                     <span className="italic opacity-50">No instructions provided.</span>
                                 )}

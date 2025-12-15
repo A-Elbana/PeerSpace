@@ -5,8 +5,7 @@ import { Sidebar } from '../components/dashboard';
 import { Flame, Clock, Filter, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, MoreHorizontal, Loader2, Sparkles, Users, BookOpen, Rocket, Send, Megaphone, Lock, Search, X, Tag, Maximize2, PenSquare, Trash2 } from 'lucide-react';
 import api, { communityApi, postApi, assignmentApi, submissionApi, type CommunityResponse, type PostResponse } from '../services/api';
 import { removeTokens } from '../utils/auth';
-import { MarkdownEditor } from '../components/MarkdownEditor';
-import { MarkdownView } from '../components/MarkdownView';
+import { MarkdownEditor, MarkdownPreview } from '../components/MarkdownEditor';
 import { PostModal } from '../components/posts';
 import { ConfirmationModal } from '../components/ui/ConfirmationModal';
 import {
@@ -146,7 +145,7 @@ const PostCard = ({ communityId, subreddit, author, time, title, content, image,
                         <span>{time}</span>
                     </div>
                     <h3 className={`text-lg font-semibold mb-2 leading-snug ${isAnnouncement ? 'text-yellow-600 dark:text-yellow-400' : 'text-foreground'}`}>{title}</h3>
-                    {content && <MarkdownView content={content} className="text-sm mb-3" />}
+                    {content && <MarkdownPreview content={content} className="text-sm mb-3" />}
                     {image && (
                         <div className="mb-3 rounded-lg overflow-hidden border border-border">
                             <img src={image} alt="Post content" className="w-full h-auto object-cover" />

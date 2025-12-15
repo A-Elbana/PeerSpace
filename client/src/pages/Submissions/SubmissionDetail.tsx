@@ -21,7 +21,7 @@ import {
 import { toast } from 'sonner';
 import { Button } from '../../components/ui/button';
 import { Sidebar } from '../../components/dashboard';
-import { MarkdownView } from '../../components/MarkdownView';
+import { MarkdownPreview } from '../../components/MarkdownEditor';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { removeTokens } from '../../utils/auth';
 import api, { submissionApi, assignmentApi } from '../../services/api';
@@ -488,7 +488,7 @@ const SubmissionDetail: React.FC = () => {
                 <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
                   <h2 className="text-lg font-semibold mb-4 text-foreground">Assignment Details</h2>
                   {submission.Assignment.description ? (
-                    <MarkdownView content={submission.Assignment.description} />
+                    <MarkdownPreview content={submission.Assignment.description} />
                   ) : (
                     <span className="italic opacity-50">No instructions provided.</span>
                   )}

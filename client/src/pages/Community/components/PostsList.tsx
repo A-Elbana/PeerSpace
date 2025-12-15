@@ -1,4 +1,4 @@
-import { MarkdownView } from '../../../components/MarkdownView';
+import { MarkdownPreview } from '../../../components/MarkdownEditor';
 import { MessageSquare, Clock, User, ArrowBigUp, ArrowBigDown, Megaphone, MoreHorizontal, PenSquare, Trash2 } from 'lucide-react';
 import { useResolvedFileUrl } from '../../../hooks/useResolvedFileUrl';
 import { useState, useRef, useEffect } from 'react';
@@ -189,7 +189,7 @@ const PostCard: React.FC<{
           <h3 className={`font-semibold mb-2 ${isAnnouncement ? 'text-yellow-600 dark:text-yellow-400' : 'text-foreground'
             }`}>{post.title}</h3>
           {post.body && (
-            <MarkdownView content={post.body} className="text-sm mb-3" />
+            <MarkdownPreview content={post.body} className="text-sm mb-3" />
           )}
 
           {/* Post Footer */}
