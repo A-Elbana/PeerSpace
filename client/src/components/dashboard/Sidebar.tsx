@@ -13,6 +13,7 @@ import {
   CheckSquare,
   ClipboardList,
   FileCheck,
+  User,
 } from 'lucide-react';
 import { useTheme } from '../../hooks/useTheme';
 import api from '../../services/api';
@@ -41,6 +42,7 @@ const mainNavItems: NavItem[] = [
   { id: 'announcements', label: 'Announcements', icon: Megaphone, path: '/announcements' },
   { id: 'notes', label: 'Notes', icon: Book, path: '/notes' },
   { id: 'tasks', label: 'Tasks', icon: CheckSquare, path: '/tasks', roleRestriction: ['student'] },
+  { id: 'profile', label: 'Profile', icon: User, path: '/profile' },
 ];
 
 const secondaryNavItems: NavItem[] = [
@@ -178,7 +180,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
             },
           }}
         >
-          {mainNavItems.map((item) => {
+          {mainNavItems.filter(shouldShowItem).map((item) => {
             const Icon = item.icon;
             return (
               <MenuItem

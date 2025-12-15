@@ -58,7 +58,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
       setIsLoading(true);
 
       // Fetch communities managed by the instructor
-      const communitiesResponse = await communityApi.getAll({ limit: 50, memberOnly: true });
+      const communitiesResponse = await communityApi.getMyCommunities({ limit: 50 });
 
       // Map communities to ManagedCourse format
       const managedCourses: ManagedCourse[] = communitiesResponse.data.map((community: CommunityResponse) => ({

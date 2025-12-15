@@ -1,3 +1,4 @@
+import Profile from './pages/Profile';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { redirectToLogout } from './utils/navigation';
@@ -182,7 +183,14 @@ function App() {
               </ProtectedRoute>
             }
           />
-
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile onLogout={redirectToLogout} />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/community/:communityId/manage"
             element={

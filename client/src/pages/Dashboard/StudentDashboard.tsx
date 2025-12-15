@@ -58,7 +58,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
       setIsLoading(true);
 
       // Fetch communities the student is enrolled in
-      const communitiesResponse = await communityApi.getAll({ limit: 50, memberOnly: true });
+      const communitiesResponse = await communityApi.getMyCommunities({ limit: 50 });
 
       // Map communities to Course format
       const enrolledCourses: Course[] = communitiesResponse.data.map((community: CommunityResponse) => ({
@@ -67,8 +67,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
         instructor: '', // Will be populated when we have instructor info
         status: 'enrolled' as const,
       }));
-
-      setCourses(enrolledCourses);
 
       setCourses(enrolledCourses);
 
