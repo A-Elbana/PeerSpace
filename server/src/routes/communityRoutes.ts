@@ -7,6 +7,7 @@ import {
   deleteCommunity,
   getCommunityMembers,
   shareCommunity,
+  getMyCommunities,
 } from "../controllers/CommunityController";
 import {
   enrollInCommunity,
@@ -130,6 +131,44 @@ router.post(
   handleValidationErrors,
   createCommunity
 );
+
+/**
+ * @swagger
+ * /api/communities/mine:
+ *   get:
+ *     summary: Get communities for the authenticated user
+ *     tags: [Communities]
+ *     security:
+ *       - bearerAuth: []
+ *     description: |
+ *       Returns communities related to the current user with pagination.
+ *       - STUDENT: communities where the student is enrolled.
+ *       - INSTRUCTOR: communities managed by the instructor.
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *           maximum: 50
+ *         description: Number of communities per page
+ *     responses:
+ *       200:
+ *         description: Communities retrieved successfully with pagination metadata
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Invalid role for this endpoint
+ *       500:
+ *         description: Server error
+ */
+router.get("/mine", authenticateToken, getMyCommunities);
 
 /**
  * @swagger

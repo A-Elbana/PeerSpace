@@ -250,53 +250,5 @@ router.post(
   createAdmin
 );
 
-/**
- * @swagger
- * /api/users/me/communities:
- *   get:
- *     summary: Get all communities for the authenticated user
- *     description: |
- *       - STUDENT: returns communities the student is enrolled in.
- *       - INSTRUCTOR: returns communities managed by the instructor.
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Communities retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 role:
- *                   type: string
- *                   enum: [STUDENT, INSTRUCTOR]
- *                 communities:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id:
- *                         type: integer
- *                       name:
- *                         type: string
- *                       description:
- *                         type: string
- *       403:
- *         description: Only students or instructors can access this resource
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
-import { getMyCommunities } from "../controllers/UserController";
-
-router.get(
-  "/me/communities",
-  authenticateToken,
-  authorizeRole(["STUDENT", "INSTRUCTOR"]),
-  getMyCommunities
-);
 
 export default router;

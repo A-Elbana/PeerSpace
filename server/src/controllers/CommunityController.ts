@@ -425,6 +425,110 @@ export const updateCommunity = async (req: Request, res: Response) => {
 };
 
 /**
+ * Get all communities for the authenticated user.
+ * - If role is STUDENT: return communities where the student is enrolled
+ * - If role is INSTRUCTOR: return communities managed by the instructor
+ */
+export const getMyCommunities = async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
+  const userRole = (req as any).role;
+
+  // Pagination
+  const pageParam = parseInt(req.query.page as string);
+  const limitParam = parseInt(req.query.limit as string);
+  const page = !isNaN(pageParam) && pageParam > 0 ? pageParam : 1;
+  const limit = !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
+  const skip = (page - 1) * limit;
+
+  try {
+    if (userRole === "STUDENT") {
+      const [enrollments, total] = await Promise.all([
+        prisma.enrollment.findMany({
+          where: { sid: userId },
+          skip,
+          take: limit,
+          include: {
+            Community: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                type: true,
+                banner_file_id: true,
+                _count: {
+                  select: {
+                    Enrollment: true,
+                    Post: true,
+                  },
+                },
+              },
+            },
+          },
+        }),
+        prisma.enrollment.count({ where: { sid: userId } }),
+      ]);
+
+      return res.status(200).json({
+        message: "Communities retrieved successfully",
+        role: "STUDENT",
+        data: enrollments.map((enrollment) => enrollment.Community),
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    } else if (userRole === "INSTRUCTOR") {
+      const manages = await prisma.manages.findMany({
+        where: { iid: userId },
+      });
+
+      const communityIds = manages.map((m) => m.cid);
+      
+      const [communities, total] = await Promise.all([
+        prisma.community.findMany({
+          where: { id: { in: communityIds } },
+          skip,
+          take: limit,
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            type: true,
+            banner_file_id: true,
+            _count: {
+              select: {
+                Enrollment: true,
+                Post: true,
+              },
+            },
+          },
+        }),
+        prisma.community.count({ where: { id: { in: communityIds } } }),
+      ]);
+
+      return res.status(200).json({
+        message: "Communities retrieved successfully",
+        role: "INSTRUCTOR",
+        data: communities,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    }
+
+    return res.status(403).json({ message: "Invalid role" });
+  } catch (error) {
+    console.error("Get My Communities Error:", error);
+    return res.status(500).json({ message: "Failed to fetch communities" });
+  }
+};
+
+/**
  * Delete community
  * Assumes middleware has already validated authorization and loaded community
  */
