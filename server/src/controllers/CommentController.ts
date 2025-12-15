@@ -103,7 +103,7 @@ export const getCommentsByPost = async (req: Request, res: Response) => {
     Math.max(1, parseInt((req.query.limit as string) || "10"))
   );
   const skip = (page - 1) * limit;
-  const includeReplies = req.query.includeReplies !== "false"; // default true
+ // default true
   const sortBy = (req.query.sortBy as string) || "date"; // "date" or "approved"
 
   const pidNum = Number(pid);
@@ -120,9 +120,9 @@ export const getCommentsByPost = async (req: Request, res: Response) => {
 
     // Build where clause - only get top-level comments
     const where: any = { pid: pidNum };
-    if (!includeReplies) {
-      where.parent_comment_id = null;
-    }
+
+    where.parent_comment_id = null;
+
 
     // Determine orderBy based on sortBy
     let orderBy: any = { comment_date: "asc" };
@@ -144,29 +144,25 @@ export const getCommentsByPost = async (req: Request, res: Response) => {
         User: {
           select: { id: true, fname: true, lname: true, avatar_file_id: true },
         },
-        other_Comment: includeReplies
-          ? {
-              orderBy: { comment_date: "asc" },
-              include: {
-                User: {
-                  select: {
-                    id: true,
-                    fname: true,
-                    lname: true,
-                    avatar_file_id: true,
-                  },
-                },
-              },
-            }
-          : false,
+        _count: {
+          select: { other_Comment: true },
+        },
       },
     });
 
     const total = await prisma.comment.count({ where });
 
+    const data = comments.map((comment: any) => {
+      const { _count, ...rest } = comment;
+      return {
+        ...rest,
+        hasReplies: (_count?.other_Comment || 0) > 0,
+      };
+    });
+
     res.status(200).json({
       success: true,
-      data: comments,
+      data,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {
@@ -273,15 +269,27 @@ export const deleteComment = async (req: Request, res: Response) => {
   }
 
   try {
-    // Delete all child comments first (cascade handled by schema but explicit for clarity)
-    await prisma.comment.deleteMany({
+    // Check if this comment has any replies
+    const repliesCount = await prisma.comment.count({
       where: { parent_comment_id: commentId },
     });
 
-    // Delete the comment
-    await prisma.comment.delete({ where: { id: commentId } });
+    if (repliesCount === 0) {
+      // No replies: hard delete
+      await prisma.comment.delete({ where: { id: commentId } });
+      return res.status(200).json({ success: true, deleted: "hard" });
+    }
 
-    res.status(200).json({ success: true });
+    // Has replies: soft delete (mark deleted and replace content)
+    await prisma.comment.update({
+      where: { id: commentId },
+      data: {
+        isDeleted: true,
+        content: "This comment was deleted",
+      },
+    });
+
+    return res.status(200).json({ success: true, deleted: "soft" });
   } catch (error) {
     console.error("Delete Comment Error:", error);
     res.status(500).json({ message: "Failed to delete comment" });
