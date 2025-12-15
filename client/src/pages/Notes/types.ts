@@ -5,6 +5,7 @@ export interface Folder {
     createdAt: Date;
     updatedAt: Date;
     color?: string; // For folder icon color
+    noteCount?: number;
 }
 
 export interface Note {

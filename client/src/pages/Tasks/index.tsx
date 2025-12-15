@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Plus, Flag, Calendar, Users, Trash2, Search, Filter, CheckCircle, Circle, Link } from 'lucide-react';
+import { Loader2, Plus, Flag, Calendar, Trash2, Search, Filter, CheckCircle, Circle, Link } from 'lucide-react';
 import { Sidebar } from '../../components/dashboard';
 import api from '../../services/api';
 import { toast } from 'sonner';

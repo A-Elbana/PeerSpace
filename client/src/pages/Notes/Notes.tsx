@@ -1,13 +1,18 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Sidebar } from '../../components/dashboard';
 import type { Folder, Note } from './types';
 import { FolderCard } from './components/FolderCard';
 import { NoteCard } from './components/NoteCard';
 import { DeleteConfirmationModal } from '../../components/common/DeleteConfirmationModal';
 import { MarkdownEditor } from '../../components/MarkdownEditor';
+import api from '../../services/api';
+import CreateItemModal from './components/CreateItemModal';
+import CreateNoteModal from './components/CreateNoteModal';
 import {
     ChevronLeft,
     Search,
+    Check,
+    Loader2,
     LayoutGrid,
     List,
     FolderPlus,
@@ -15,35 +20,12 @@ import {
     Home,
     FileText
 } from 'lucide-react';
+import { toast } from 'sonner';
+import FileUpload from '../../components/FileUpload';
+import { fileApi } from '../../services/api';
+import AttachmentsList from './components/AttachmentsList';
 
 
-// Mock Data
-const INITIAL_FOLDERS: Folder[] = [
-    { id: '1', name: 'University Notes', createdAt: new Date(), updatedAt: new Date(), color: 'bg-blue-500/10 text-blue-500' },
-    { id: '2', name: 'Project Ideas', createdAt: new Date(), updatedAt: new Date(), color: 'bg-purple-500/10 text-purple-500' },
-    { id: '3', name: 'Personal', createdAt: new Date(), updatedAt: new Date(), color: 'bg-green-500/10 text-green-500' },
-    { id: '4', name: 'Meeting Minutes', createdAt: new Date(), updatedAt: new Date(), color: 'bg-orange-500/10 text-orange-500' },
-];
-
-const INITIAL_NOTES: Note[] = [
-    // University Notes
-    { id: '1', folderId: '1', title: 'Database Systems Lecture 1', content: '# Introduction to Database Systems\n\n## Core Concepts\n\n- **Data**: Known facts that can be recorded and have implicit meaning.\n- **Database**: A collection of related data.\n- **DBMS**: A software package/ system to facilitate the creation and maintenance of a computerized database.\n\n### DBMS vs File System\n\n| Feature | DBMS | File System |\n| :--- | :--- | :--- |\n| Data Redundancy | Controlled | High |\n| Data Consistency | Maintained | Poor |\n| Security | High | Low |', createdAt: new Date(), updatedAt: new Date() },
-    { id: '2', folderId: '1', title: 'Prisma Project Requirements', content: '# Project: PeerSpace\n\n## Overview\nA community-based learning platform.\n\n## Tech Stack\n- React + TypeScript\n- Note.js + Express\n- Prisma ORM\n- PostgreSQL\n\n## Todo List\n- [x] Setup Basic Auth\n- [x] Sidebar Navigation\n- [x] Notes Feature\n- [ ] Real-time Chat', createdAt: new Date(), updatedAt: new Date() },
-
-    // Project Ideas
-    { id: '3', folderId: '2', title: 'App Idea: PeerSpace', content: '# PeerSpace Pitch\n\n> "Connecting students, one node at a time."\n\n## Value Proposition\nSolving the isolation in remote learning by providing a digital campus corridor.\n\n## Key Features\n1. Community-based feeds\n2. Resource sharing\n3. Integrated tools (Notes, Calendar)\n\n```typescript\n// Example User Interface\ninterface User {\n  id: string;\n  name: string;\n  role: "student" | "instructor";\n}\n```', createdAt: new Date(), updatedAt: new Date() },
-    { id: '4', folderId: '2', title: 'AI Study Buddy', content: '# Feature Idea: AI Tutor\n\nIntegrate an LLM to answer questions about uploaded PDFs.\n\n**Steps:**\n1. User uploads PDF.\n2. Backend parses text.\n3. Vector embedding stored in Pinecone.\n4. RAG implementation for QA.', createdAt: new Date(), updatedAt: new Date() },
-
-    // Personal
-    { id: '5', folderId: '3', title: 'Grocery List', content: '# Weekly Groceries\n\n## Produce\n- Apples\n- Bananas\n- Spinach\n\n## Dairy\n- Milk\n- Cheese\n- Yogurt\n\n## Pantry\n- Rice\n- Pasta\n- Olive Oil', createdAt: new Date(), updatedAt: new Date() },
-    { id: '6', folderId: '3', title: 'Morning Routine', content: '# Morning Success Routine\n\n1. Wake up at 6:00 AM\n2. Drink water\n3. 10 min meditation\n4. Review daily goals\n5. Deep work session (90 mins)', createdAt: new Date(), updatedAt: new Date() },
-
-    // Meeting Minutes
-    { id: '7', folderId: '4', title: 'Team Sync - Dec 12', content: '# Weekly Sync\n\n**Date:** December 12, 2025\n**Attendees:** Alex, Sarah, Mike\n\n## Agenda\n1. Review sprint progress.\n2. discuss blocker on Auth API.\n3. Plan for next release.\n\n## Action Items\n- **Alex**: Fix login bug.\n- **Sarah**: Finish dashboard designs.\n- **Mike**: Deploy to staging.', createdAt: new Date(), updatedAt: new Date() },
-
-    // Root Notes (Quick Notes)
-    { id: '8', title: 'Scratchpad', content: 'Just a quick thought...\n\nDon\'t forget to buy milk!', createdAt: new Date(), updatedAt: new Date() }
-];
 
 const Notes: React.FC = () => {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -52,14 +34,19 @@ const Notes: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
 
     // State for data
-    const [folders, setFolders] = useState<Folder[]>(INITIAL_FOLDERS);
-    const [notes, setNotes] = useState<Note[]>(INITIAL_NOTES);
+    const [folders, setFolders] = useState<Folder[]>([]);
+    const [notes, setNotes] = useState<Note[]>([]);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [notebooksPage, setNotebooksPage] = useState<number>(1);
+    const [notebooksLoadingMore, setNotebooksLoadingMore] = useState<boolean>(false);
+    const [notebooksHasMore, setNotebooksHasMore] = useState<boolean>(false);
     const [noteContent, setNoteContent] = useState('');
+    const [noteFiles, setNoteFiles] = useState<Array<{ id: string; secure_url?: string; name?: string; resource_type?: string }>>([]);
 
     // State for delete modal
     const [deleteModal, setDeleteModal] = useState<{
         isOpen: boolean;
-        type: 'folder' | 'note';
+        type: 'folder' | 'note' | 'attachment';
         itemId: string;
         itemName: string;
     }>({
@@ -69,35 +56,177 @@ const Notes: React.FC = () => {
         itemName: ''
     });
 
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [createMode, setCreateMode] = useState<'folder' | 'note'>('folder');
+
     const handleCreateFolder = () => {
-        const name = prompt('Enter folder name:');
-        if (name) {
-            const newFolder: Folder = {
-                id: Date.now().toString(),
-                name,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-                color: 'bg-blue-500/10 text-blue-500' // Default color
-            };
-            setFolders([...folders, newFolder]);
-        }
+        setCreateMode('folder');
+        setIsCreateOpen(true);
     };
 
     const handleCreateNote = () => {
-        // Allow creating notes in root (no folder) or in a specific folder
-        const title = prompt('Enter note title:');
-        if (title) {
-            const newNote: Note = {
-                id: Date.now().toString(),
-                folderId: currentFolder?.id, // undefined if in root
-                title,
-                content: '',
-                createdAt: new Date(),
-                updatedAt: new Date()
-            };
-            setNotes([...notes, newNote]);
-            setCurrentNote(newNote);
-            setNoteContent('');
+        setCreateMode('note');
+        if (currentFolder) {
+            // open the compact create-note-in-folder modal
+            setIsCreateNoteInFolderOpen(true);
+        } else {
+            setIsCreateOpen(true);
+        }
+    };
+
+    const [isCreateNoteInFolderOpen, setIsCreateNoteInFolderOpen] = useState(false);
+    const [isFolderNameSaving, setIsFolderNameSaving] = useState(false);
+    const [folderDraftName, setFolderDraftName] = useState<string>('');
+    const [noteDraftName, setNoteDraftName] = useState<string>('');
+    const [isNoteNameSaving, setIsNoteNameSaving] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // keep draft in sync when folder changes
+    useEffect(() => {
+        setFolderDraftName(currentFolder?.name ?? '');
+    }, [currentFolder]);
+
+    useEffect(() => {
+        setNoteDraftName(currentNote?.title ?? '');
+        // load files for current note when it changes
+        let mounted = true;
+        const loadFiles = async () => {
+            if (!currentNote) {
+                setNoteFiles([]);
+                return;
+            }
+            try {
+                const resp = await fileApi.getByContext('NOTE', String(currentNote.id));
+                if (!mounted) return;
+                const items = resp?.data || resp || [];
+                setNoteFiles(Array.isArray(items) ? items.map((f: any) => {
+                    let display = f.id;
+                    try {
+                        if (f.secure_url) {
+                            const u = new URL(f.secure_url);
+                            const seg = u.pathname.split('/').pop();
+                            if (seg) display = decodeURIComponent(seg);
+                        } else if (f.public_id) {
+                            const seg = String(f.public_id).split('/').pop();
+                            display = seg + (f.format ? `.${f.format}` : '');
+                        }
+                    } catch (e) {
+                        // noop
+                    }
+                    return { id: f.id, secure_url: f.secure_url, name: display, resource_type: f.resource_type };
+                }) : []);
+            } catch (err) {
+                // eslint-disable-next-line no-console
+                console.error('Failed to load note files', err);
+            }
+        };
+
+        loadFiles();
+        return () => { mounted = false; };
+    }, [currentNote]);
+
+    // Fetch folders and notes from backend on mount
+    useEffect(() => {
+        let mounted = true;
+
+        const normalizeDate = (d: any) => (d ? new Date(d) : new Date());
+
+        const extractList = (resp: any) => {
+            // backend may return { data: [...] } or just [...]
+            if (!resp) return [];
+            if (Array.isArray(resp.data)) return resp.data;
+            if (Array.isArray(resp.data?.data)) return resp.data.data;
+            if (Array.isArray(resp)) return resp;
+            return [];
+        };
+
+        const fetchData = async () => {
+            setIsLoading(true);
+            try {
+                const [foldersRes, notesRes] = await Promise.all([
+                    api.get('/notebooks', { params: { page: 1, limit: 20 } }),
+                    api.get('/notes'),
+                ]);
+
+                if (!mounted) return;
+
+                const fetchedFolders = extractList(foldersRes);
+                const fetchedNotes = extractList(notesRes);
+
+                // Map backend items to local types if needed
+                setFolders(
+                    fetchedFolders.map((f: any) => ({
+                        id: String(f.id || f._id),
+                        name: f.name || f.title || 'Untitled',
+                        createdAt: normalizeDate(f.createdAt || f.created_at),
+                        updatedAt: normalizeDate(f.updatedAt || f.updated_at),
+                        color: f.color || 'bg-blue-500/10 text-blue-500',
+                        noteCount: typeof f._count?.Note === 'number' ? f._count.Note : (f._count?.notes ?? f.noteCount ?? 0),
+                    }))
+                );
+
+                // Update pagination for notebooks if meta exists
+                const foldersMeta = foldersRes?.data?.meta;
+                setNotebooksPage(foldersMeta?.page ?? 1);
+                setNotebooksHasMore(foldersMeta ? (foldersMeta.page < foldersMeta.totalPages) : false);
+
+                setNotes(
+                    fetchedNotes.map((n: any) => ({
+                        id: String(n.id || n._id),
+                        folderId: n.folderId || n.folder_id || n.notebook_id || n.folder || undefined ? String(n.folderId || n.folder_id || n.notebook_id || n.folder) : undefined,
+                        title: n.title || n.name || 'Untitled',
+                        content: n.content ?? n.body ?? '',
+                        createdAt: normalizeDate(n.createdAt || n.created_at),
+                        updatedAt: normalizeDate(n.updatedAt || n.updated_at),
+                    }))
+                );
+            } catch (err) {
+                // If fetch fails, keep mock data (already set) and log the error
+                // This keeps the UI usable even without backend
+                // eslint-disable-next-line no-console
+                console.error('Failed to fetch notes/folders:', err);
+            } finally {
+                if (mounted) setIsLoading(false);
+            }
+        };
+
+        fetchData();
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
+    const NOTEBOOKS_PER_PAGE = 5;
+
+    const loadMoreNotebooks = async () => {
+        if (notebooksLoadingMore || !notebooksHasMore) return;
+        setNotebooksLoadingMore(true);
+        try {
+            const nextPage = notebooksPage + 1;
+            const resp = await api.get('/notebooks', { params: { page: nextPage, limit: NOTEBOOKS_PER_PAGE } });
+            const newFolders = (resp && (resp.data?.data || resp.data)) || [];
+            if (Array.isArray(newFolders) && newFolders.length > 0) {
+                setFolders((s) => [
+                    ...s,
+                    ...newFolders.map((f: any) => ({
+                        id: String(f.id || f._id),
+                        name: f.name || f.title || 'Untitled',
+                        createdAt: f.createdAt ? new Date(f.createdAt) : new Date(f.created_at || Date.now()),
+                        updatedAt: f.updatedAt ? new Date(f.updatedAt) : new Date(f.updated_at || Date.now()),
+                        color: f.color || 'bg-blue-500/10 text-blue-500',
+                    }))
+                ]);
+            }
+
+            const meta = resp?.data?.meta;
+            setNotebooksPage(meta?.page ?? nextPage);
+            setNotebooksHasMore(meta ? (meta.page < meta.totalPages) : false);
+        } catch (err) {
+            // eslint-disable-next-line no-console
+            console.error('Failed to load more notebooks', err);
+        } finally {
+            setNotebooksLoadingMore(false);
         }
     };
 
@@ -119,22 +248,55 @@ const Notes: React.FC = () => {
         });
     };
 
-    const confirmDelete = () => {
-        if (deleteModal.type === 'folder') {
-            setFolders(folders.filter(f => f.id !== deleteModal.itemId));
-            // Also delete notes in this folder? Yes, usually.
-            setNotes(notes.filter(n => n.folderId !== deleteModal.itemId));
-            if (currentFolder?.id === deleteModal.itemId) {
-                setCurrentFolder(null);
+    const confirmDelete = async () => {
+        setIsDeleting(true);
+        try {
+            if (deleteModal.type === 'folder') {
+                setFolders(folders.filter(f => f.id !== deleteModal.itemId));
+                // Also delete notes in this folder? Yes, usually.
+                setNotes(notes.filter(n => n.folderId !== deleteModal.itemId));
+                if (currentFolder?.id === deleteModal.itemId) {
+                    setCurrentFolder(null);
+                }
+            } else if (deleteModal.type === 'note') {
+                setNotes(notes.filter(n => n.id !== deleteModal.itemId));
+                if (currentNote?.id === deleteModal.itemId) {
+                    setCurrentNote(null);
+                    setNoteContent('');
+                }
+            } else if (deleteModal.type === 'attachment') {
+                try {
+                    await fileApi.delete(deleteModal.itemId);
+                    toast.success('Attachment removed');
+                    // refresh attachments for current note
+                    if (currentNote) {
+                        const resp = await fileApi.getByContext('NOTE', String(currentNote.id));
+                        const items = resp?.data || resp || [];
+                        setNoteFiles(Array.isArray(items) ? items.map((fi: any) => {
+                            let display = fi.id;
+                            try {
+                                if (fi.secure_url) {
+                                    const u = new URL(fi.secure_url);
+                                    const seg = u.pathname.split('/').pop();
+                                    if (seg) display = decodeURIComponent(seg);
+                                } else if (fi.public_id) {
+                                    const seg = String(fi.public_id).split('/').pop();
+                                    display = seg + (fi.format ? `.${fi.format}` : '');
+                                }
+                            } catch (e) {}
+                            return { id: fi.id, secure_url: fi.secure_url, name: display, resource_type: fi.resource_type };
+                        }) : []);
+                    }
+                } catch (err) {
+                    // eslint-disable-next-line no-console
+                    console.error('Failed to delete attachment', err);
+                    toast.error('Failed to delete attachment');
+                }
             }
-        } else {
-            setNotes(notes.filter(n => n.id !== deleteModal.itemId));
-            if (currentNote?.id === deleteModal.itemId) {
-                setCurrentNote(null);
-                setNoteContent('');
-            }
+        } finally {
+            setDeleteModal({ ...deleteModal, isOpen: false });
+            setIsDeleting(false);
         }
-        setDeleteModal({ ...deleteModal, isOpen: false });
     };
 
     const handleSaveNote = (content: string) => {
@@ -145,6 +307,34 @@ const Notes: React.FC = () => {
                     ? { ...n, content, updatedAt: new Date() }
                     : n
             ));
+        }
+    };
+
+    const handleCreated = (item: any) => {
+        // backend may return nested data
+        const created = item?.data ?? item ?? item;
+
+        if (createMode === 'folder') {
+            const newFolder: Folder = {
+                id: String(created.id || created._id || Date.now()),
+                name: created.name || created.title || 'Untitled',
+                createdAt: new Date(created.createdAt || created.created_at || Date.now()),
+                updatedAt: new Date(created.updatedAt || created.updated_at || Date.now()),
+                color: 'bg-blue-500/10 text-blue-500'
+            };
+            setFolders((s) => [...s, newFolder]);
+        } else {
+            const newNote: Note = {
+                id: String(created.id || created._id || Date.now()),
+                folderId: created.folderId || created.folder_id || created.notebook_id || created.folder ? String(created.folderId || created.folder_id || created.notebook_id || created.folder) : undefined,
+                title: created.title || created.name || 'Untitled',
+                content: created.content ?? created.body ?? '',
+                createdAt: new Date(created.createdAt || created.created_at || Date.now()),
+                updatedAt: new Date(created.updatedAt || created.updated_at || Date.now()),
+            };
+            setNotes((s) => [...s, newNote]);
+            setCurrentNote(newNote);
+            setNoteContent(newNote.content);
         }
     };
 
@@ -186,9 +376,161 @@ const Notes: React.FC = () => {
                                     </button>
                                 )}
                                 <div>
-                                    <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-                                        {currentNote ? currentNote.title : currentFolder ? currentFolder.name : 'Notes'}
-                                    </h1>
+                                    {currentNote ? (
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                value={noteDraftName}
+                                                onChange={(e) => setNoteDraftName(e.target.value)}
+                                                onKeyDown={async (e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        if (!isNoteNameSaving && noteDraftName && noteDraftName.trim() && currentNote && noteDraftName.trim() !== currentNote.title) {
+                                                            setIsNoteNameSaving(true);
+                                                            try {
+                                                                const resp = await api.put(`/notes/${currentNote.id}`, { title: noteDraftName.trim() });
+                                                                const updated = resp?.data?.note ?? resp?.data ?? resp;
+                                                                setNotes((s) => s.map(n => n.id === currentNote.id ? { ...n, title: updated.title || updated.name || noteDraftName.trim() } : n));
+                                                                setCurrentNote((n) => n ? { ...n, title: updated.title || updated.name || noteDraftName.trim() } : n);
+                                                                toast.success('Note renamed');
+                                                            } catch (err) {
+                                                                // eslint-disable-next-line no-console
+                                                                console.error('Failed to rename note', err);
+                                                                toast.error('Failed to rename note');
+                                                            } finally {
+                                                                setIsNoteNameSaving(false);
+                                                            }
+                                                        }
+                                                    }
+                                                }}
+                                                className="text-2xl font-bold bg-transparent border-b border-input text-foreground px-1 py-0.5 focus:outline-none focus:ring-0"
+                                            />
+                                            <button
+                                                onClick={async () => {
+                                                    if (!currentNote) return;
+                                                    if (!noteDraftName || !noteDraftName.trim() || noteDraftName.trim() === currentNote.title) return;
+                                                    setIsNoteNameSaving(true);
+                                                    try {
+                                                        const resp = await api.put(`/notes/${currentNote.id}`, { title: noteDraftName.trim() });
+                                                        const updated = resp?.data?.note ?? resp?.data ?? resp;
+                                                        setNotes((s) => s.map(n => n.id === currentNote.id ? { ...n, title: updated.title || updated.name || noteDraftName.trim() } : n));
+                                                        setCurrentNote((n) => n ? { ...n, title: updated.title || updated.name || noteDraftName.trim() } : n);
+                                                        toast.success('Note renamed');
+                                                    } catch (err) {
+                                                        // eslint-disable-next-line no-console
+                                                        console.error('Failed to rename note', err);
+                                                        toast.error('Failed to rename note');
+                                                    } finally {
+                                                        setIsNoteNameSaving(false);
+                                                    }
+                                                }}
+                                                disabled={!noteDraftName || noteDraftName.trim() === currentNote.title || isNoteNameSaving}
+                                                className="p-1.5 rounded-md bg-primary text-primary-foreground disabled:opacity-50 flex items-center justify-center"
+                                            >
+                                                {isNoteNameSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                            </button>
+                                            {/* File upload for current note */}
+                                            {currentNote && (
+                                                <div className="ml-2 w-40">
+                                                    <FileUpload
+                                                        context="NOTE"
+                                                        contextId={String(currentNote.id)}
+                                                        label="Attach file"
+                                                        preview={false}
+                                                        onFileUploaded={async (fileId, url) => {
+                                                            toast.success('File uploaded');
+                                                            try {
+                                                                const resp = await fileApi.getByContext('NOTE', String(currentNote.id));
+                                                                const items = resp?.data || resp || [];
+                                                                setNoteFiles(Array.isArray(items) ? items.map((f: any) => {
+                                                                    // derive a compact display name: try secure_url filename, then public_id + format
+                                                                    let display = f.id;
+                                                                    try {
+                                                                        if (f.secure_url) {
+                                                                            const u = new URL(f.secure_url);
+                                                                            const seg = u.pathname.split('/').pop();
+                                                                            if (seg) display = decodeURIComponent(seg);
+                                                                        } else if (f.public_id) {
+                                                                            const seg = String(f.public_id).split('/').pop();
+                                                                            display = seg + (f.format ? `.${f.format}` : '');
+                                                                        }
+                                                                    } catch (e) {
+                                                                        // fallback to id
+                                                                    }
+                                                                    return { id: f.id, secure_url: f.secure_url, name: display, resource_type: f.resource_type };
+                                                                }) : []);
+                                                            } catch (err) {
+                                                                // eslint-disable-next-line no-console
+                                                                console.error('Failed to refresh note files', err);
+                                                            }
+                                                        }}
+                                                        onError={(errMsg) => toast.error(errMsg)}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">Notes</h1>
+                                    )}
+                                    {currentFolder && !currentNote && (
+                                        <div className="mt-1 flex items-center gap-2">
+                                            <div className="flex items-center">
+                                                <input
+                                                    value={folderDraftName || currentFolder.name}
+                                                    onChange={(e) => setFolderDraftName(e.target.value)}
+                                                    onKeyDown={async (e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            // trigger save
+                                                            if (!isFolderNameSaving && folderDraftName && folderDraftName.trim() && folderDraftName.trim() !== currentFolder.name) {
+                                                                setIsFolderNameSaving(true);
+                                                                try {
+                                                                    const resp = await api.put(`/notebooks/${currentFolder.id}`, { title: folderDraftName.trim() });
+                                                                    const updated = resp?.data?.notebook ?? resp?.data ?? resp;
+                                                                    // update local folder list and currentFolder
+                                                                    setFolders((s) => s.map(f => f.id === currentFolder.id ? { ...f, name: updated.title || updated.name || folderDraftName.trim() } : f));
+                                                                    setCurrentFolder((f) => f ? { ...f, name: updated.title || updated.name || folderDraftName.trim() } : f);
+                                                                        toast.success('Notebook renamed');
+                                                                } catch (err) {
+                                                                    // eslint-disable-next-line no-console
+                                                                    console.error('Failed to update notebook name', err);
+                                                                        toast.error('Failed to rename notebook');
+                                                                } finally {
+                                                                    setIsFolderNameSaving(false);
+                                                                }
+                                                            }
+                                                        }
+                                                    }}
+                                                    className="bg-transparent border-b border-input text-sm font-medium text-foreground px-1 py-0.5 focus:outline-none focus:ring-0"
+                                                />
+                                            </div>
+                                            <button
+                                                onClick={async () => {
+                                                    if (!currentFolder) return;
+                                                    if (!folderDraftName || !folderDraftName.trim() || folderDraftName.trim() === currentFolder.name) return;
+                                                    setIsFolderNameSaving(true);
+                                                    try {
+                                                        const resp = await api.put(`/notebooks/${currentFolder.id}`, { title: folderDraftName.trim() });
+                                                        const updated = resp?.data?.notebook ?? resp?.data ?? resp;
+                                                        setFolders((s) => s.map(f => f.id === currentFolder.id ? { ...f, name: updated.title || updated.name || folderDraftName.trim() } : f));
+                                                        setCurrentFolder((f) => f ? { ...f, name: updated.title || updated.name || folderDraftName.trim() } : f);
+                                                        // clear draft
+                                                        setFolderDraftName('');
+                                                            toast.success('Notebook renamed');
+                                                    } catch (err) {
+                                                        // eslint-disable-next-line no-console
+                                                        console.error('Failed to update notebook name', err);
+                                                            toast.error('Failed to rename notebook');
+                                                    } finally {
+                                                        setIsFolderNameSaving(false);
+                                                    }
+                                                }}
+                                                disabled={!folderDraftName || folderDraftName.trim() === currentFolder.name || isFolderNameSaving}
+                                                className="p-1.5 rounded-md bg-primary text-primary-foreground disabled:opacity-50 flex items-center justify-center"
+                                            >
+                                                {isFolderNameSaving ? <span className="animate-spin"><svg className="w-4 h-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg></span> : <Check className="w-4 h-4" />}
+                                            </button>
+                                        </div>
+                                    )}
                                     <div className="flex items-center text-sm text-muted-foreground mt-1">
                                         <Home size={14} className="mr-1" />
                                         <span className="hover:underline cursor-pointer" onClick={() => { setCurrentFolder(null); setCurrentNote(null); }}>Home</span>
@@ -280,16 +622,75 @@ const Notes: React.FC = () => {
                                 opacity: 0.9;
                             }
                         `}</style>
-                        {currentNote ? (
-                            <div className="h-full flex flex-col max-w-4xl mx-auto animate-in fade-in zoom-in-95 duration-200">
-                                <div className="bg-card rounded-xl border border-border shadow-sm flex flex-col h-full overflow-hidden">
-                                    <MarkdownEditor
-                                        key={currentNote.id}
-                                        value={noteContent || currentNote.content}
-                                        onChange={handleSaveNote}
-                                        placeholder="Start typing your note here..."
-                                        className="h-full min-h-[500px]"
-                                    />
+                        {isLoading ? (
+                            <div className="space-y-8 w-full">
+                                <div>
+                                    <h2 className="text-lg font-semibold mb-4 px-1 text-muted-foreground">Notebooks</h2>
+                                    <div className={`grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5`}> 
+                                        {Array.from({ length: 4 }).map((_, i) => (
+                                            <div
+                                                key={i}
+                                                className="group relative flex flex-col items-center justify-center p-6 bg-card/60 border border-border rounded-xl cursor-pointer transition-all duration-200 animate-pulse h-[180px]"
+                                            >
+                                                <div className="w-16 h-16 mb-4 rounded-2xl bg-muted/40" />
+                                                <div className="w-3/4 h-4 rounded-md bg-muted/40 mb-2" />
+                                                <div className="w-1/2 h-3 rounded-md bg-muted/40" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h2 className="text-lg font-semibold mb-4 px-1 text-muted-foreground">Quick Notes</h2>
+                                    <div className={`grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`}>
+                                        {Array.from({ length: 3 }).map((_, i) => (
+                                            <div
+                                                key={i}
+                                                className="group relative flex flex-col p-5 bg-card/60 border border-border rounded-xl cursor-pointer transition-all duration-200 animate-pulse h-[180px]"
+                                            >
+                                                <div className="flex items-start justify-between mb-3">
+                                                    <div className="p-2 rounded-lg bg-muted/40 w-8 h-8" />
+                                                    <div className="w-6 h-6 rounded-md bg-muted/40" />
+                                                </div>
+
+                                                <div className="w-3/4 h-4 rounded-md bg-muted/40 mb-2" />
+
+                                                <div className="flex-1 space-y-2">
+                                                    <div className="w-full h-3 rounded-md bg-muted/40" />
+                                                    <div className="w-5/6 h-3 rounded-md bg-muted/40" />
+                                                </div>
+
+                                                <div className="flex items-center gap-1.5 mt-3 text-xs">
+                                                    <div className="w-10 h-3 rounded-md bg-muted/40" />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        ) : currentNote ? (
+                            <div className="max-w-7xl mx-auto animate-in fade-in zoom-in-95 duration-200 w-full">
+                                <div className="bg-card rounded-xl overflow-hidden border border-border shadow-sm p-4 flex gap-6">
+                                    <div className="flex-1">
+                                        <MarkdownEditor
+                                            key={currentNote.id}
+                                            value={noteContent || currentNote.content}
+                                            onChange={handleSaveNote}
+                                            placeholder="Start typing your note here..."
+                                            className="h-[640px] max-h-[80vh] w-full overflow-y-auto"
+                                        />
+                                    </div>
+
+                                    <aside className="w-80 flex-shrink-0">
+                                        <AttachmentsList
+                                            files={noteFiles}
+                                            onDelete={(id: string, name?: string) => {
+                                                setDeleteModal({ isOpen: true, type: 'attachment', itemId: id, itemName: name || id });
+                                            }}
+                                            isDeleting={isDeleting}
+                                            deletingId={deleteModal.itemId}
+                                        />
+                                    </aside>
                                 </div>
                             </div>
                         ) : currentFolder ? (
@@ -381,9 +782,26 @@ const Notes: React.FC = () => {
                         isOpen={deleteModal.isOpen}
                         onClose={() => setDeleteModal({ ...deleteModal, isOpen: false })}
                         onConfirm={confirmDelete}
-                        title={`Delete ${deleteModal.type === 'folder' ? 'Notebook' : 'Note'}`}
+                        isLoading={isDeleting}
+                        title={`Delete ${deleteModal.type === 'folder' ? 'Notebook' : deleteModal.type === 'note' ? 'Note' : 'Attachment'}`}
                         description={`Are you sure you want to delete "${deleteModal.itemName}"? This action cannot be undone.`}
                         itemType={deleteModal.type}
+                    />
+                    <CreateItemModal
+                        isOpen={isCreateOpen}
+                        mode={createMode}
+                        folders={folders.map(f => ({ id: f.id, name: f.name }))}
+                        onClose={() => setIsCreateOpen(false)}
+                        onCreated={handleCreated}
+                        onLoadMoreFolders={loadMoreNotebooks}
+                        foldersHasMore={notebooksHasMore}
+                        foldersLoadingMore={notebooksLoadingMore}
+                    />
+                    <CreateNoteModal
+                        isOpen={isCreateNoteInFolderOpen}
+                        folder={currentFolder ?? ({ id: '', name: '' } as Folder)}
+                        onClose={() => setIsCreateNoteInFolderOpen(false)}
+                        onCreated={handleCreated}
                     />
                 </div>
             </main>

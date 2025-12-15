@@ -40,24 +40,7 @@ function ensureLinkStyle() {
     s.innerHTML = `
         .markdown-links a { color: #2563eb !important; text-decoration: underline !important; cursor: pointer !important; position: relative !important; }
         .markdown-links a:hover { color: #1d4ed8 !important; }
-        /* Tooltip showing target URL */
-        .markdown-links a[data-href]::after {
-            content: attr(data-href);
-            position: absolute;
-            left: 50%;
-            bottom: calc(100% + 8px);
-            transform: translateX(-50%);
-            background: rgba(17,24,39,0.95);
-            color: #fff;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 12px;
-            white-space: nowrap;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 120ms ease-in-out;
-            z-index: 9999;
-        }
+        
         .markdown-links a[data-href]:hover::after { opacity: 1; }
     `;
     document.head.appendChild(s);
