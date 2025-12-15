@@ -15,11 +15,8 @@ interface AssignmentRequest extends Request {
  * assigner_uid is taken from the authenticated user's token (req.userId)
  * Requires: authenticateToken + validateAssignmentCreate + requireInstructorManagesCommunity middleware
  */
-
-// ...existing code...
-
 export const createAssignment = async (req: Request, res: Response) => {
-  const { title, description, cid, due_date, max_points, canBeLate, file_attachments } =
+  const { title, description, cid, due_date, max_points, canBeLate, file_ids } =
     req.body;
   const userId = (req as any).userId;
 
@@ -58,12 +55,28 @@ export const createAssignment = async (req: Request, res: Response) => {
         },
       });
 
-      // Create file attachments if file_attachments provided
-      if (file_attachments && Array.isArray(file_attachments) && file_attachments.length > 0) {
+      if (file_ids && Array.isArray(file_ids) && file_ids.length > 0) {
+        const fileIdStrings = file_ids.map((fid: string) => String(fid));
+        const existingFiles = await tx.file.findMany({
+          where: { id: { in: fileIdStrings } },
+          select: { id: true },
+        });
+
+        const missing = fileIdStrings.filter(
+          (fid) => !existingFiles.find((f) => f.id === fid)
+        );
+
+        if (missing.length > 0) {
+          const err: any = new Error("Invalid file_ids");
+          err.code = "INVALID_FILE_IDS";
+          err.missing = missing;
+          throw err;
+        }
+
         await tx.assignmentFileAttachment.createMany({
-          data: file_attachments.map((fid: string) => ({
+          data: fileIdStrings.map((fid: string) => ({
             aid: created.id,
-            fid: String(fid),
+            fid,
           })),
           skipDuplicates: true,
         });
@@ -84,8 +97,6 @@ export const createAssignment = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Failed to create assignment" });
   }
 };
-
-// ...existing code...
 
 /**
  * Get all assignments for a community with pagination.
@@ -126,9 +137,7 @@ export const getAssignmentsByCommunity = async (
       const isMember = await isUserMemberOfCommunity(userId, cid);
       if (!isMember) {
         return res.status(403).json({
-          message: "You have to be enrolled to see the assignments !",
-          communityId: cid,
-          communityName: community.name,
+          message: "You must be a member of this community to view assignments",
         });
       }
     }
@@ -199,7 +208,7 @@ export const getAssignmentById = async (
   const files = await prisma.file.findMany({
     where: {
       context: "ASSIGNMENT",
-      context_id: String(req.assignment.id),
+      context_id: req.assignment.id,
     },
     select: {
       id: true,
@@ -209,7 +218,6 @@ export const getAssignmentById = async (
       format: true,
       is_private: true,
       created_at: true,
-      original_filename: true,
     },
   });
 
@@ -231,7 +239,7 @@ export const updateAssignment = async (
   res: Response
 ) => {
   const assignment = req.assignment;
-  const { title, description, due_date, max_points, canBeLate, file_attachments } =
+  const { title, description, due_date, max_points, canBeLate, file_ids } =
     req.body;
 
   // Build update data object with only provided fields
@@ -267,7 +275,7 @@ export const updateAssignment = async (
   }
 
   // Check if there's anything to update
-  if (Object.keys(updateData).length === 0 && file_attachments === undefined) {
+  if (Object.keys(updateData).length === 0 && file_ids === undefined) {
     return res.status(400).json({ message: "No valid fields to update" });
   }
 
@@ -289,65 +297,19 @@ export const updateAssignment = async (
       },
     });
 
-    // Update file attachments if file_attachments provided
-    if (file_attachments !== undefined && Array.isArray(file_attachments)) {
-      // Delete existing attachments and files
-      const existingFiles = await prisma.file.findMany({
-        where: {
-          context: 'ASSIGNMENT',
-          context_id: String(assignment.id),
-        },
-      });
-
-      // Delete from Cloudinary
-      const cloudinary = require("../config/cloudinary").default;
-      for (const file of existingFiles) {
-        try {
-          await cloudinary.uploader.destroy(file.public_id);
-        } catch (error) {
-          console.error(`Failed to delete file from Cloudinary: ${file.public_id}`, error);
-        }
-      }
-
-      // Delete existing file attachments
+    // Update file attachments if file_ids provided
+    if (file_ids !== undefined && Array.isArray(file_ids)) {
+      // Delete existing attachments
       await prisma.assignmentFileAttachment.deleteMany({
         where: { aid: assignment.id },
       });
 
-      // Delete existing files
-      await prisma.file.deleteMany({
-        where: {
-          context: 'ASSIGNMENT',
-          context_id: String(assignment.id),
-        },
-      });
-
-      // Create new files and attachments
-      if (file_attachments.length > 0) {
-        const userId = (req as any).userId;
-        const fileRecords = await Promise.all(
-          file_attachments.map(async (fileData: any) => {
-            return await prisma.file.create({
-              data: {
-                public_id: fileData.public_id,
-                secure_url: fileData.secure_url,
-                resource_type: fileData.resource_type,
-                format: fileData.format || null,
-                context: 'ASSIGNMENT',
-                context_id: String(assignment.id),
-                is_private: false,
-                uploader_id: userId,
-                original_filename: fileData.original_filename,
-              },
-            });
-          })
-        );
-
-        // Create assignment file attachments
+      // Create new attachments
+      if (file_ids.length > 0) {
         await prisma.assignmentFileAttachment.createMany({
-          data: fileRecords.map((fileRecord) => ({
+          data: file_ids.map((fid: string) => ({
             aid: assignment.id,
-            fid: fileRecord.id,
+            fid: String(fid),
           })),
           skipDuplicates: true,
         });
