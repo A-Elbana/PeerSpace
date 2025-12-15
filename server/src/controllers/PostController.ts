@@ -559,3 +559,88 @@ export const getAllPosts = async (req: Request, res: Response) => {
     });
   }
 };
+
+/**
+ * Get all posts from the authenticated user
+ * Returns posts created by the user with pagination and metadata
+ */
+export const getAllMyPosts = async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
+
+  // Pagination
+  const pageParam = parseInt(req.query.page as string);
+  const limitParam = parseInt(req.query.limit as string);
+  const page = !isNaN(pageParam) && pageParam > 0 ? pageParam : 1;
+  const limit = !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
+  const skip = (page - 1) * limit;
+
+  try {
+    const [posts, total] = await Promise.all([
+      prisma.post.findMany({
+        where: { owner_uid: userId },
+        skip,
+        take: limit,
+        orderBy: { post_date: "desc" },
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          body: true,
+          post_date: true,
+          is_resolved: true,
+          cid: true,
+          owner_uid: true,
+          Community: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+            },
+          },
+          User: {
+            select: {
+              id: true,
+              fname: true,
+              lname: true,
+            },
+          },
+          PostFileAttachment: {
+            include: {
+              File: {
+                select: {
+                  id: true,
+                  public_id: true,
+                  secure_url: true,
+                  resource_type: true,
+                  format: true,
+                  is_private: true,
+                },
+              },
+            },
+          },
+          _count: {
+            select: {
+              Comment: true,
+              Voted: true,
+            },
+          },
+        },
+      }),
+      prisma.post.count({ where: { owner_uid: userId } }),
+    ]);
+
+    res.status(200).json({
+      message: "My posts retrieved successfully",
+      data: posts,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error("Get My Posts Error:", error);
+    res.status(500).json({ message: "Failed to fetch my posts" });
+  }
+};
