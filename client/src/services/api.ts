@@ -285,6 +285,19 @@ export const communityApi = {
     const response = await api.get(`/communities/${id}/share`);
     return response.data;
   },
+
+  getMyCommunities: async (params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    message: string;
+    role: string;
+    data: CommunityResponse[];
+    meta: PaginationMeta;
+  }> => {
+    const response = await api.get("/communities/mine", { params });
+    return response.data;
+  },
 };
 
 // Post API calls (for all post types including announcements)
