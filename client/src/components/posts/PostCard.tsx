@@ -73,9 +73,8 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
     (currentUser.role === 'instructor' && isInstructorOfCommunity)
   );
 
-  // Voting state
-  const [upvotes, setUpvotes] = useState<number>(0);
-  const [downvotes, setDownvotes] = useState<number>(0);
+  // Voting state: use single score from API (upvotes - downvotes)
+  const [score, setScore] = useState<number>(0);
   const [userVote, setUserVote] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -84,9 +83,26 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
       try {
         const res = await voteApi.getVoteInfo(post.id);
         if (!mounted) return;
-        setUpvotes(res.upvotes ?? 0);
-        setDownvotes(res.downvotes ?? 0);
-        setUserVote(res.userVote ?? null);
+        // Prefer using the server-provided score (upvotes - downvotes)
+        setScore(res.score ?? (res.upvotes ?? 0) - (res.downvotes ?? 0));
+        // Normalize userVote which may be boolean or numeric (1 / -1)
+        const raw = res.userVote;
+        const normalize = (v: any): boolean | null => {
+          if (v === null || v === undefined) return null;
+          if (typeof v === 'boolean') return v;
+          if (typeof v === 'number') {
+            if (v === 1) return true;
+            if (v === -1) return false;
+            return null;
+          }
+          // fallback for string values like '1' / '-1' / 'true' / 'false'
+          if (typeof v === 'string') {
+            if (v === '1' || v.toLowerCase() === 'true') return true;
+            if (v === '-1' || v.toLowerCase() === 'false') return false;
+          }
+          return null;
+        };
+        setUserVote(normalize(raw));
       } catch (err) {
         // ignore (public endpoint may fail for guests)
       }
@@ -99,12 +115,12 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
       if (userVote === true) {
         await voteApi.removeVote(post.id);
         setUserVote(null);
-        setUpvotes(u => Math.max(0, u - 1));
+        setScore(s => s - 1);
         return;
       }
       await voteApi.votePost(post.id, true);
-      if (userVote === false) setDownvotes(d => Math.max(0, d - 1));
-      setUpvotes(u => u + 1);
+      if (userVote === false) setScore(s => s + 2);
+      else setScore(s => s + 1);
       setUserVote(true);
     } catch (err: any) {
       if (err?.response?.status === 401) toast.error('Please login to vote');
@@ -117,12 +133,12 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
       if (userVote === false) {
         await voteApi.removeVote(post.id);
         setUserVote(null);
-        setDownvotes(d => Math.max(0, d - 1));
+        setScore(s => s + 1);
         return;
       }
       await voteApi.votePost(post.id, false);
-      if (userVote === true) setUpvotes(u => Math.max(0, u - 1));
-      setDownvotes(d => d + 1);
+      if (userVote === true) setScore(s => s - 2);
+      else setScore(s => s - 1);
       setUserVote(false);
     } catch (err: any) {
       if (err?.response?.status === 401) toast.error('Please login to vote');
@@ -144,7 +160,7 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
             <button onClick={handleUp} className={`transition-colors ${userVote === true ? 'text-orange-500' : 'text-muted-foreground hover:text-orange-500'}`}>
               <ArrowBigUp size={24} />
             </button>
-            <span className="text-sm font-bold text-foreground">{upvotes}</span>
+            <span className="text-sm font-bold text-foreground">{score}</span>
             <button onClick={handleDown} className={`transition-colors ${userVote === false ? 'text-blue-500' : 'text-muted-foreground hover:text-blue-500'}`}>
               <ArrowBigDown size={24} />
             </button>
