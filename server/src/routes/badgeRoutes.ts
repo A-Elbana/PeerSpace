@@ -3,6 +3,7 @@ import {
   createBadge,
   getAllBadges,
   getBadgeById,
+  getMyBadges,
   updateBadge,
   deleteBadge,
 } from "../controllers/BadgeController";
@@ -174,6 +175,41 @@ router.post(
  *         description: Server error
  */
 router.get("/", authenticateToken, getAllBadges);
+
+/**
+ * @swagger
+ * /api/badges/me:
+ *   get:
+ *     summary: Get badges earned by the authenticated student
+ *     description: Retrieve badges assigned to the logged-in student with pagination.
+ *     tags: [Badges]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *           maximum: 50
+ *         description: Results per page
+ *     responses:
+ *       200:
+ *         description: Badges retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Only students can view their badges
+ *       500:
+ *         description: Server error
+ */
+router.get("/me", authenticateToken, getMyBadges);
 
 /**
  * @swagger

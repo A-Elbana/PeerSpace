@@ -7,6 +7,7 @@ import {
   updateTask,
   updateTaskStatus,
   deleteTask,
+  getTaskTags,
   addTaskTag,
   removeTaskTag,
   linkTaskToAssignment,
@@ -564,6 +565,43 @@ router.delete(
   loadTask,
   authorizeTaskModification,
   deleteTask
+);
+
+/**
+ * @swagger
+ * /api/tasks/{id}/tags:
+ *   get:
+ *     summary: Get all tags for a task
+ *     description: Retrieve all tags assigned to a task.
+ *     tags: [Tasks]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Task ID
+ *     responses:
+ *       200:
+ *         description: Tags retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Task not found
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  "/:id/tags",
+  authenticateToken,
+  requireStudentRole,
+  loadTask,
+  authorizeTaskAccess,
+  getTaskTags
 );
 
 /**
