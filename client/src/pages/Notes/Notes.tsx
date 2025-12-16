@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Sidebar } from '../../components/dashboard';
 import { useSidebar } from '../../contexts/SidebarContext';
 import type { Folder, Note } from './types';
@@ -84,6 +84,13 @@ const Notes: React.FC = () => {
     const [isNoteNameSaving, setIsNoteNameSaving] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
+    // Autosave state
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'editing' | 'saving' | 'saved' | 'error'>('idle');
+    const debounceRef = useRef<number | null>(null);
+    const lastSavedContentRef = useRef<string>('');
+    const currentNoteRef = useRef<Note | null>(null);
+    const noteContentRef = useRef<string>('');
+
     // keep draft in sync when folder changes
     useEffect(() => {
         setFolderDraftName(currentFolder?.name ?? '');
@@ -93,6 +100,9 @@ const Notes: React.FC = () => {
         setNoteDraftName(currentNote?.title ?? '');
         // load files for current note when it changes
         let mounted = true;
+        // sync refs when currentNote changes
+        currentNoteRef.current = currentNote;
+        noteContentRef.current = currentNote?.content ?? '';
         const loadFiles = async () => {
             if (!currentNote) {
                 setNoteFiles([]);
@@ -127,6 +137,70 @@ const Notes: React.FC = () => {
         loadFiles();
         return () => { mounted = false; };
     }, [currentNote]);
+
+    // Update refs for noteContent when it changes
+    useEffect(() => {
+        noteContentRef.current = noteContent;
+    }, [noteContent]);
+
+    // Debounced autosave: saves noteContent to backend when user stops typing
+    useEffect(() => {
+        if (!currentNote) {
+            setSaveStatus('idle');
+            return;
+        }
+
+        // if content matches last saved content, mark saved
+        if (noteContent === lastSavedContentRef.current) {
+            setSaveStatus('saved');
+            return;
+        }
+
+        setSaveStatus('editing');
+
+        if (debounceRef.current) window.clearTimeout(debounceRef.current);
+        // debounce 1000ms
+        debounceRef.current = window.setTimeout(() => {
+            const saveNow = async () => {
+                setSaveStatus('saving');
+                try {
+                    // call API to update note - server expects `body` field
+                    const resp = await api.put(`/notes/${currentNote.id}`, { body: noteContent });
+                    const updated = resp?.data?.note ?? resp?.data ?? resp;
+                    // update local lists (server may return `body`)
+                    const newContent = updated.content ?? updated.body ?? noteContent;
+                    setNotes(prev => prev.map(n => n.id === currentNote.id ? ({ ...n, content: newContent, updatedAt: new Date(updated.updatedAt || updated.updated_at || Date.now()) }) : n));
+                    setCurrentNote(n => n ? ({ ...n, content: newContent, updatedAt: new Date(updated.updatedAt || updated.updated_at || Date.now()) }) : n);
+                    lastSavedContentRef.current = newContent;
+                    setSaveStatus('saved');
+                } catch (err) {
+                    console.error('Autosave failed', err);
+                    toast.error('Autosave failed');
+                    setSaveStatus('error');
+                }
+            };
+            void saveNow();
+            debounceRef.current = null;
+        }, 1000) as unknown as number;
+
+        return () => {
+            if (debounceRef.current) {
+                window.clearTimeout(debounceRef.current);
+                debounceRef.current = null;
+            }
+        };
+    }, [noteContent, currentNote]);
+
+    // Flush any pending save on unmount
+    useEffect(() => {
+        return () => {
+            if (debounceRef.current && currentNoteRef.current && noteContentRef.current !== lastSavedContentRef.current) {
+                window.clearTimeout(debounceRef.current);
+                // fire-and-forget - send `body` field
+                void api.put(`/notes/${currentNoteRef.current.id}`, { body: noteContentRef.current }).catch(() => { /* ignore */ });
+            }
+        };
+    }, []);
 
     // Fetch folders and notes from backend on mount
     useEffect(() => {
@@ -475,7 +549,10 @@ const Notes: React.FC = () => {
                                             )}
                                         </div>
                                     ) : (
-                                        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">Notes</h1>
+                                        <div>
+                                            <h1 className="text-3xl font-bold text-foreground mb-2">Notes</h1>
+                                            <p className="text-muted-foreground">Create and organize your notes and notebooks</p>
+                                        </div>
                                     )}
                                     {currentFolder && !currentNote && (
                                         <div className="mt-1 flex items-center gap-2">
@@ -559,39 +636,56 @@ const Notes: React.FC = () => {
                                         )}
                                     </div>
                                 </div>
+
+                            {/* Save status chip (page top) - show only when a note is open */}
+                            {currentNote && (
+                                <div className="flex justify-end mb-4">
+                                    <span className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${saveStatus === 'saving' ? 'bg-primary/20 text-primary' : saveStatus === 'saved' ? 'bg-turf-green-500/10 text-turf-green-600' : saveStatus === 'editing' ? 'bg-amber-200/20 text-amber-700' : saveStatus === 'error' ? 'bg-rose-200/20 text-rose-600' : 'bg-muted/30 text-muted-foreground'}`}>
+                                        {saveStatus === 'saving' && 'Saving...'}
+                                        {saveStatus === 'saved' && 'All saved'}
+                                        {saveStatus === 'editing' && 'Editing...'}
+                                        {saveStatus === 'error' && 'Save failed'}
+                                        {saveStatus === 'idle' && 'Idle'}
+                                    </span>
+                                </div>
+                            )}
                             </div>
 
                             {!currentNote && (
-                                <div className="flex items-center gap-3">
-                                    <div className="relative">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                        <input
-                                            type="text"
-                                            placeholder={currentFolder ? "Search notes..." : "Search notebooks..."}
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="pl-9 pr-4 py-2 bg-card border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all w-64 shadow-sm"
-                                        />
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full justify-end">
+                                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                                        <div className="relative flex-1">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                            <input
+                                                type="text"
+                                                placeholder={currentFolder ? "Search notes..." : "Search notebooks..."}
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                className="pl-9 pr-4 py-2 bg-card border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all w-full sm:w-64 shadow-sm"
+                                            />
+                                        </div>
+
+                                        <div className="flex items-center bg-card border border-input rounded-lg p-1 shadow-sm mt-2 sm:mt-0">
+                                            <button
+                                                onClick={() => setViewMode('grid')}
+                                                className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted'}`}
+                                            >
+                                                <LayoutGrid size={18} />
+                                            </button>
+                                            <button
+                                                onClick={() => setViewMode('list')}
+                                                className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted'}`}
+                                            >
+                                                <List size={18} />
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center bg-card border border-input rounded-lg p-1 shadow-sm">
-                                        <button
-                                            onClick={() => setViewMode('grid')}
-                                            className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted'}`}
-                                        >
-                                            <LayoutGrid size={18} />
-                                        </button>
-                                        <button
-                                            onClick={() => setViewMode('list')}
-                                            className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted'}`}
-                                        >
-                                            <List size={18} />
-                                        </button>
-                                    </div>
-                                    <div className="flex gap-2">
+
+                                    <div className="flex gap-2 flex-col sm:flex-row w-full sm:w-auto">
                                         {!currentFolder && (
                                             <button
                                                 onClick={handleCreateFolder}
-                                                className="flex items-center gap-2 px-4 py-2 bg-card border border-input hover:bg-muted text-foreground rounded-lg transition-colors font-medium shadow-sm"
+                                                className="flex items-center gap-2 px-4 py-2 bg-card border border-input hover:bg-muted text-foreground rounded-lg transition-colors font-medium shadow-sm w-full sm:w-auto justify-center"
                                             >
                                                 <FolderPlus size={18} />
                                                 <span className="hidden sm:inline">New Notebook</span>
@@ -599,7 +693,7 @@ const Notes: React.FC = () => {
                                         )}
                                         <button
                                             onClick={handleCreateNote}
-                                            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20 font-medium"
+                                            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20 font-medium w-full sm:w-auto justify-center"
                                         >
                                             <FilePlus size={18} />
                                             <span className="hidden sm:inline">New Note</span>
@@ -612,6 +706,7 @@ const Notes: React.FC = () => {
 
                     {/* Content Area */}
                     <div className="flex-1 bg-muted/30 border border-border rounded-2xl p-6 overflow-y-auto shadow-inner relative custom-scrollbar">
+                        {/* Save status chip moved to header */}
                         <style>{`
                             .custom-scrollbar::-webkit-scrollbar {
                                 width: 8px;
@@ -676,8 +771,9 @@ const Notes: React.FC = () => {
                             </div>
                         ) : currentNote ? (
                             <div className="max-w-7xl mx-auto animate-in fade-in zoom-in-95 duration-200 w-full">
-                                <div className="bg-card rounded-xl overflow-hidden border border-border shadow-sm p-4 flex gap-6">
-                                    <div className="flex-1">
+
+                                <div className="bg-card rounded-xl overflow-hidden border border-border shadow-sm p-4 flex flex-col md:flex-row gap-6">
+                                    <div className="w-full md:w-[720px] flex-shrink-0">
                                         <MarkdownEditor
                                             key={currentNote.id}
                                             value={noteContent || currentNote.content}

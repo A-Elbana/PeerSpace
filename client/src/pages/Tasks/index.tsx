@@ -9,6 +9,15 @@ import { Button } from '../../components/ui/button';
 import { DeleteConfirmationModal } from '../../components/common/DeleteConfirmationModal';
 import TaskTable from '../../components/common/TaskTable';
 import { CreateTaskModal } from './CreateTaskModal';
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationPrevious,
+    PaginationNext,
+    PaginationEllipsis,
+} from '../../components/ui/pagination';
 
 type UserRole = 'student' | 'instructor' | 'admin';
 
@@ -390,31 +399,94 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
 
                     {/* Pagination controls (server-driven) */}
                     <div className="flex justify-end mt-6">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
                             <span className="mr-4">Total: {totalTasks}</span>
-                            <button
-                                onClick={async () => {
-                                    if (page <= 1) return;
-                                    const newPage = page - 1;
-                                    await fetchTasks(newPage, limit, searchQuery, priorityFilter === 'all' ? undefined : priorityFilter);
-                                }}
-                                disabled={page <= 1 || isFetchingTasks}
-                                className="px-3 py-1 bg-card border border-input rounded hover:bg-muted disabled:opacity-50"
-                            >
-                                Prev
-                            </button>
-                            <span className="px-3">Page {page} of {totalPages}</span>
-                            <button
-                                onClick={async () => {
-                                    if (page >= totalPages) return;
-                                    const newPage = page + 1;
-                                    await fetchTasks(newPage, limit, searchQuery, priorityFilter === 'all' ? undefined : priorityFilter);
-                                }}
-                                disabled={page >= totalPages || isFetchingTasks}
-                                className="px-3 py-1 bg-card border border-input rounded hover:bg-muted disabled:opacity-50"
-                            >
-                                Next
-                            </button>
+
+                            <Pagination className="">
+                                <PaginationContent>
+                                    <PaginationItem>
+                                        <PaginationPrevious
+                                            onClick={async (e) => {
+                                                e.preventDefault();
+                                                if (page <= 1 || isFetchingTasks) return;
+                                                const newPage = page - 1;
+                                                await fetchTasks(newPage, limit, searchQuery, priorityFilter === 'all' ? undefined : priorityFilter);
+                                            }}
+                                            aria-disabled={page <= 1 || isFetchingTasks}
+                                        />
+                                    </PaginationItem>
+
+                                    {/* render page numbers with simple ellipsis logic */}
+                                    {(() => {
+                                        const items: React.ReactNode[] = [];
+                                        const total = totalPages;
+                                        const current = page;
+
+                                        const pushPage = (p: number) => {
+                                            items.push(
+                                                <PaginationItem key={p}>
+                                                    <PaginationLink
+                                                        href="#"
+                                                        isActive={p === current}
+                                                        onClick={async (e: any) => {
+                                                            e.preventDefault();
+                                                            if (p === current || isFetchingTasks) return;
+                                                            await fetchTasks(p, limit, searchQuery, priorityFilter === 'all' ? undefined : priorityFilter);
+                                                            setPage(p);
+                                                        }}
+                                                    >
+                                                        {p}
+                                                    </PaginationLink>
+                                                </PaginationItem>
+                                            );
+                                        };
+
+                                        if (total <= 7) {
+                                            for (let i = 1; i <= total; i++) pushPage(i);
+                                        } else {
+                                            // always show first
+                                            pushPage(1);
+
+                                            let left = Math.max(2, current - 1);
+                                            let right = Math.min(total - 1, current + 1);
+
+                                            if (left > 2) {
+                                                items.push(
+                                                    <PaginationItem key="e-left">
+                                                        <PaginationEllipsis />
+                                                    </PaginationItem>
+                                                );
+                                            }
+
+                                            for (let i = left; i <= right; i++) pushPage(i);
+
+                                            if (right < total - 1) {
+                                                items.push(
+                                                    <PaginationItem key="e-right">
+                                                        <PaginationEllipsis />
+                                                    </PaginationItem>
+                                                );
+                                            }
+
+                                            pushPage(total);
+                                        }
+
+                                        return items;
+                                    })()}
+
+                                    <PaginationItem>
+                                        <PaginationNext
+                                            onClick={async (e) => {
+                                                e.preventDefault();
+                                                if (page >= totalPages || isFetchingTasks) return;
+                                                const newPage = page + 1;
+                                                await fetchTasks(newPage, limit, searchQuery, priorityFilter === 'all' ? undefined : priorityFilter);
+                                            }}
+                                            aria-disabled={page >= totalPages || isFetchingTasks}
+                                        />
+                                    </PaginationItem>
+                                </PaginationContent>
+                            </Pagination>
                         </div>
                     </div>
                 </div>

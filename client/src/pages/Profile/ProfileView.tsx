@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Sidebar } from '../../components/dashboard';
-import { useSidebar } from '../../contexts/SidebarContext';
 import api, { communityApi, postApi, type CommunityResponse, type PostResponse } from '../../services/api';
 import { useResolvedFileUrl } from '../../hooks/useResolvedFileUrl';
 import { Loader2, ArrowRight } from 'lucide-react';
 import PostCard from '../../components/posts/PostCard';
+import UserProfileHeader from '../../components/profile/UserProfileHeader';
 
 interface UserData {
   id: number;
@@ -31,10 +31,9 @@ interface CommunityCardProps {
 }
 import CommunityCard from '../../components/common/CommunityCard';
 
-const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
+const ProfileView: React.FC<ProfileProps> = ({ onLogout }) => {
   const navigate = useNavigate();
   const { userId } = useParams<{ userId?: string }>();
-  const { sidebarWidth } = useSidebar();
   const [user, setUser] = useState<UserData | null>(null); // viewer (logged in)
   const [viewedUser, setViewedUser] = useState<UserData | null>(null); // profile being viewed
   const [isLoading, setIsLoading] = useState(true);
@@ -358,10 +357,7 @@ const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
     return (
       <div className="flex min-h-screen bg-background text-foreground font-sans">
         <Sidebar onLogout={onLogout} />
-        <main 
-          className="flex-1 p-6 transition-all duration-300 flex items-center justify-center"
-          style={{ marginLeft: `${sidebarWidth}px` }}
-        >
+        <main className="flex-1 ml-20 p-6 transition-all duration-300 flex items-center justify-center">
           <div className="flex items-center gap-2">
             <Loader2 className="h-5 w-5 animate-spin" />
             <span>Loading profile...</span>
@@ -375,10 +371,7 @@ const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
     return (
       <div className="flex min-h-screen bg-background text-foreground font-sans">
         <Sidebar onLogout={onLogout} />
-        <main 
-          className="flex-1 p-6 transition-all duration-300 flex items-center justify-center"
-          style={{ marginLeft: `${sidebarWidth}px` }}
-        >
+        <main className="flex-1 ml-20 p-6 transition-all duration-300 flex items-center justify-center">
           <div className="text-center">
             <p className="text-muted-foreground">{error || 'User not found'}</p>
           </div>
@@ -392,40 +385,12 @@ const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
       <Sidebar onLogout={onLogout} />
 
       {/* Main Content Area */}
-      <main 
-        className="flex-1 p-6 transition-all duration-300"
-        style={{ marginLeft: `${sidebarWidth}px` }}
-      >
+      <main className="flex-1 ml-20 p-6 transition-all duration-300">
         <div className="w-full max-w-none">
           {/* Header / Profile Card */}
           <div className="flex items-start gap-6 mb-6">
-            <div className="w-24 h-24 rounded-full bg-green-200 flex items-center justify-center overflow-hidden border-4 border-white shadow">
-              {viewedUser?.avatar_file_id ? (
-                <img src={viewedAvatarUrl || ''} alt="Profile" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-5xl">{(viewedUser?.fname?.charAt(0) ?? '') + (viewedUser?.lname?.charAt(0) ?? '')}</span>
-              )}
-            </div>
-
             <div className="flex-1">
-              <div className="bg-card rounded-xl border border-border p-6 mb-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold">{viewedUser ? `${viewedUser.fname} ${viewedUser.lname}` : 'User'}</h2>
-                    <p className="text-sm text-muted-foreground">{viewedUser?.email}</p>
-                    <p className="text-xs mt-2 font-medium text-primary">{viewedUser?.role?.toUpperCase()}</p>
-                    {viewedUser?.role === 'instructor' && (
-                      <div className="mt-3 text-sm">
-                        {viewedUser.google_scholar && (
-                          <div className="mb-1"><a href={viewedUser.google_scholar} target="_blank" rel="noreferrer" className="text-primary underline">Google Scholar</a></div>
-                        )}
-                        {viewedUser.title && <div className="text-muted-foreground">{viewedUser.title}</div>}
-                        {viewedUser.expertise && <div className="text-muted-foreground">Expertise: {viewedUser.expertise}</div>}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <UserProfileHeader viewedUser={viewedUser} viewedAvatarUrl={viewedAvatarUrl} />
 
               {/* If viewing self show full tabs, otherwise show mutual previews */}
               {viewedUser && user && viewedUser.id === user.id ? (
@@ -470,15 +435,15 @@ const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
                           </span>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="flex flex-col gap-4">
                           {myPosts.map((p) => (
                             <div
                               key={p.id}
                               onClick={() => navigate(`/community/${p.cid}/post/${p.id}`)}
-                              className="bg-card rounded-lg border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer p-4"
+                              className="bg-card rounded-lg border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer p-4 w-full"
                             >
-                              <h3 className="font-semibold text-lg text-foreground mb-2 line-clamp-2">{p.title}</h3>
-                              <p className="text-muted-foreground text-sm line-clamp-3 mb-3">{p.body ?? ''}</p>
+                              <h3 className="font-semibold text-lg text-foreground mb-2">{p.title}</h3>
+                              <p className="text-muted-foreground text-sm mb-3">{p.body ?? ''}</p>
                               <div className="flex items-center justify-between text-xs text-muted-foreground">
                                 <span>{p._count?.Comment || 0} comments</span>
                                 <span>{p.post_date ? new Date(p.post_date).toLocaleDateString() : ''}</span>
@@ -526,15 +491,14 @@ const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
                       {mutualPosts.length === 0 && !loadingMoreMutualPosts ? (
                         <div className="text-sm text-muted-foreground">No mutual activity yet.</div>
                       ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-3">
                           {mutualPosts.map(p => (
-                            <div key={p.id} onClick={() => navigate(`/community/${p.cid}/post/${p.id}`)}>
-                              <PostCard
-                                post={p as any}
-                                currentUser={user ? { id: user.id, role: user.role } : null}
-                                isInstructorOfCommunity={false}
-                              />
-                            </div>
+                            <PostCard
+                              key={p.id}
+                              post={p as any}
+                              currentUser={user ? { id: user.id, role: user.role } : null}
+                              isInstructorOfCommunity={false}
+                            />
                           ))}
                         </div>
                       )}
@@ -557,17 +521,11 @@ const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
                         ) : (
                           <div className="space-y-2">
                             {mutualCommunities.map(c => (
-                              <div
+                              <CommunityCard
                                 key={c.id}
-                                className="group bg-card border border-border rounded-lg p-2 cursor-pointer transition-transform hover:scale-[1.02] hover:shadow-md relative overflow-hidden"
+                                community={c}
                                 onClick={() => navigate(`/community/${c.id}`)}
-                              >
-                                <div className="font-medium text-foreground truncate">{c.name}</div>
-                                <div className="text-xs text-muted-foreground">{c._count?.Post ?? 0} posts • {c._count?.Enrollment ?? 0} members</div>
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                                </div>
-                              </div>
+                              />
                             ))}
                           </div>
                         )}
@@ -591,4 +549,4 @@ const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
   );
 };
 
-export default Profile;
+export default ProfileView;

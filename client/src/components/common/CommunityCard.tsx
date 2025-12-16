@@ -22,21 +22,21 @@ const CommunityCard: React.FC<CommunityCardProps> = ({ community, onClick }) => 
             alt={`${community.name} banner`}
             className="w-full h-full object-cover"
           />
-          <div className="absolute top-2 right-2">
-            <span className={`px-2 py-1 text-xs font-medium rounded-full ${community.type === 'PUBLIC'
-              ? 'bg-green-500/90 text-white'
-              : 'bg-orange-500/90 text-white'
-              }`}>
-              {community.type}
-            </span>
-          </div>
         </div>
       )}
 
       <div className="p-4">
-        <h3 className="font-semibold text-lg text-foreground mb-2 line-clamp-1">
-          {community.name}
-        </h3>
+        <div className="flex items-center gap-3 mb-2">
+          <h3 className="font-semibold text-lg text-foreground line-clamp-1 flex-1">
+            {community.name}
+          </h3>
+          <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${community.type === 'PUBLIC'
+            ? 'bg-turf-green-500/10 text-turf-green-600'
+            : 'bg-royal-gold-500/10 text-royal-gold-600'
+            }`}>
+            {community.type}
+          </span>
+        </div>
         {community.description && (
           <p className="text-muted-foreground text-sm line-clamp-2 mb-3">
             {community.description}
