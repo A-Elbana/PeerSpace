@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Check, ChevronLeft, Trash2 } from 'lucide-react';
 import { Sidebar } from '../../components/dashboard';
 import { Button } from '../../components/ui/button';
 import { removeTokens } from '../../utils/auth';
+import { useNotifications } from '../../contexts/NotificationContext';
+import { notificationsApi } from '../../services/api';
 
 export interface Notification {
   id: string;
@@ -68,7 +70,7 @@ const mockNotifications: Notification[] = [
 
 const NotificationsPage = () => {
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const { notifications, unreadCount, fetchNotifications, markAllRead } = useNotifications();
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
   const handleLogout = () => {
@@ -76,28 +78,36 @@ const NotificationsPage = () => {
     navigate('/login');
   };
 
+  useEffect(() => {
+    // ensure fresh data when page mounts
+    fetchNotifications();
+  }, []);
+
   const handleMarkAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+    // mark via API then refresh
+    notificationsApi.markAsRead(Number(id)).then(() => fetchNotifications()).catch((e) => console.error(e));
   };
 
   const handleMarkAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    markAllRead();
   };
 
   const handleDelete = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    // No delete endpoint; mark as read then refresh as a fallback
+    notificationsApi.markAsRead(Number(id)).then(() => fetchNotifications()).catch((e) => console.error(e));
   };
 
   const handleClearAll = () => {
-    setNotifications([]);
+    markAllRead();
   };
 
-  const filteredNotifications =
-    filter === 'unread' ? notifications.filter((n) => !n.read) : notifications;
+  // socket handling and refetch on signal is managed by NotificationContext
+  useEffect(() => {
+    // keep notifications fresh when this page mounts
+    fetchNotifications();
+  }, []);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const filteredNotifications = filter === 'unread' ? notifications.filter((n) => !n.read) : notifications;
 
   const getTypeColor = (type: Notification['type']) => {
     switch (type) {
@@ -279,3 +289,4 @@ const NotificationsPage = () => {
 };
 
 export default NotificationsPage;
+

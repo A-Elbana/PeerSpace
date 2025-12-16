@@ -31,10 +31,10 @@
     "react": "^19.2.1",
     "react-day-picker": "^9.12.0",
     "react-dom": "^19.2.1",
-    
     "react-pro-sidebar": "^1.1.0",
     "react-router-dom": "^7.10.1",
     "recharts": "^2.15.4",
+    "socket.io-client": "^4.8.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",

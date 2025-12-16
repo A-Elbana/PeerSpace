@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import { Button } from '../ui/button';
+import { useNotifications } from '../../contexts/NotificationContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,7 +57,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   onMarkAllRead,
 }) => {
   const navigate = useNavigate();
-  const unreadCount = notificationCount ?? notifications.filter((n) => !n.read).length;
+  const { notifications: ctxNotifications, unreadCount, markAllRead } = useNotifications();
 
   return (
     <DropdownMenu>
@@ -79,7 +80,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
           <h3 className="font-semibold text-foreground">Notifications</h3>
           {unreadCount > 0 && (
             <button
-              onClick={onMarkAllRead}
+              onClick={() => (onMarkAllRead ? onMarkAllRead() : markAllRead())}
               className="text-xs text-frosted-blue-500 hover:text-frosted-blue-600 hover:underline"
             >
               Mark all as read
@@ -88,12 +89,12 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         </div>
         <DropdownMenuSeparator />
         <div className="max-h-80 overflow-y-auto">
-          {notifications.length === 0 ? (
+          {ctxNotifications.length === 0 ? (
             <div className="px-4 py-6 text-center text-sm text-muted-foreground">
               No notifications
             </div>
           ) : (
-            notifications.map((notification) => (
+            ctxNotifications.map((notification) => (
               <div
                 key={notification.id}
                 onClick={() => onNotificationClick?.(notification)}

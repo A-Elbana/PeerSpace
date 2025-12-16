@@ -27,8 +27,15 @@ import { errorHandler, asyncHandler } from "./middleware/errorHandler";
 
 dotenv.config();
 
+import http from "http";
+import { initSocket } from "./services/socket";
+import { startNotificationBroadcaster } from "./services/notificationBroadcaster";
+
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Create HTTP server so Socket.io can attach
+const server = http.createServer(app);
 
 // Middleware - Order matters!
 // 1. CORS configuration
@@ -79,7 +86,13 @@ app.use((req: Request, res: Response) => {
 app.use(errorHandler);
 
 // Start server
-app.listen(PORT, () => {
+// Initialize socket.io and start the notification broadcaster
+const io = initSocket(server);
+startNotificationBroadcaster(io).catch((err) =>
+  console.error("Notification broadcaster failed:", err)
+);
+
+server.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
   console.log(
     `API Documentation available at http://localhost:${PORT}/api-docs`
