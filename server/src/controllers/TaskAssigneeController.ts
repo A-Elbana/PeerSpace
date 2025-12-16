@@ -404,10 +404,11 @@ export const removeTaskAssignee = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Task not found" });
     }
 
-    if (task.author !== ownerId) {
+    // Allow removal if requester is the task owner OR the assignee themselves
+    if (task.author !== ownerId && ownerId !== studentId) {
       return res
         .status(403)
-        .json({ message: "Only the task owner can remove assignees" });
+        .json({ message: "Only the task owner can remove other assignees" });
     }
 
     // Check if assignment exists

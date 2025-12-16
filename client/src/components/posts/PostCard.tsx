@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MessageSquare, Clock, User, ArrowBigUp, ArrowBigDown, Megaphone, MoreHorizontal, PenSquare, Trash2 } from 'lucide-react';
 import { useResolvedFileUrl } from '../../hooks/useResolvedFileUrl';
 import { MarkdownPreview } from '../MarkdownEditor';
@@ -64,6 +65,7 @@ const getTypeColor = (type: string) => {
 export default function PostCard({ post, communityName, onNavigate, currentUser, isInstructorOfCommunity, onEdit, onDelete }: PostCardProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const authorAvatarUrl = useResolvedFileUrl(post.User.avatar_file_id);
+  const navigate = useNavigate();
   const tags = post.type?.split(',').map((t: string) => t.trim().toLowerCase()) || [];
   const isAnnouncement = tags.includes('announcement');
 
@@ -157,12 +159,20 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
           </div>
         ) : (
           <div className="w-12 bg-muted/30 flex flex-col items-center py-3 gap-1">
-            <button onClick={handleUp} className={`transition-colors ${userVote === true ? 'text-orange-500' : 'text-muted-foreground hover:text-orange-500'}`}>
-              <ArrowBigUp size={24} />
+            <button
+              onClick={handleUp}
+              className={`transition-colors flex items-center justify-center ${userVote === true ? 'bg-turf-green-600 text-white w-8 h-8 rounded-full' : 'text-turf-green-600 hover:text-turf-green-700'}`}
+              aria-pressed={userVote === true}
+            >
+              <ArrowBigUp size={20} />
             </button>
             <span className="text-sm font-bold text-foreground">{score}</span>
-            <button onClick={handleDown} className={`transition-colors ${userVote === false ? 'text-blue-500' : 'text-muted-foreground hover:text-blue-500'}`}>
-              <ArrowBigDown size={24} />
+            <button
+              onClick={handleDown}
+              className={`transition-colors flex items-center justify-center ${userVote === false ? 'bg-red-600 text-white w-8 h-8 rounded-full' : 'text-red-600 hover:text-red-700'}`}
+              aria-pressed={userVote === false}
+            >
+              <ArrowBigDown size={20} />
             </button>
           </div>
         )}
@@ -178,7 +188,12 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
                 </div>
               )}
               <div>
-                <p className="text-sm font-medium text-foreground">{post.User.fname} {post.User.lname}</p>
+                <button
+                  onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.User.id}`); }}
+                  className="text-sm font-medium text-foreground hover:underline cursor-pointer"
+                >
+                  {post.User.fname} {post.User.lname}
+                </button>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Clock className="w-3 h-3" />
                   <span>{formatDate(post.post_date)}</span>

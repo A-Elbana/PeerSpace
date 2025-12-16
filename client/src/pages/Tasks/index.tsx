@@ -29,6 +29,7 @@ interface Task {
     priority: 'low' | 'medium' | 'high';
     assignmentRelation: string;
     completed: boolean;
+    ownerId?: number;
 }
 
 interface Assignee {
@@ -54,16 +55,14 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [priorityFilter, setPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
 
-    // Delete Modal State
+    // Delete/Remove Modal State
     const [deleteModal, setDeleteModal] = useState<{
         isOpen: boolean;
-        taskId: string;
-        taskName: string;
-    }>({
-        isOpen: false,
-        taskId: '',
-        taskName: ''
-    });
+        taskId?: string;
+        taskName?: string;
+        mode?: 'delete' | 'remove-self';
+        studentId?: number;
+    }>({ isOpen: false });
 
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [updatingTaskIds, setUpdatingTaskIds] = useState<string[]>([]);
@@ -167,6 +166,7 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
                 priority,
                 assignmentRelation,
                 completed: t.status === 2 || t.completed === true,
+                ownerId: t.author ?? null,
             } as Task;
         });
     };
@@ -202,23 +202,33 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
     };
 
     const handleDeleteClick = (task: Task) => {
-        setDeleteModal({
-            isOpen: true,
-            taskId: task.id,
-            taskName: task.name,
-        });
+        // If current user is not the owner, open modal for "remove me"
+        if (user && task.ownerId && Number(user.id) !== Number(task.ownerId)) {
+            setDeleteModal({ isOpen: true, taskId: task.id, taskName: task.name, mode: 'remove-self', studentId: user.id });
+            return;
+        }
+
+        setDeleteModal({ isOpen: true, taskId: task.id, taskName: task.name, mode: 'delete' });
     };
 
     const confirmDelete = async () => {
         try {
-            await api.delete(`/tasks/${Number(deleteModal.taskId)}`);
-            setTasks(tasks.filter(t => t.id !== deleteModal.taskId));
-            toast.success('Task deleted');
+            if (deleteModal.mode === 'remove-self') {
+                // self-unassign
+                await api.delete('/task-assignees/remove', { data: { taskId: Number(deleteModal.taskId), studentId: deleteModal.studentId } });
+                setTasks(prev => prev.filter(t => t.id !== deleteModal.taskId));
+                toast.success('You have been unassigned from the task');
+            } else {
+                // owner delete
+                await api.delete(`/tasks/${Number(deleteModal.taskId)}`);
+                setTasks(tasks.filter(t => t.id !== deleteModal.taskId));
+                toast.success('Task deleted');
+            }
         } catch (err) {
-            console.error('Failed to delete task:', err);
-            toast.error('Failed to delete task');
+            console.error('Failed to perform delete/remove action:', err);
+            toast.error('Failed to perform action');
         } finally {
-            setDeleteModal({ ...deleteModal, isOpen: false });
+            setDeleteModal({ isOpen: false });
         }
     };
 
@@ -404,14 +414,24 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
                     </div>
                 </div>
 
-                <DeleteConfirmationModal
-                    isOpen={deleteModal.isOpen}
-                    onClose={() => setDeleteModal({ ...deleteModal, isOpen: false })}
-                    onConfirm={confirmDelete}
-                    title="Delete Task"
-                    description={`Are you sure you want to delete "${deleteModal.taskName}"? This action cannot be undone.`}
-                    itemType="task"
-                />
+                {(() => {
+                    const mode = deleteModal.mode ?? 'delete';
+                    const title = mode === 'remove-self' ? 'Remove Assignment' : 'Delete Task';
+                    const description = mode === 'remove-self'
+                        ? `Are you sure you want to remove yourself from "${deleteModal.taskName}"? This will unassign you from the task.`
+                        : `Are you sure you want to delete "${deleteModal.taskName}"? This action cannot be undone.`;
+
+                    return (
+                        <DeleteConfirmationModal
+                            isOpen={deleteModal.isOpen}
+                            onClose={() => setDeleteModal({ isOpen: false })}
+                            onConfirm={confirmDelete}
+                            title={title}
+                            description={description}
+                            itemType={mode === 'remove-self' ? 'assignment' : 'task'}
+                        />
+                    );
+                })()}
 
                 <CreateTaskModal
                     isOpen={isCreateModalOpen}

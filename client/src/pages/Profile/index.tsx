@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Sidebar } from '../../components/dashboard';
 import api, { communityApi, postApi, type CommunityResponse, type PostResponse } from '../../services/api';
 import { useResolvedFileUrl } from '../../hooks/useResolvedFileUrl';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowRight } from 'lucide-react';
+import PostCard from '../../components/posts/PostCard';
 
 interface UserData {
   id: number;
@@ -48,8 +49,20 @@ const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
   const [postsPage, setPostsPage] = useState(1);
   const [hasMorePosts, setHasMorePosts] = useState(true);
   const [loadingMorePosts, setLoadingMorePosts] = useState(false);
+  // mutual (when viewing another user)
+  const [mutualCommunities, setMutualCommunities] = useState<CommunityResponse[]>([]);
+  const [mutualCommunitiesPage, setMutualCommunitiesPage] = useState(1);
+  const [hasMoreMutualCommunities, setHasMoreMutualCommunities] = useState(true);
+  const [loadingMoreMutualCommunities, setLoadingMoreMutualCommunities] = useState(false);
+
+  const [mutualPosts, setMutualPosts] = useState<PostResponse[]>([]);
+  const [mutualPostsPage, setMutualPostsPage] = useState(1);
+  const [hasMoreMutualPosts, setHasMoreMutualPosts] = useState(true);
+  const [loadingMoreMutualPosts, setLoadingMoreMutualPosts] = useState(false);
+  const [mutualCommunityIds, setMutualCommunityIds] = useState<string[]>([]);
 
   const avatarUrl = useResolvedFileUrl(user?.avatar_file_id);
+  const viewedAvatarUrl = useResolvedFileUrl(viewedUser?.avatar_file_id);
 
   const tabs = [
     'Overview',
@@ -144,6 +157,155 @@ const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
     fetchCommunities();
   }, [activeTab, user, viewedUser, userId]);
 
+  // Fetch mutual communities (paginated) when viewing another user
+  const fetchMutualCommunities = useCallback(async (page = 1, limit = 4) => {
+    if (!userId) return;
+    try {
+      setLoadingMoreMutualCommunities(true);
+      const uid = Number(userId);
+      const resp = await communityApi.getCommonCommunities(uid, { page, limit });
+      const items = resp?.data ?? [];
+      if (page === 1) setMutualCommunities(items);
+      else setMutualCommunities(prev => [...prev, ...items]);
+      setHasMoreMutualCommunities(resp?.meta ? resp.meta.page < resp.meta.totalPages : items.length === limit);
+      setMutualCommunitiesPage(page);
+    } catch (err) {
+      console.error('Failed to fetch mutual communities:', err);
+    } finally {
+      setLoadingMoreMutualCommunities(false);
+    }
+  }, [userId]);
+
+  // Fetch and cache all mutual community IDs once, then fetch posts by those IDs.
+  const fetchAllMutualCommunityIds = useCallback(async (): Promise<string[]> => {
+    if (!userId) return [];
+    try {
+      const uid = Number(userId);
+      // large limit to try to fetch all mutual communities at once
+      const resp = await communityApi.getCommonCommunities(uid, { page: 1, limit: 1000 });
+      const items = resp?.data ?? [];
+      const ids = items.map(c => c.id);
+      setMutualCommunityIds(ids);
+      return ids;
+    } catch (err) {
+      console.error('Failed to fetch mutual community ids:', err);
+      setMutualCommunityIds([]);
+      return [];
+    }
+  }, [userId]);
+
+  const fetchMutualPosts = useCallback(async (page = 1, limit = 4) => {
+    if (!userId) return;
+    try {
+      setLoadingMoreMutualPosts(true);
+      // ensure we have community ids cached
+      let cids: string[] = mutualCommunityIds.length > 0 ? mutualCommunityIds : [];
+      if (!cids || cids.length === 0) {
+        const fetched = await fetchAllMutualCommunityIds();
+        cids = fetched;
+      }
+      if (cids.length === 0) {
+        if (page === 1) setMutualPosts([]);
+        setHasMoreMutualPosts(false);
+        return;
+      }
+      // fetch recent posts across these community ids
+      const postsResp = await postApi.getByCommunities(cids, { page, limit });
+      const posts = postsResp?.data ?? [];
+      if (page === 1) setMutualPosts(posts);
+      else setMutualPosts(prev => {
+        const existing = new Set(prev.map(p => p.id));
+        const filtered = posts.filter(p => !existing.has(p.id));
+        return [...prev, ...filtered];
+      });
+      setHasMoreMutualPosts(postsResp?.meta ? postsResp.meta.page < postsResp.meta.totalPages : posts.length === limit);
+      setMutualPostsPage(page);
+    } catch (err) {
+      console.error('Failed to fetch mutual posts:', err);
+    } finally {
+      setLoadingMoreMutualPosts(false);
+    }
+  }, [userId, mutualCommunityIds, fetchAllMutualCommunityIds]);
+
+  // Refs for scroll handling
+  const mutualCommunitiesScrollRef = useRef<HTMLDivElement | null>(null);
+  const mutualPostsScrollListenerAttached = useRef(false);
+  const mutualCommunitiesDebounceRef = useRef<number | null>(null);
+  const mutualPostsDebounceRef = useRef<number | null>(null);
+  const mutualPostsScrollListenerRef = useRef<() => void | null>(null);
+  const mutualPostsScrollThreshold = 300; // px from bottom
+
+  // Use scroll handlers instead of IntersectionObserver to simplify lazy-loading
+  const handleCommunitiesScroll = useCallback(() => {
+    const el = mutualCommunitiesScrollRef.current;
+    if (!el || loadingMoreMutualCommunities || !hasMoreMutualCommunities) return;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
+      fetchMutualCommunities(mutualCommunitiesPage + 1);
+    }
+  }, [fetchMutualCommunities, mutualCommunitiesPage, hasMoreMutualCommunities, loadingMoreMutualCommunities]);
+
+  const debouncedHandleCommunitiesScroll = useCallback(() => {
+    if (mutualCommunitiesDebounceRef.current) window.clearTimeout(mutualCommunitiesDebounceRef.current);
+    mutualCommunitiesDebounceRef.current = window.setTimeout(() => {
+      handleCommunitiesScroll();
+    }, 500);
+  }, [handleCommunitiesScroll]);
+
+  const handleWindowPostsScroll = useCallback(() => {
+    if (loadingMoreMutualPosts || !hasMoreMutualPosts) return;
+    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - mutualPostsScrollThreshold) {
+      fetchMutualPosts(mutualPostsPage + 1);
+    }
+  }, [fetchMutualPosts, mutualPostsPage, hasMoreMutualPosts, loadingMoreMutualPosts]);
+
+  const debouncedHandleWindowPostsScroll = useCallback(() => {
+    if (mutualPostsDebounceRef.current) window.clearTimeout(mutualPostsDebounceRef.current);
+    mutualPostsDebounceRef.current = window.setTimeout(() => {
+      handleWindowPostsScroll();
+    }, 500);
+  }, [handleWindowPostsScroll]);
+
+  useEffect(() => {
+    if (!userId) return;
+    // attach window scroll listener for mutual posts once
+    if (!mutualPostsScrollListenerAttached.current) {
+      mutualPostsScrollListenerRef.current = debouncedHandleWindowPostsScroll;
+      window.addEventListener('scroll', debouncedHandleWindowPostsScroll);
+      mutualPostsScrollListenerAttached.current = true;
+    }
+    return () => {
+      if (mutualPostsScrollListenerAttached.current) {
+        const fn = mutualPostsScrollListenerRef.current;
+        if (fn) window.removeEventListener('scroll', fn as EventListener);
+        mutualPostsScrollListenerAttached.current = false;
+      }
+      // clear any pending timers
+      if (mutualCommunitiesDebounceRef.current) {
+        window.clearTimeout(mutualCommunitiesDebounceRef.current);
+        mutualCommunitiesDebounceRef.current = null;
+      }
+      if (mutualPostsDebounceRef.current) {
+        window.clearTimeout(mutualPostsDebounceRef.current);
+        mutualPostsDebounceRef.current = null;
+      }
+    };
+  }, [userId, handleWindowPostsScroll]);
+
+  // When viewing another user, immediately load the first page of mutual communities and posts.
+  useEffect(() => {
+    if (!userId) return;
+    // reset mutual state and load page 1
+    setMutualCommunities([]);
+    setMutualCommunitiesPage(1);
+    setHasMoreMutualCommunities(true);
+    setMutualPosts([]);
+    setMutualPostsPage(1);
+    setHasMoreMutualPosts(true);
+    // fetch initial pages
+    fetchMutualCommunities(1);
+    fetchMutualPosts(1, 4);
+  }, [userId, fetchMutualCommunities, fetchMutualPosts]);
+
   const loadMoreCommunities = useCallback(async () => {
     if (!hasMoreCommunities || loadingMoreCommunities) return;
 
@@ -228,7 +390,7 @@ const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
           <div className="flex items-start gap-6 mb-6">
             <div className="w-24 h-24 rounded-full bg-green-200 flex items-center justify-center overflow-hidden border-4 border-white shadow">
               {viewedUser?.avatar_file_id ? (
-                <img src={useResolvedFileUrl(viewedUser.avatar_file_id) || ''} alt="Profile" className="w-full h-full object-cover" />
+                <img src={viewedAvatarUrl || ''} alt="Profile" className="w-full h-full object-cover" />
               ) : (
                 <span className="text-5xl">{(viewedUser?.fname?.charAt(0) ?? '') + (viewedUser?.lname?.charAt(0) ?? '')}</span>
               )}
@@ -346,28 +508,69 @@ const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
                 </>
               ) : (
                 // Viewing another user: show mutual recent activity and mutual communities (lazy placeholders)
-                <>
-                  <div className="mb-6">
+                <div className="flex gap-6">
+                  <div className="flex-1 mb-6">
                     <h3 className="text-lg font-semibold mb-3">Recent activity in mutual communities</h3>
-                    {/* Placeholder lazy list - backend will be wired later */}
                     <div className="space-y-3">
-                      <div className="text-sm text-muted-foreground">No mutual activity available yet. Endpoint pending.</div>
-                      <div className="flex gap-2 mt-2">
-                        <button className="px-3 py-1 bg-card border border-border rounded" disabled>Load more</button>
+                      {mutualPosts.length === 0 && !loadingMoreMutualPosts ? (
+                        <div className="text-sm text-muted-foreground">No mutual activity yet.</div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {mutualPosts.map(p => (
+                            <div key={p.id} onClick={() => navigate(`/community/${p.cid}/post/${p.id}`)}>
+                              <PostCard
+                                post={p as any}
+                                currentUser={user ? { id: user.id, role: user.role } : null}
+                                isInstructorOfCommunity={false}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex items-center justify-center py-3">
+                        {loadingMoreMutualPosts ? (
+                          <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading...</div>
+                        ) : !hasMoreMutualPosts ? (
+                          <div className="text-xs text-muted-foreground">No more activity</div>
+                        ) : null}
                       </div>
                     </div>
                   </div>
 
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold mb-3">Mutual communities</h3>
-                    <div className="space-y-3">
-                      <div className="text-sm text-muted-foreground">No mutual communities available yet. Endpoint pending.</div>
-                      <div className="flex gap-2 mt-2">
-                        <button className="px-3 py-1 bg-card border border-border rounded" disabled>Load more</button>
+                  <div className="w-80 mb-6">
+                    <div ref={mutualCommunitiesScrollRef} onScroll={debouncedHandleCommunitiesScroll} className="h-96 overflow-auto rounded border border-border bg-card p-3">
+                      <h3 className="text-lg font-semibold mb-3">Mutual communities</h3>
+                      <div className="space-y-3">
+                        {mutualCommunities.length === 0 && !loadingMoreMutualCommunities ? (
+                          <div className="text-sm text-muted-foreground">No mutual communities yet.</div>
+                        ) : (
+                          <div className="space-y-2">
+                            {mutualCommunities.map(c => (
+                              <div
+                                key={c.id}
+                                className="group bg-card border border-border rounded-lg p-2 cursor-pointer transition-transform hover:scale-[1.02] hover:shadow-md relative overflow-hidden"
+                                onClick={() => navigate(`/community/${c.id}`)}
+                              >
+                                <div className="font-medium text-foreground truncate">{c.name}</div>
+                                <div className="text-xs text-muted-foreground">{c._count?.Post ?? 0} posts • {c._count?.Enrollment ?? 0} members</div>
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex items-center justify-center py-3">
+                          {loadingMoreMutualCommunities ? (
+                            <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading...</div>
+                          ) : !hasMoreMutualCommunities ? (
+                            <div className="text-xs text-muted-foreground">No more communities</div>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </>
+                </div>
               )}
             </div>
           </div>

@@ -67,6 +67,7 @@ interface Task {
     tags: string[];
     files: TaskFile[];
     parentTask: string | null;
+    ownerId?: number;
 }
 
 interface TaskDetailProps {
@@ -279,8 +280,11 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
             tags,
             files: Array.isArray(t.File) ? t.File.map((f: any) => ({ id: String(f.id), name: f.name, url: f.secure_url ?? f.url ?? '', type: f.resource_type ?? 'file' })) : [],
             parentTask: t.Task?.title ?? null,
+            ownerId: t.author ?? t.owner_uid ?? (t.Student?.User?.id ?? undefined),
         };
     };
+
+    const isOwner = user && task && String(user.id) === String((task as any).ownerId);
 
     const handleSave = async () => {
         if (!editedTask || !task) return;
@@ -395,6 +399,18 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
         } catch (err) {
             console.error('Failed to delete task:', err);
             toast.error('Failed to delete task');
+        }
+    };
+
+    const handleRemoveSelf = async () => {
+        if (!task || !user) return;
+        try {
+            await api.delete('/task-assignees/remove', { data: { taskId: Number(task.id), studentId: user.id } });
+            toast.success('You have been unassigned from this task');
+            navigate('/tasks');
+        } catch (err) {
+            console.error('Failed to unassign:', err);
+            toast.error('Failed to remove assignment');
         }
     };
 
@@ -563,7 +579,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
                                     </h1>
                                 )}
 
-                                {isEditing ? (
+                                {isOwner ? (isEditing ? (
                                     <div className="relative mt-2" ref={relationDropdownRef}>
                                         <button
                                             type="button"
@@ -647,68 +663,84 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
                                             </div>
                                         )}
                                     </div>
-                                ) : task.assignmentRelation ? (
+                                ) : (
+                                    task.assignmentRelation ? (
                                     <div className="flex items-center gap-2 mt-2">
-                                        <LinkIcon className="w-4 h-4 text-muted-foreground" />
-                                        <span className="text-sm text-primary">{task.assignmentRelation}</span>
-                                    </div>
-                                ) : null}
+                                                    <LinkIcon className="w-4 h-4 text-muted-foreground" />
+                                                    <span className="text-sm text-primary">{task.assignmentRelation}</span>
+                                                </div>
+                                            ) : null)
+                                        ) : null}
                             </div>
 
                             <div className="flex items-center gap-2">
-                                {!isEditing ? (
-                                    <>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => {
-                                                setStagedTags(task?.tags ?? []);
-                                                setNewTag('');
-                                                setIsEditing(true);
-                                            }}
-                                        >
-                                            <Edit2 className="w-4 h-4 mr-2" />
-                                            Edit
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="text-destructive hover:bg-destructive/10"
-                                            onClick={() => setDeleteModal({ isOpen: true })}
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </Button>
-                                    </>
+                                {isOwner ? (
+                                    !isEditing ? (
+                                        <>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setStagedTags(task?.tags ?? []);
+                                                    setNewTag('');
+                                                    setIsEditing(true);
+                                                }}
+                                            >
+                                                <Edit2 className="w-4 h-4 mr-2" />
+                                                Edit
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="text-destructive hover:bg-destructive/10"
+                                                onClick={() => setDeleteModal({ isOpen: true })}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={handleCancel}
+                                                className="min-w-[100px]"
+                                            >
+                                                <X className="w-4 h-4 mr-2" />
+                                                Cancel
+                                            </Button>
+                                            <Button
+                                                variant="default"
+                                                size="sm"
+                                                onClick={handleSave}
+                                                className="min-w-[100px]"
+                                                disabled={isSaving}
+                                                aria-busy={isSaving}
+                                            >
+                                                {isSaving ? (
+                                                    <>
+                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                        Saving...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Save className="w-4 h-4 mr-2" />
+                                                        Save
+                                                    </>
+                                                )}
+                                            </Button>
+                                        </>
+                                    )
                                 ) : (
                                     <>
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            onClick={handleCancel}
-                                            className="min-w-[100px]"
+                                            className="text-destructive hover:bg-destructive/10"
+                                            onClick={handleRemoveSelf}
                                         >
-                                            <X className="w-4 h-4 mr-2" />
-                                            Cancel
-                                        </Button>
-                                        <Button
-                                            variant="default"
-                                            size="sm"
-                                            onClick={handleSave}
-                                            className="min-w-[100px]"
-                                            disabled={isSaving}
-                                            aria-busy={isSaving}
-                                        >
-                                            {isSaving ? (
-                                                <>
-                                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                    Saving...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Save className="w-4 h-4 mr-2" />
-                                                    Save
-                                                </>
-                                            )}
+                                            <Trash2 className="w-4 h-4 mr-2" />
+                                            Remove me
                                         </Button>
                                     </>
                                 )}
@@ -718,12 +750,13 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
                         {/* Status & Priority */}
                         <div className="flex items-center gap-4 mb-6">
                             <button
-                                onClick={toggleStatus}
+                                onClick={isOwner ? toggleStatus : undefined}
+                                disabled={!isOwner}
                                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                                     task.status
                                         ? 'bg-green-500/10 text-green-500'
-                                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                                }`}
+                                        : 'bg-muted text-muted-foreground'
+                                } ${!isOwner ? 'opacity-60 cursor-not-allowed' : 'hover:bg-muted/80'}`}
                             >
                                 {task.status ? (
                                     <CheckCircle className="w-4 h-4" />
@@ -911,6 +944,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
                         </div>
 
                         {/* Subtasks */}
+                        {isOwner && (
                         <div className="mb-6">
                             <div className="flex items-center gap-2 mb-3">
                                 <svg className="w-4 h-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2v6M12 16v6M5 8h14M5 20h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -958,6 +992,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
                                 />
                             </div>
                         </div>
+                        )}
                     </div>
 
                     {/* Description */}
