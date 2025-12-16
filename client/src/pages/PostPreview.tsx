@@ -165,15 +165,26 @@ const PostPreview: React.FC = () => {
             const items = (filesRes && (filesRes.data ?? filesRes)) || [];
             const filesArr = Array.isArray(items) ? items : items?.data ?? [];
             if (Array.isArray(filesArr) && filesArr.length > 0) {
-              // normalize to PostCard's PostFileAttachment shape and ensure secure_url exists
-              (postData as any).PostFileAttachment = filesArr.map((f: any) => {
-                const fileObj = {
+              // normalize to PostCard's PostFileAttachment shape and ensure secure_url / format exist
+              const normalizeFile = (f: any) => {
+                const url = f?.secure_url ?? f?.secureUrl ?? f?.url ?? null;
+                let format = (f?.format ?? f?.resource_type ?? null) as string | null;
+                if (!format && typeof url === 'string') {
+                  const m = url.match(/\.([a-zA-Z0-9]+)(?:[?#]|$)/);
+                  if (m) format = m[1];
+                }
+                if (typeof format === 'string') format = format.toLowerCase();
+                return {
                   ...f,
-                  secure_url: f.secure_url ?? f.secureUrl ?? f.url ?? f.secureUrl ?? f.secure_url,
-                  format: f.format ?? f.resource_type ?? f.format,
+                  secure_url: url,
+                  format,
                 };
-                return { fid: String(f.id ?? f._id ?? f.public_id), File: fileObj };
-              });
+              };
+
+              (postData as any).PostFileAttachment = filesArr.map((f: any) => {
+                const fid = String(f.id ?? f._id ?? f.public_id ?? f.fid ?? '');
+                return { fid, File: normalizeFile(f) };
+              }).filter((a: any) => a.File?.secure_url);
             }
           } catch (e) {
             console.debug('failed to fetch post files', e);

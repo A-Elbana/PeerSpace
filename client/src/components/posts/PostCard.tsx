@@ -89,6 +89,7 @@ export default function PostCard({ post, currentUser, isInstructorOfCommunity, o
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
   const [showImageModal, setShowImageModal] = useState<boolean>(false);
+  const [navigateOnCloseImage, setNavigateOnCloseImage] = useState<boolean>(false);
   const [isEditOpen, setIsEditOpen] = useState<boolean>(false);
 
   const canModify = currentUser && (
@@ -333,9 +334,9 @@ export default function PostCard({ post, currentUser, isInstructorOfCommunity, o
           {images.length > 0 && (
             <>
               {/* Smart responsive grid for multiple images */}
-              {images.length === 1 ? (
+                {images.length === 1 ? (
                 <div className="mb-3 rounded-lg overflow-hidden bg-muted/30 border border-border cursor-pointer group"
-                  onClick={() => setShowImageModal(true)}>
+                  onClick={(e: any) => { e.stopPropagation(); setShowImageModal(true); setNavigateOnCloseImage(Boolean(clickable)); }}>
                   <div className="relative bg-black/5 aspect-video flex items-center justify-center">
                     <img
                       src={images[0].File?.secure_url}
@@ -348,15 +349,15 @@ export default function PostCard({ post, currentUser, isInstructorOfCommunity, o
               ) : (
                 <div className="mb-3 rounded-lg overflow-hidden bg-muted/30 border border-border">
                   <div className="relative bg-black/5 aspect-video flex items-center justify-center cursor-pointer group overflow-hidden"
-                    onClick={() => setShowImageModal(true)}>
+                    onClick={(e: any) => { e.stopPropagation(); setShowImageModal(true); setNavigateOnCloseImage(Boolean(clickable)); }}>
                     <img
                       src={images[currentImageIndex].File?.secure_url}
                       alt={getFileName(images[currentImageIndex].File)}
                       className="w-full h-full object-contain transition-opacity group-hover:opacity-90"
                     />
-                    <div className="absolute inset-0 flex items-center justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={(e) => { e.stopPropagation(); goToPrevImage(); }} className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70"><ChevronLeft size={20} /></button>
-                      <button onClick={(e) => { e.stopPropagation(); goToNextImage(); }} className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70"><ChevronRight size={20} /></button>
+                      <div className="absolute inset-0 flex items-center justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={(e: any) => { e.stopPropagation(); goToPrevImage(); }} className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70"><ChevronLeft size={20} /></button>
+                      <button onClick={(e: any) => { e.stopPropagation(); goToNextImage(); }} className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70"><ChevronRight size={20} /></button>
                     </div>
                   </div>
                   {/* Counter */}
@@ -366,7 +367,7 @@ export default function PostCard({ post, currentUser, isInstructorOfCommunity, o
                       {images.map((_, idx) => (
                         <button
                           key={idx}
-                          onClick={() => setCurrentImageIndex(idx)}
+                          onClick={(e: any) => { e.stopPropagation(); setCurrentImageIndex(idx); }}
                           className={`w-1.5 h-1.5 rounded-full transition-all ${idx === currentImageIndex ? 'bg-frosted-blue-500 w-4' : 'bg-border hover:bg-muted-foreground'
                             }`}
                         />
@@ -377,8 +378,8 @@ export default function PostCard({ post, currentUser, isInstructorOfCommunity, o
               )}
 
               {/* Image Modal */}
-              {showImageModal && (
-                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setShowImageModal(false)}>
+                {showImageModal && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => { setShowImageModal(false); if (navigateOnCloseImage) goToPreview(); }}>
                   <div className="relative max-w-4xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => setShowImageModal(false)}
@@ -395,17 +396,17 @@ export default function PostCard({ post, currentUser, isInstructorOfCommunity, o
                     </div>
                     {images.length > 1 && (
                       <>
-                        <button onClick={goToPrevImage} className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 text-white hover:bg-white/20">
+                        <button onClick={(e: any) => { e.stopPropagation(); goToPrevImage(); }} className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 text-white hover:bg-white/20">
                           <ChevronLeft size={24} />
                         </button>
-                        <button onClick={goToNextImage} className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 text-white hover:bg-white/20">
+                        <button onClick={(e: any) => { e.stopPropagation(); goToNextImage(); }} className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 text-white hover:bg-white/20">
                           <ChevronRight size={24} />
                         </button>
                         <div className="flex justify-center gap-1 mt-4 pb-4">
                           {images.map((_, idx) => (
                             <button
                               key={idx}
-                              onClick={() => setCurrentImageIndex(idx)}
+                              onClick={(e: any) => { e.stopPropagation(); setCurrentImageIndex(idx); }}
                               className={`w-2 h-2 rounded-full transition-all ${idx === currentImageIndex ? 'bg-white w-6' : 'bg-white/50 hover:bg-white/70'
                                 }`}
                             />
@@ -429,6 +430,7 @@ export default function PostCard({ post, currentUser, isInstructorOfCommunity, o
                   download={getFileName(attachment.File)}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={(e: any) => e.stopPropagation()}
                   className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted border border-border transition-colors group"
                 >
                   <div className="shrink-0 w-8 h-8 rounded flex items-center justify-center bg-background">

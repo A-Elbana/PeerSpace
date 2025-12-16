@@ -303,14 +303,6 @@ const Community: React.FC = () => {
                 currentUser={user}
                 isInstructorOfCommunity={isInstructorOfCommunity}
                 onDeletePost={handleDeletePost}
-                onViewPost={(p) => {
-                  const normalized = {
-                    ...p,
-                    owner_uid: (p as any).owner_uid ?? (p as any).owner_uid ?? (p as any).User?.id ?? 0,
-                  } as PostResponse;
-                  setViewingPost(normalized);
-                  setShowViewModal(true);
-                }}
               />
             </div>
 

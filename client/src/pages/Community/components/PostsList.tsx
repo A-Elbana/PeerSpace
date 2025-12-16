@@ -9,7 +9,6 @@ interface PostsListProps {
   isInstructorOfCommunity?: boolean;
   onEditPost?: (post: PostShape) => void;
   onDeletePost?: (postId: number) => void;
-  onViewPost?: (post: PostShape) => void;
 }
 
 const PostsList: React.FC<PostsListProps> = ({
@@ -18,7 +17,7 @@ const PostsList: React.FC<PostsListProps> = ({
   currentUser,
   isInstructorOfCommunity,
   onEditPost,
-  onDeletePost
+  onDeletePost,
 }) => {
   if (isLoading) {
     return (
@@ -53,16 +52,14 @@ const PostsList: React.FC<PostsListProps> = ({
     <div className="space-y-4">
       <h2 className="text-lg font-semibold text-foreground mb-4">Posts</h2>
       {posts.map((post) => (
-        <div key={post.id} onClick={() => onViewPost ? onViewPost(post) : undefined} className="cursor-pointer">
-          <PostCard
-            post={post}
-            clickable={false}
-            currentUser={currentUser}
-            isInstructorOfCommunity={isInstructorOfCommunity}
-            onEdit={onEditPost}
-            onDelete={onDeletePost}
-          />
-        </div>
+        <PostCard
+          key={post.id}
+          post={post}
+          currentUser={currentUser}
+          isInstructorOfCommunity={isInstructorOfCommunity}
+          onEdit={onEditPost}
+          onDelete={onDeletePost}
+        />
       ))}
     </div>
   );
