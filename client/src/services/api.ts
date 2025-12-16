@@ -892,3 +892,26 @@ export const submissionApi = {
 };
 
 export default api;
+
+// Notifications API
+export const notificationsApi = {
+  getNotifications: async (params?: { page?: number; pageSize?: number }) => {
+    const response = await api.get('/notifications', { params });
+    return response.data;
+  },
+
+  getUnreadCount: async () => {
+    const response = await api.get('/notifications/count');
+    return response.data;
+  },
+
+  markAsRead: async (id: number) => {
+    const response = await api.post(`/notifications/${id}/read`);
+    return response.data;
+  },
+
+  markAllRead: async () => {
+    const response = await api.post('/notifications/mark-all-read');
+    return response.data;
+  },
+};

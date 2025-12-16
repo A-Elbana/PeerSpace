@@ -17,6 +17,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Sidebar } from '../components/dashboard';
+import Header from '../components/Header';
 import { Flame, Clock, Filter, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, MoreHorizontal, Loader2, Sparkles, Users, BookOpen, Rocket, Send, Megaphone, Lock, Search, X, Tag, Maximize2, PenSquare, Trash2 } from 'lucide-react';
 import api, { communityApi, postApi, assignmentApi, submissionApi, type CommunityResponse, type PostResponse } from '../services/api';
 import PostCard from '../components/posts/PostCard';
@@ -571,68 +572,15 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
 
     return (
         <>
-            {/* Explore Page Search Box */}
-            <div className="w-full flex justify-center items-center py-6 bg-background">
-                <div className="relative w-full max-w-xl">
-                    <input
-                        type="text"
-                        placeholder="Search..."
-                        value={exploreSearch}
-                        onChange={e => setExploreSearch(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 rounded-xl border border-border bg-card text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-tech-blue-500 transition-all shadow-md"
-                    />
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.5 4.5a7.5 7.5 0 0012.15 12.15z" />
-                        </svg>
-                    </span>
-                    {/* Results Box */}
-                    {exploreSearch.trim() && (
-                        <div className="absolute left-0 top-[110%] w-full z-30">
-                            <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 space-y-6 max-h-[60vh] overflow-y-auto animate-in fade-in duration-200">
-                                <div>
-                                    <h2 className="text-lg font-bold mb-2">Posts</h2>
-                                    {isSearching ? (
-                                        <div className="text-muted-foreground">Searching...</div>
-                                    ) : searchedPosts.length === 0 ? (
-                                        <div className="text-muted-foreground">No posts found.</div>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            {searchedPosts.map(post => (
-                                                <div key={post.id} className="bg-background border border-border rounded-lg p-4 shadow hover:shadow-lg transition-all cursor-pointer">
-                                                    <div className="font-semibold truncate mb-1">{post.title}</div>
-                                                    <div className="text-xs text-muted-foreground truncate">{post.User ? `${post.User.fname} ${post.User.lname}` : ''} • {new Date(post.post_date).toLocaleDateString()}</div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                                <div>
-                                    <h2 className="text-lg font-bold mb-2">Communities</h2>
-                                    {isSearching ? (
-                                        <div className="text-muted-foreground">Searching...</div>
-                                    ) : searchedCommunities.length === 0 ? (
-                                        <div className="text-muted-foreground">No communities found.</div>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            {searchedCommunities.map(comm => (
-                                                <div
-                                                    key={comm.id}
-                                                    className="bg-background border border-border rounded-lg p-4 shadow hover:shadow-lg transition-all cursor-pointer"
-                                                    onClick={() => navigate(`/community/${comm.id}`)}
-                                                >
-                                                    <div className="font-semibold truncate mb-1">{comm.name}</div>
-                                                    <div className="text-xs text-muted-foreground truncate">{comm.description}</div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
+            <Header
+                user={user}
+                onLogout={onLogout}
+                searchValue={exploreSearch}
+                onSearchChange={setExploreSearch}
+                searchedPosts={searchedPosts}
+                searchedCommunities={searchedCommunities}
+                isSearching={isSearching}
+            />
             <div className="flex min-h-screen bg-background text-foreground font-sans">
                 <Sidebar onLogout={onLogout} />
 

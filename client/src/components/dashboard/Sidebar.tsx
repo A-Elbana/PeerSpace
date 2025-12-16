@@ -1,53 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Sidebar as ProSidebar, Menu, MenuItem } from 'react-pro-sidebar';
-import {
-  LayoutDashboard,
-  Compass,
-  Settings,
-  LogOut,
-  Sun,
-  Moon,
-  Megaphone,
-  Book,
-  CheckSquare,
-  ClipboardList,
-  FileCheck,
-  User,
-} from 'lucide-react';
+import { LogOut, Sun, Moon } from 'lucide-react';
+import { mainNavItems, secondaryNavItems } from './nav';
+import type { NavItem, UserRole } from './nav';
 import { useTheme } from '../../hooks/useTheme';
 import api from '../../services/api';
 import logo from '../../assets/peerspace-logo.png';
 
-type UserRole = 'student' | 'instructor' | 'admin';
-
-interface NavItem {
-  id: string;
-  label: string;
-  icon: React.ElementType;
-  path?: string;
-  badge?: number;
-  roleRestriction?: UserRole[];
-}
-
 interface SidebarProps {
   onLogout: () => void;
 }
-
-const mainNavItems: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-  { id: 'explore', label: 'Explore', icon: Compass, path: '/explore' },
-  { id: 'assignments', label: 'Assignments', icon: ClipboardList, path: '/assignments' },
-  { id: 'submissions', label: 'My Submissions', icon: FileCheck, path: '/submissions' },
-  { id: 'announcements', label: 'Announcements', icon: Megaphone, path: '/announcements' },
-  { id: 'notes', label: 'Notes', icon: Book, path: '/notes' },
-  { id: 'tasks', label: 'Tasks', icon: CheckSquare, path: '/tasks', roleRestriction: ['student'] },
-  { id: 'profile', label: 'Profile', icon: User, path: '/profile' },
-];
-
-const secondaryNavItems: NavItem[] = [
-  { id: 'settings', label: 'Edit Profile', icon: Settings, path: '/settings' },
-];
 
 const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
   const navigate = useNavigate();
@@ -180,7 +143,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
             },
           }}
         >
-          {mainNavItems.filter(shouldShowItem).map((item) => {
+          {mainNavItems.filter(shouldShowItem).map((item: NavItem) => {
             const Icon = item.icon;
             return (
               <MenuItem
@@ -233,7 +196,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
           }}
         >
           <div className="border-t border-sidebar-border pt-4 pb-4">
-            {secondaryNavItems.map((item) => {
+            {secondaryNavItems.map((item: NavItem) => {
               const Icon = item.icon;
               return (
                 <MenuItem

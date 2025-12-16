@@ -1,6 +1,7 @@
 import Profile from './pages/Profile/index.tsx';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
+import { NotificationProvider } from './contexts/NotificationContext';
 import { redirectToLogout } from './utils/navigation';
 import { TOASTER_CONFIG } from './constants/ui';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -35,9 +36,10 @@ import LandingPage from './pages/LandingPage';
 function App() {
   return (
     <ErrorBoundary>
-      <Toaster {...TOASTER_CONFIG} />
-      <Router>
-        <Routes>
+      <NotificationProvider>
+        <Toaster {...TOASTER_CONFIG} />
+        <Router>
+            <Routes>
           <Route path="/" element={<LandingPage />} />
 
           {/* Public routes - redirect to dashboard if already authenticated */}
@@ -225,6 +227,7 @@ function App() {
           <Route path="*" element={<LandingPage />} />
         </Routes>
       </Router>
+      </NotificationProvider>
     </ErrorBoundary>
   );
 }
