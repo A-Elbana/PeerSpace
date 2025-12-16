@@ -408,7 +408,9 @@ export const validateIdParam = (paramName = "id") => {
     const raw = req.params[paramName];
     const id = parseInt(String(raw ?? ""), 10);
     if (!Number.isInteger(id) || id <= 0) {
-      return res.status(400).json({ success: false, message: `Invalid ${paramName}` });
+      return res
+        .status(400)
+        .json({ success: false, message: `Invalid ${paramName}` });
     }
     // attach parsed int optionally
     (req as any)[paramName] = id;
@@ -469,7 +471,9 @@ export const validateTaskCreate = [
     .notEmpty()
     .withMessage("Status is required")
     .isInt({ min: 0, max: 4 })
-    .withMessage("Status must be an integer between 0 and 4 (0: Not Started, 1: In Progress, 2: Completed, 3: On Hold, 4: Cancelled)"),
+    .withMessage(
+      "Status must be an integer between 0 and 4 (0: Not Started, 1: In Progress, 2: Completed, 3: On Hold, 4: Cancelled)"
+    ),
 
   body("parent_task")
     .optional({ nullable: true })
@@ -633,4 +637,3 @@ export const validateSessionUpdate = [
     .isURL()
     .withMessage("Meeting URL must be a valid URL"),
 ];
-
