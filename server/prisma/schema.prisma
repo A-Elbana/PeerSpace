@@ -33,6 +33,15 @@ enum FileContext {
   USER_AVATAR
 }
 
+// Add this Enum to categorize notifications
+enum NotificationType {
+  ANNOUNCEMENT
+  ASSIGNMENT
+  SUBMISSION_GRADED
+  REPLY
+  SYSTEM
+}
+
 model ActivityLog {
   id             Int        @id @default(autoincrement())
   date           DateTime?  @db.Timestamp(6)
@@ -204,6 +213,25 @@ model Notebook {
   User        User      @relation(fields: [owner_uid], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
+model Notification {
+  id          Int              @id @default(autoincrement())
+  recipientId Int              // Foreign key to User
+  message     String           @db.VarChar
+  type        NotificationType
+  
+  // Metadata to help frontend redirect users (e.g., link to specific assignment ID)
+  resourceId  String?          @db.VarChar // Store UUID or Int ID as string
+  isRead      Boolean          @default(false)
+  createdAt   DateTime         @default(now()) @db.Timestamp(6)
+
+  // Relation: link to the recipient user
+  recipient   User             @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  // Indexes: optimize lookup for a user's notifications and unread-count queries
+  @@index([recipientId], name: "idx_notification_recipient")
+  @@index([recipientId, isRead], name: "idx_notification_recipient_isRead")
+}
+
 model Post {
   id                 Int                  @id @default(autoincrement())
   title              String               @db.VarChar
@@ -356,6 +384,7 @@ model User {
   Notebook       Notebook[]
   Post           Post[]
   Student        Student?
+  Notification Notification[]
 }
 
 model Voted {
