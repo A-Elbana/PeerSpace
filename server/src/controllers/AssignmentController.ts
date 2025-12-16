@@ -214,7 +214,8 @@ export const getMyAssignments = async (req: Request, res: Response) => {
   const pageParam = parseInt(req.query.page as string);
   const limitParam = parseInt(req.query.limit as string);
   const page = !isNaN(pageParam) && pageParam > 0 ? pageParam : 1;
-  const limit = !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
+  const limit =
+    !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
   const skip = (page - 1) * limit;
 
   if (userRole !== "STUDENT") {

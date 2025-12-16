@@ -20,6 +20,16 @@ export const createSubmission = async (req: Request, res: Response) => {
   }
 
   try {
+    // Fetch assignment to get community ID
+    const assignment = await prisma.assignment.findUnique({
+      where: { id: aidNum },
+      select: { cid: true, title: true },
+    });
+
+    if (!assignment) {
+      return res.status(404).json({ message: "Assignment not found" });
+    }
+
     const now = new Date();
     const submission = await prisma.submission.create({
       data: {
@@ -64,8 +74,9 @@ export const createSubmission = async (req: Request, res: Response) => {
     // Log the activity
     await ActivityLogService.logActivity({
       userId,
+      communityId: assignment.cid,
       actionType: 40, // SUBMISSION_CREATED
-      description: `Submitted assignment ${aid}`,
+      description: `Submitted assignment "${assignment.title}"`,
     });
 
     res.status(201).json({ success: true, data: result });
@@ -340,13 +351,17 @@ export const gradeSubmission = async (req: Request, res: Response) => {
     const updated = await prisma.submission.update({
       where: { id: Number(id) },
       data: { grade, feedback: feedback ?? null },
+      include: {
+        Assignment: { select: { cid: true, max_points: true } },
+      },
     });
 
     // Log the activity
     await ActivityLogService.logSubmissionGraded(
       (req as any).userId,
-      "",
-      grade
+      updated.Assignment.cid,
+      grade,
+      updated.Assignment.max_points ?? undefined
     );
 
     res.status(200).json({ success: true, data: updated });

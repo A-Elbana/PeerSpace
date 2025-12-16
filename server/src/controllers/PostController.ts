@@ -193,7 +193,10 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
   if (Array.isArray(rawCid)) {
     communityIds = rawCid.map(String);
   } else if (typeof rawCid === "string") {
-    communityIds = rawCid.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+    communityIds = rawCid
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
   }
 
   if (communityIds.length === 0) {
@@ -203,7 +206,9 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
   // Validate UUIDs
   const invalidIds = communityIds.filter((id) => !isValidUUID(id));
   if (invalidIds.length > 0) {
-    return res.status(400).json({ message: "Invalid community ID(s) provided" });
+    return res
+      .status(400)
+      .json({ message: "Invalid community ID(s) provided" });
   }
 
   try {
@@ -217,7 +222,11 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
     }
 
     if (allowedIds.length === 0) {
-      return res.status(403).json({ message: "No accessible communities found for the current user" });
+      return res
+        .status(403)
+        .json({
+          message: "No accessible communities found for the current user",
+        });
     }
 
     const posts = await prisma.post.findMany({
@@ -292,7 +301,9 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
       })
     );
 
-    const total = await prisma.post.count({ where: { cid: { in: allowedIds } } });
+    const total = await prisma.post.count({
+      where: { cid: { in: allowedIds } },
+    });
 
     res.status(200).json({
       data: postsWithVotes,
@@ -435,7 +446,9 @@ export const togglePostResolved = async (req: PostRequest, res: Response) => {
     await ActivityLogService.logPostResolved(
       (req as any).userId,
       req.post.cid,
-      `${updatedPost.is_resolved ? "Marked" : "Unmarked"} post "${updatedPost.title}" as resolved`
+      `${updatedPost.is_resolved ? "Marked" : "Unmarked"} post "${
+        updatedPost.title
+      }" as resolved`
     );
 
     res.status(200).json(updatedPost);
@@ -625,7 +638,8 @@ export const getAllMyPosts = async (req: Request, res: Response) => {
   const pageParam = parseInt(req.query.page as string);
   const limitParam = parseInt(req.query.limit as string);
   const page = !isNaN(pageParam) && pageParam > 0 ? pageParam : 1;
-  const limit = !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
+  const limit =
+    !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
   const skip = (page - 1) * limit;
 
   try {

@@ -91,7 +91,7 @@ export const createComment = async (req: Request, res: Response) => {
     // Log the activity
     await ActivityLogService.logCommentCreated(
       userId,
-      "",
+      post.cid,
       `Created comment on post #${pidNum}`
     );
 
@@ -111,7 +111,7 @@ export const getCommentsByPost = async (req: Request, res: Response) => {
     Math.max(1, parseInt((req.query.limit as string) || "10"))
   );
   const skip = (page - 1) * limit;
- // default true
+  // default true
   const sortBy = (req.query.sortBy as string) || "date"; // "date" or "approved"
 
   const pidNum = Number(pid);
@@ -130,7 +130,6 @@ export const getCommentsByPost = async (req: Request, res: Response) => {
     const where: any = { pid: pidNum };
 
     where.parent_comment_id = null;
-
 
     // Determine orderBy based on sortBy
     let orderBy: any = { comment_date: "asc" };
@@ -277,6 +276,16 @@ export const deleteComment = async (req: Request, res: Response) => {
   }
 
   try {
+    // Fetch comment to get post/community info
+    const comment = await prisma.comment.findUnique({
+      where: { id: commentId },
+      include: { Post: { select: { cid: true } } },
+    });
+
+    if (!comment) {
+      return res.status(404).json({ message: "Comment not found" });
+    }
+
     // Check if this comment has any replies
     const repliesCount = await prisma.comment.count({
       where: { parent_comment_id: commentId },
@@ -285,7 +294,7 @@ export const deleteComment = async (req: Request, res: Response) => {
     // Log the activity BEFORE deleting the comment
     await ActivityLogService.logCommentDeleted(
       (req as any).userId,
-      "",
+      comment.Post.cid,
       `Deleted comment #${commentId}`
     );
 
@@ -330,12 +339,14 @@ export const approveByInstructor = async (req: Request, res: Response) => {
         User: {
           select: { id: true, fname: true, lname: true, avatar_file_id: true },
         },
+        Post: { select: { cid: true } },
       },
     });
 
     // Log the activity
     await ActivityLogService.logActivity({
       userId: (req as any).userId,
+      communityId: comment.Post.cid,
       actionType: 23, // COMMENT_APPROVED
       description: `Approved comment #${commentId} by instructor`,
     });
@@ -365,12 +376,14 @@ export const approveByOriginalPoster = async (req: Request, res: Response) => {
         User: {
           select: { id: true, fname: true, lname: true, avatar_file_id: true },
         },
+        Post: { select: { cid: true } },
       },
     });
 
     // Log the activity
     await ActivityLogService.logActivity({
       userId: (req as any).userId,
+      communityId: comment.Post.cid,
       actionType: 23, // COMMENT_APPROVED
       description: `Approved comment #${commentId} by original poster`,
     });

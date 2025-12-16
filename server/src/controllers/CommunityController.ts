@@ -452,7 +452,8 @@ export const getMyCommunities = async (req: Request, res: Response) => {
   const pageParam = parseInt(req.query.page as string);
   const limitParam = parseInt(req.query.limit as string);
   const page = !isNaN(pageParam) && pageParam > 0 ? pageParam : 1;
-  const limit = !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
+  const limit =
+    !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
   const skip = (page - 1) * limit;
 
   try {
@@ -500,7 +501,7 @@ export const getMyCommunities = async (req: Request, res: Response) => {
       });
 
       const communityIds = manages.map((m) => m.cid);
-      
+
       const [communities, total] = await Promise.all([
         prisma.community.findMany({
           where: { id: { in: communityIds } },
@@ -554,7 +555,8 @@ export const getCommonCommunities = async (req: Request, res: Response) => {
   const pageParam = parseInt(req.query.page as string);
   const limitParam = parseInt(req.query.limit as string);
   const page = !isNaN(pageParam) && pageParam > 0 ? pageParam : 1;
-  const limit = !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
+  const limit =
+    !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
   const skip = (page - 1) * limit;
 
   if (Number.isNaN(targetId)) {
@@ -651,7 +653,9 @@ export const getCommonCommunities = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("Get Common Communities Error:", error);
-    return res.status(500).json({ message: "Failed to fetch common communities" });
+    return res
+      .status(500)
+      .json({ message: "Failed to fetch common communities" });
   }
 };
 

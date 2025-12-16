@@ -16,33 +16,27 @@ interface NoteRequest extends Request {
  * Requires: authenticateToken + validateNoteCreate middleware
  */
 export const createNote = async (req: Request, res: Response) => {
+  const { title, body, notebook_id } = req.body;
+  const owner_uid = (req as any).userId;
+  try {
+    const note = await prisma.note.create({
+      data: {
+        title: String(title).trim(),
+        body: body ? String(body).trim() : null,
+        created_at: new Date(),
+        notebook_id: notebook_id ? parseInt(notebook_id) : null,
+        owner_uid: owner_uid,
+      },
+    });
 
-    const {title,body,notebook_id}=req.body;
-    const owner_uid=(req as any).userId;
-    try {
-        const note=await prisma.note.create({
-            data:{
-                title: String(title).trim(),
-                body: body ? String(body).trim() : null,
-                created_at: new Date(),
-                notebook_id: notebook_id ? parseInt(notebook_id) : null,
-                owner_uid: owner_uid,
-            }
-        })
+    // Log the activity
+    await ActivityLogService.logNoteCreated(owner_uid, note.title);
 
-        // Log the activity
-        await ActivityLogService.logNoteCreated(
-            owner_uid,
-            note.title
-        );
-
-        return res.status(201).json(note);
-
-    } catch (error) {
-        console.error("Create Note Error:", error);
-        return res.status(500).json({ message: "Failed to create a note" });
-    }
-
+    return res.status(201).json(note);
+  } catch (error) {
+    console.error("Create Note Error:", error);
+    return res.status(500).json({ message: "Failed to create a note" });
+  }
 };
 
 /**
@@ -51,9 +45,8 @@ export const createNote = async (req: Request, res: Response) => {
  * Requires: authenticateToken middleware
  */
 export const getMyNotes = async (req: Request, res: Response) => {
-
-   const owner_uid=(req as any).userId;
-    // Pagination with validation
+  const owner_uid = (req as any).userId;
+  // Pagination with validation
   const pageParam = parseInt(req.query.page as string);
   const limitParam = parseInt(req.query.limit as string);
 
@@ -84,7 +77,7 @@ export const getMyNotes = async (req: Request, res: Response) => {
     whereClause.notebook_id = null;
   }
 
-   try {
+  try {
     // Get notes and total count in parallel
     const [notes, total] = await Promise.all([
       prisma.note.findMany({
@@ -113,12 +106,10 @@ export const getMyNotes = async (req: Request, res: Response) => {
         totalPages: Math.ceil(total / limit),
       },
     });
-   } 
-   
-   catch (error) {
+  } catch (error) {
     console.error("Get My Notes Error:", error);
     return res.status(500).json({ message: "Failed to fetch notes" });
-   }
+  }
 };
 
 /**
@@ -128,7 +119,7 @@ export const getMyNotes = async (req: Request, res: Response) => {
  * req.note is set by loadNote middleware
  */
 export const getNoteById = async (req: NoteRequest, res: Response) => {
-    // note already loaded and access authorized by middleware
+  // note already loaded and access authorized by middleware
   res.status(200).json(req.note);
 };
 
@@ -159,7 +150,8 @@ export const updateNote = async (req: NoteRequest, res: Response) => {
 
   if (notebook_id !== undefined) {
     // Allow setting notebook_id to null (remove from notebook) or to a new notebook
-    updateData.notebook_id = notebook_id !== null ? parseInt(notebook_id) : null;
+    updateData.notebook_id =
+      notebook_id !== null ? parseInt(notebook_id) : null;
   }
 
   if (Object.keys(updateData).length === 0) {
@@ -217,10 +209,7 @@ export const deleteNote = async (req: NoteRequest, res: Response) => {
 
   try {
     // Log the activity BEFORE deleting the note
-    await ActivityLogService.logNoteDeleted(
-      (req as any).userId,
-      note.title
-    );
+    await ActivityLogService.logNoteDeleted((req as any).userId, note.title);
 
     await prisma.note.delete({
       where: { id: note.id },
