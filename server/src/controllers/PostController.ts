@@ -117,6 +117,42 @@ export const getPostById = async (req: PostRequest, res: Response) => {
   const postId = req.post.id;
 
   try {
+    // Fetch post with PostFileAttachment to match client expectations
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+      include: {
+        User: {
+          select: {
+            id: true,
+            fname: true,
+            lname: true,
+            avatar_file_id: true,
+          },
+        },
+        PostFileAttachment: {
+          include: {
+            File: {
+              select: {
+                id: true,
+                public_id: true,
+                secure_url: true,
+                resource_type: true,
+                format: true,
+                is_private: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: { Comment: true },
+        },
+      },
+    });
+
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
     // Get vote counts
     const upvotes = await prisma.voted.count({
       where: { pid: postId, voteType: true },
@@ -141,27 +177,9 @@ export const getPostById = async (req: PostRequest, res: Response) => {
       }
     }
 
-    // Get attached files
-    const files = await prisma.file.findMany({
-      where: {
-        context: "POST",
-        context_id: String(postId),
-      },
-      select: {
-        id: true,
-        public_id: true,
-        secure_url: true,
-        resource_type: true,
-        format: true,
-        is_private: true,
-        created_at: true,
-      },
-    });
-
-    // Post already loaded and access authorized by middleware
+    // Return post with PostFileAttachment included
     res.status(200).json({
-      ...req.post,
-      files,
+      ...post,
       votes: {
         upvotes,
         downvotes,
