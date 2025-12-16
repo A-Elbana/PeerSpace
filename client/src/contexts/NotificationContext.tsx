@@ -1,7 +1,7 @@
-import  { createContext, useContext, useEffect, useState } from 'react';
+import  { createContext, useContext, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { toast } from 'sonner';
-import { useSocket } from '../hooks/useSocket';
+import { io, type Socket } from 'socket.io-client';
 import { isAuthenticated } from '../utils/auth';
 import { notificationsApi } from '../services/api';
 
@@ -25,8 +25,7 @@ const NotificationContext = createContext<NotificationContextValue | undefined>(
 export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const [notifications, setNotifications] = useState<ClientNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
-
-  const socket = useSocket();
+  const socketRef = useRef<Socket | null>(null);
 
   const fetchNotifications = async () => {
     try {
@@ -66,28 +65,48 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!isAuthenticated()) return;
-    if (!socket) return;
+    if (socketRef.current) return; // Singleton guard
+
+    // Build WS base URL: VITE_WS_URL -> derive from VITE_API_URL -> fallback localhost:3000
+    const wsFromEnv = (import.meta.env.VITE_WS_URL as string) || undefined;
+    const apiFromEnv = (import.meta.env.VITE_API_URL as string) || undefined;
+    const wsBase = (() => {
+      if (wsFromEnv) return wsFromEnv;
+      if (apiFromEnv) {
+        try {
+          const u = new URL(apiFromEnv);
+          return `${u.protocol}//${u.hostname}${u.port ? `:${u.port}` : ''}`;
+        } catch {}
+      }
+      return `${window.location.protocol}//localhost:3000`;
+    })();
+
+    const s = io(wsBase, { transports: ['websocket'] });
+    socketRef.current = s;
 
     const handler = () => {
-      // When notified, refetch list and update unread badge immediately
       fetchNotifications();
-      // optional toast
-      try {
-        toast('New Notification');
-      } catch (e) {
-        // ignore
-      }
+      try { toast('New Notification'); } catch {}
     };
+
+    s.on('connect', () => {
+      // console.log('socket connected:', s.id);
+    });
+    s.on('disconnect', () => {
+      // console.log('socket disconnected:', s.id);
+    });
 
     // Listen for both legacy and new invalidation event names
-    socket.on('notifications:signal', handler);
-    socket.on('INVALIDATE_NOTIFICATIONS', handler);
+    s.on('notifications:signal', handler);
+    s.on('INVALIDATE_NOTIFICATIONS', handler);
 
     return () => {
-      socket.off('notifications:signal', handler);
-      socket.off('INVALIDATE_NOTIFICATIONS', handler);
+      s.off('notifications:signal', handler);
+      s.off('INVALIDATE_NOTIFICATIONS', handler);
+      try { s.disconnect(); } catch {}
+      socketRef.current = null;
     };
-  }, [socket]);
+  }, []);
 
   return (
     <NotificationContext.Provider
