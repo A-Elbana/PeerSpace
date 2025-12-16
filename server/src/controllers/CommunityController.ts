@@ -529,6 +529,118 @@ export const getMyCommunities = async (req: Request, res: Response) => {
 };
 
 /**
+ * Get common communities between authenticated user and a target user
+ * Includes PUBLIC and PRIVATE communities where both users are members/managers
+ */
+export const getCommonCommunities = async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
+  const userRole = (req as any).role;
+  const targetId = parseInt(req.params.uid || "", 10);
+  const pageParam = parseInt(req.query.page as string);
+  const limitParam = parseInt(req.query.limit as string);
+  const page = !isNaN(pageParam) && pageParam > 0 ? pageParam : 1;
+  const limit = !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
+  const skip = (page - 1) * limit;
+
+  if (Number.isNaN(targetId)) {
+    return res.status(400).json({ message: "Invalid target user id" });
+  }
+
+  try {
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetId },
+      select: { role: true },
+    });
+
+    if (!targetUser || !targetUser.role) {
+      return res.status(404).json({ message: "Target user not found" });
+    }
+
+    const getCommunityIdsForUser = async (
+      uid: number,
+      role: Role
+    ): Promise<Set<string>> => {
+      if (role === Role.STUDENT) {
+        const enrollments = await prisma.enrollment.findMany({
+          where: { sid: uid },
+          select: { cid: true },
+        });
+        return new Set(enrollments.map((e) => e.cid));
+      }
+
+      if (role === Role.INSTRUCTOR) {
+        const manages = await prisma.manages.findMany({
+          where: { iid: uid },
+          select: { cid: true },
+        });
+        return new Set(manages.map((m) => m.cid));
+      }
+
+      // Admins don't enroll/manage; they have no inherent memberships
+      return new Set<string>();
+    };
+
+    const targetCommunityIds = await getCommunityIdsForUser(
+      targetId,
+      targetUser.role
+    );
+
+    if (targetCommunityIds.size === 0) {
+      return res.status(200).json({
+        message: "Common communities retrieved successfully",
+        data: [],
+        meta: { total: 0 },
+      });
+    }
+
+    // Requester memberships. Admin can be allowed to see all of target's memberships.
+    let requesterCommunityIds: Set<string>;
+    if (userRole === Role.ADMIN) {
+      requesterCommunityIds = new Set(targetCommunityIds);
+    } else {
+      requesterCommunityIds = await getCommunityIdsForUser(userId, userRole);
+    }
+
+    const commonIds = [...targetCommunityIds].filter((cid) =>
+      requesterCommunityIds.has(cid)
+    );
+
+    if (commonIds.length === 0) {
+      return res.status(200).json({
+        message: "Common communities retrieved successfully",
+        data: [],
+        meta: { total: 0 },
+      });
+    }
+
+    const [communities, total] = await Promise.all([
+      prisma.community.findMany({
+        where: { id: { in: commonIds } },
+        skip,
+        take: limit,
+        orderBy: { name: "asc" },
+        select: {
+          ...communitySelect,
+          _count: {
+            select: { Enrollment: true, Post: true },
+          },
+        },
+      }),
+      prisma.community.count({ where: { id: { in: commonIds } } }),
+    ]);
+
+    return res.status(200).json({
+      message: "Common communities retrieved successfully",
+      data: communities,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    });
+  } catch (error) {
+    console.error("Get Common Communities Error:", error);
+    return res.status(500).json({ message: "Failed to fetch common communities" });
+  }
+};
+
+/**
  * Delete community
  * Assumes middleware has already validated authorization and loaded community
  */
