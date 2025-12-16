@@ -1,4 +1,4 @@
-import Profile from './pages/Profile';
+import Profile from './pages/Profile/index.tsx';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { redirectToLogout } from './utils/navigation';

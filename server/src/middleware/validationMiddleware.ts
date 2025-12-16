@@ -400,6 +400,23 @@ export const validateNotebookCreate = [
 ];
 
 /**
+ * Validate numeric id URL parameter middleware factory
+ * Usage: validateIdParam('id') or validateIdParam()
+ */
+export const validateIdParam = (paramName = "id") => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const raw = req.params[paramName];
+    const id = parseInt(String(raw ?? ""), 10);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ success: false, message: `Invalid ${paramName}` });
+    }
+    // attach parsed int optionally
+    (req as any)[paramName] = id;
+    next();
+  };
+};
+
+/**
  * Notebook update validation rules
  */
 export const validateNotebookUpdate = [
