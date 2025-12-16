@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowBigUp, ArrowBigDown, User } from 'lucide-react';
+import { User } from 'lucide-react';
 import { Button } from '../ui/button';
 
 export interface Comment {
@@ -73,12 +73,6 @@ export const CommentItem: React.FC<Props> = ({
   return (
     <div style={{ marginLeft: depth * 10 }}>
       <div className="flex gap-3 items-start">
-        <div className="flex flex-col items-center mr-2">
-          <button className={`p-1 rounded`}><ArrowBigUp className="w-4 h-4" /></button>
-          <div className="text-xs font-bold my-1">{comment.votes ?? 0}</div>
-          <button className={`p-1 rounded`}><ArrowBigDown className="w-4 h-4" /></button>
-        </div>
-
         <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
           {comment.avatarUrl ? (
             <img src={comment.avatarUrl} alt="avatar" className="w-10 h-10 object-cover rounded-full" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />

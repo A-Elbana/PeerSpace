@@ -18,7 +18,11 @@ interface UserData {
   activated: boolean;
 }
 
-const MyProfile: React.FC = () => {
+interface MyProfileProps {
+  onLogout?: () => void;
+}
+
+const MyProfile: React.FC<MyProfileProps> = ({ onLogout }) => {
   const navigate = useNavigate();
   const [user, setUser] = useState<UserData | null>(null);
   const [viewedUser, setViewedUser] = useState<UserData | null>(null);
@@ -40,10 +44,11 @@ const MyProfile: React.FC = () => {
   const userId = new URLSearchParams(window.location.search).get('userId');
   const tabs = ['Overview', 'Posts', 'Community'];
 
-  const onLogout = () => {
+  const internalLogout = () => {
     localStorage.removeItem('token');
     navigate('/login');
   };
+  const handleLogout = onLogout ?? internalLogout;
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -149,7 +154,7 @@ const MyProfile: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex min-h-screen bg-background text-foreground font-sans">
-        <Sidebar onLogout={onLogout} />
+        <Sidebar onLogout={handleLogout} />
         <main className="flex-1 ml-20 p-6 transition-all duration-300 flex items-center justify-center">
           <div className="flex items-center gap-2">
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -163,7 +168,7 @@ const MyProfile: React.FC = () => {
   if (error || !user) {
     return (
       <div className="flex min-h-screen bg-background text-foreground font-sans">
-        <Sidebar onLogout={onLogout} />
+        <Sidebar onLogout={handleLogout} />
         <main className="flex-1 ml-20 p-6 transition-all duration-300 flex items-center justify-center">
           <div className="text-center">
             <p className="text-muted-foreground">{error || 'User not found'}</p>
@@ -175,7 +180,7 @@ const MyProfile: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-background text-foreground font-sans">
-      <Sidebar onLogout={onLogout} />
+      <Sidebar onLogout={handleLogout} />
       <main className="flex-1 ml-20 p-6 transition-all duration-300">
         <div className="w-full max-w-none">
           <UserProfileHeader viewedUser={viewedUser} viewedAvatarUrl={viewedAvatarUrl} />

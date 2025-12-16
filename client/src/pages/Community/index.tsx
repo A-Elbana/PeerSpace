@@ -4,7 +4,8 @@ import { Loader2, Plus, PenSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../../components/ui/button';
 import { Sidebar } from '../../components/dashboard';
-import { CommunityHeader, PostsList, MembersPanel, CreatePost } from './components';
+import { CommunityHeader, PostsList, MembersPanel } from './components';
+import CreatePostWidget from '../../components/posts/CreatePostWidget';
 import { AssignmentList, AssignmentModal } from '../../components/assignments';
 import api, { communityApi, postApi, type CommunityResponse, type PostResponse } from '../../services/api';
 import { removeTokens } from '../../utils/auth';
@@ -55,9 +56,10 @@ const Community: React.FC = () => {
   const [isLoadingMembers, setIsLoadingMembers] = useState(true);
   const [showCreateAssignmentModal, setShowCreateAssignmentModal] = useState(false);
 
-  // Post Edit State
-  const [editingPost, setEditingPost] = useState<PostResponse | undefined>(undefined);
-  const [showPostModal, setShowPostModal] = useState(false);
+  // Post Edit State is handled inside PostCard modal
+  // Post view modal (open post in modal like Explore)
+  const [viewingPost, setViewingPost] = useState<PostResponse | undefined>(undefined);
+  const [showViewModal, setShowViewModal] = useState(false);
 
   // Delete Confirmation State
   const [deletePostId, setDeletePostId] = useState<number | null>(null);
@@ -168,7 +170,18 @@ const Community: React.FC = () => {
   };
 
   const handlePostCreated = (newPost: PostResponse) => {
-    setPosts(prev => [newPost, ...prev]);
+    // Ensure created post contains a `User` object (some APIs return a minimal post without nested User)
+    const normalized = {
+      ...newPost,
+      User: newPost.User ?? {
+        id: user!.id,
+        fname: user!.fname,
+        lname: user!.lname,
+        avatar_file_id: user!.avatar_file_id ?? null,
+      },
+      _count: newPost._count ?? { Comment: 0 },
+    } as PostResponse;
+    setPosts(prev => [normalized, ...prev]);
   };
 
   const handleDeletePost = (postId: number) => {
@@ -193,14 +206,7 @@ const Community: React.FC = () => {
     }
   };
 
-  const handleEditPost = (post: any) => { // Type as any or PostResponse
-    setEditingPost(post);
-    setShowPostModal(true);
-  };
-
-  const handleEditSuccess = (updatedPost: PostResponse) => {
-    setPosts(prev => prev.map(p => p.id === updatedPost.id ? { ...p, ...updatedPost } : p));
-  };
+  // PostCard handles edit modal itself; if needed we can listen to callbacks from PostCard in future
 
 
   // Check if current user is an instructor of this community
@@ -283,13 +289,10 @@ const Community: React.FC = () => {
               {/* Assignments Section (Top of Feed) */}
               {/* Create Post - Only show if enrolled */}
               {isEnrolledInCommunity && (
-                <CreatePost
-                  communityId={community.id}
-                  userFirstName={user.fname}
-                  userId={user.id}
-                  userLastName={user.lname}
-                  userAvatarUrl={user.avatar_file_id}
-                  onPostCreated={handlePostCreated}
+                <CreatePostWidget
+                  currentUser={user as any}
+                  defaultCommunityId={community.id}
+                  onCreated={handlePostCreated}
                 />
               )}
 
@@ -300,7 +303,14 @@ const Community: React.FC = () => {
                 currentUser={user}
                 isInstructorOfCommunity={isInstructorOfCommunity}
                 onDeletePost={handleDeletePost}
-                onEditPost={handleEditPost}
+                onViewPost={(p) => {
+                  const normalized = {
+                    ...p,
+                    owner_uid: (p as any).owner_uid ?? (p as any).owner_uid ?? (p as any).User?.id ?? 0,
+                  } as PostResponse;
+                  setViewingPost(normalized);
+                  setShowViewModal(true);
+                }}
               />
             </div>
 
@@ -375,12 +385,16 @@ const Community: React.FC = () => {
         }}
       />
 
-      {/* Post Edit Modal */}
+      {/* Post view modal (open when clicking a post in community list) */}
       <PostModal
-        isOpen={showPostModal}
-        onClose={() => { setShowPostModal(false); setEditingPost(undefined); }}
-        post={editingPost}
-        onSuccess={handleEditSuccess}
+        isOpen={showViewModal}
+        onClose={() => { setShowViewModal(false); setViewingPost(undefined); }}
+        post={viewingPost}
+        onSuccess={(updated: PostResponse) => {
+          setPosts(prev => prev.map(p => p.id === updated.id ? { ...p, ...updated } : p));
+          setShowViewModal(false);
+          setViewingPost(undefined);
+        }}
       />
 
       {/* Delete Confirmation Modal */}

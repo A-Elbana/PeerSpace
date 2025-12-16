@@ -549,10 +549,16 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
         return community?.name || 'Unknown';
     };
 
-    // Render the page immediately and show skeletons for backend-driven parts while loading.
+    // Render initial loading screen while fetching user and initial data
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
-    // ...existing code...
-
+    // Render the page
     return (
         <>
             <Header

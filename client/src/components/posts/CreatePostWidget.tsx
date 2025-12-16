@@ -17,7 +17,7 @@ interface CurrentUser {
 interface CreatePostWidgetProps {
   currentUser?: CurrentUser | null;
   defaultCommunityId?: string;
-  onCreated?: () => void; // callback to refresh lists
+  onCreated?: (newPost?: any) => void; // callback receives created post when available
 }
 
 const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaultCommunityId, onCreated }) => {
@@ -70,7 +70,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
   const onPickFile: React.ChangeEventHandler<HTMLInputElement> = (e) => {
     const newFiles = Array.from(e.target.files || []);
     setFiles(prev => [...prev, ...newFiles]);
-    
+
     // Generate previews for images
     newFiles.forEach(f => {
       const key = `${f.name}-${f.size}`;
@@ -104,7 +104,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
   // Filter and sort communities intelligently
   const filteredCommunities = useMemo(() => {
     let filtered = communities;
-    
+
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -168,7 +168,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
       }
 
       // Step 2: Create the post with file_ids so backend can attach them
-      await postApi.create({
+      const created = await postApi.create({
         title: title.trim(),
         body: body.trim() || undefined,
         type: tags.trim() || 'discussion',
@@ -185,7 +185,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
       setFilePreviews({});
       if (!lockedCommunity) setCommunityId('');
       setExpanded(false);
-      onCreated?.();
+      onCreated?.(created?.data ?? created);
     } catch (err: any) {
       console.error('Post creation error:', err);
       toast.error(err?.response?.data?.message || 'Failed to create post');
@@ -293,9 +293,8 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
                                 setShowCommunityDropdown(false);
                                 setSearchQuery('');
                               }}
-                              className={`w-full text-left px-3 py-2 text-sm transition-colors border-b border-border last:border-b-0 hover:bg-muted ${
-                                communityId === community.id ? 'bg-turf-green-500/10 text-turf-green-600' : 'text-foreground'
-                              }`}
+                              className={`w-full text-left px-3 py-2 text-sm transition-colors border-b border-border last:border-b-0 hover:bg-muted ${communityId === community.id ? 'bg-turf-green-500/10 text-turf-green-600' : 'text-foreground'
+                                }`}
                             >
                               <div className="flex items-center justify-between">
                                 <span className="font-medium truncate">{community.name}</span>
@@ -371,7 +370,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
                   const key = `${file.name}-${file.size}`;
                   const preview = filePreviews[key];
                   const isImage = file.type.startsWith('image/');
-                  
+
                   return (
                     <div
                       key={`${key}-${idx}`}
@@ -391,7 +390,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
                           </span>
                         </div>
                       )}
-                      
+
                       <button
                         type="button"
                         onClick={() => removeFile(idx)}
@@ -400,7 +399,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
                       >
                         <X className="w-3 h-3" />
                       </button>
-                      
+
                       <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5 bg-black/40 text-white text-xs truncate">
                         {formatFileSize(file.size)}
                       </div>
