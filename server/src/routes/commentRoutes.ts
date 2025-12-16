@@ -10,6 +10,7 @@ import {
   approveByOriginalPoster,
   getUnapprovedComments,
   getCommentCount,
+  getAllRepliesOfComment,
 } from "../controllers/CommentController";
 import {
   loadComment,
@@ -160,6 +161,25 @@ router.get("/pending", authenticateToken, getUnapprovedComments);
  *         description: Comment details
  */
 router.get("/:id", getCommentById);
+
+/**
+ * @swagger
+ * /api/comments/{id}/replies:
+ *   get:
+ *     summary: Get all first-level replies of a comment
+ *     tags: [Comments]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Parent comment ID
+ *     responses:
+ *       200:
+ *         description: List of first-level replies for the comment
+ */
+router.get("/:id/replies", getAllRepliesOfComment);
 
 /**
  * @swagger

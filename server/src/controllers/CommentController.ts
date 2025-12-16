@@ -446,3 +446,84 @@ export const getCommentCount = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Failed to fetch comment count" });
   }
 };
+
+/**
+ * Get all first-level replies of a comment
+ * Expects: id (path param)
+ * Behavior: returns direct child comments of the given comment
+ */
+export const getAllRepliesOfComment = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const page = Math.max(1, parseInt((req.query.page as string) || "1"));
+  const limit = Math.min(
+    100,
+    Math.max(1, parseInt((req.query.limit as string) || "10"))
+  );
+  const skip = (page - 1) * limit;
+  const sortBy = (req.query.sortBy as string) || "date"; // "date" or "approved"
+
+  const commentId = Number(id);
+  if (Number.isNaN(commentId)) {
+    return res.status(400).json({ message: "Invalid comment id" });
+  }
+
+  try {
+    // Check if the parent comment exists
+    const parentComment = await prisma.comment.findUnique({
+      where: { id: commentId },
+    });
+
+    if (!parentComment) {
+      return res.status(404).json({ message: "Comment not found" });
+    }
+
+    // Get first-level child comments only
+    const where: any = { parent_comment_id: commentId };
+
+    // Determine orderBy based on sortBy
+    let orderBy: any = { comment_date: "asc" };
+    if (sortBy === "approved") {
+      // Sort by instructor approval first, then original poster approval, then date
+      orderBy = [
+        { approved_by_inst: "desc" },
+        { approved_by_op: "desc" },
+        { comment_date: "asc" },
+      ];
+    }
+
+    const comments = await prisma.comment.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy,
+      include: {
+        User: {
+          select: { id: true, fname: true, lname: true, avatar_file_id: true },
+        },
+        _count: {
+          select: { other_Comment: true },
+        },
+      },
+    });
+
+    const total = await prisma.comment.count({ where });
+
+    // Map comments to include hasReplies flag
+    const data = comments.map((comment: any) => {
+      const { _count, ...rest } = comment;
+      return {
+        ...rest,
+        hasReplies: (_count?.other_Comment || 0) > 0,
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    });
+  } catch (error) {
+    console.error("Get Replies Error:", error);
+    res.status(500).json({ message: "Failed to fetch replies" });
+  }
+};
