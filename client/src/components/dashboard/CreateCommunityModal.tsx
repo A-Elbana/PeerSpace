@@ -115,9 +115,9 @@ const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-lg mx-4 bg-card rounded-xl shadow-2xl border border-border animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-lg mx-4 bg-card rounded-xl shadow-2xl border border-border animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border z-10 bg-card">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-frosted-blue-100">
               <Users className="h-5 w-5 text-frosted-blue-500" />
@@ -135,7 +135,7 @@ const CreateCommunityModal: React.FC<CreateCommunityModalProps> = ({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 72px)' }}>
           {/* Error Message */}
           {error && (
             <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">

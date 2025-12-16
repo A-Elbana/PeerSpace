@@ -176,7 +176,7 @@ const PostManagementModal: React.FC<PostManagementModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px]">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
@@ -192,7 +192,7 @@ const PostManagementModal: React.FC<PostManagementModalProps> = ({
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-turf-green-500"></div>
           </div>
         ) : post ? (
-          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+          <div className="p-6 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 160px)' }}>
             {/* Post Stats */}
             <div className="grid grid-cols-4 gap-3">
               <div className="p-3 bg-muted/50 rounded-lg">
