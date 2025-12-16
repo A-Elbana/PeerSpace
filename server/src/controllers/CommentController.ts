@@ -1,7 +1,9 @@
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
 import { Role } from "../generated/prisma/client";
-import ActivityLogService from "../services/ActivityLogService";
+import ActivityLogService, {
+  ActivityActionType,
+} from "../services/ActivityLogService";
 
 // Create a comment
 export const createComment = async (req: Request, res: Response) => {
@@ -88,12 +90,13 @@ export const createComment = async (req: Request, res: Response) => {
       },
     });
 
-    // Log the activity
-    await ActivityLogService.logCommentCreated(
+    // Log the activity with associated community
+    await ActivityLogService.logActivity({
       userId,
-      post.cid,
-      `Created comment on post #${pidNum}`
-    );
+      communityId: post.cid,
+      actionType: ActivityActionType.COMMENT_CREATED,
+      description: `Created comment on post #${pidNum}`,
+    });
 
     res.status(201).json({ success: true, data: comment });
   } catch (error) {
@@ -347,7 +350,7 @@ export const approveByInstructor = async (req: Request, res: Response) => {
     await ActivityLogService.logActivity({
       userId: (req as any).userId,
       communityId: comment.Post.cid,
-      actionType: 23, // COMMENT_APPROVED
+      actionType: ActivityActionType.COMMENT_APPROVED,
       description: `Approved comment #${commentId} by instructor`,
     });
 
@@ -384,7 +387,7 @@ export const approveByOriginalPoster = async (req: Request, res: Response) => {
     await ActivityLogService.logActivity({
       userId: (req as any).userId,
       communityId: comment.Post.cid,
-      actionType: 23, // COMMENT_APPROVED
+      actionType: ActivityActionType.COMMENT_APPROVED,
       description: `Approved comment #${commentId} by original poster`,
     });
 

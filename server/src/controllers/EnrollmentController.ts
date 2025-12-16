@@ -1,6 +1,9 @@
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
 import { Role, CommunityType } from "../generated/prisma/client";
+import ActivityLogService, {
+  ActivityActionType,
+} from "../services/ActivityLogService";
 
 const isValidUUID = (value: string): boolean => {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
@@ -48,6 +51,14 @@ export const enrollInCommunity = async (req: Request, res: Response) => {
         cid: community.id,
         sid: userId,
       },
+    });
+
+    // Log join event
+    await ActivityLogService.logActivity({
+      userId,
+      communityId: community.id,
+      actionType: ActivityActionType.USER_JOINED_COMMUNITY,
+      description: `Joined community "${community.name || community.id}"`,
     });
 
     res.status(201).json({
@@ -101,6 +112,14 @@ export const leaveCommunity = async (req: Request, res: Response) => {
           sid: userId,
         },
       },
+    });
+
+    // Log leave event
+    await ActivityLogService.logActivity({
+      userId,
+      communityId: community.id,
+      actionType: ActivityActionType.USER_LEFT_COMMUNITY,
+      description: `Left community "${community.name || community.id}"`,
     });
 
     res.status(200).json({
