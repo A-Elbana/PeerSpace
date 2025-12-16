@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Globe, Lock, Trash2, Save, X, Tag, Users } from 'lucide-react';
+import { Building2, Globe, Lock, Trash2, Save, X, Users } from 'lucide-react';
 import { communityApi } from '@/services/api';
 import { toast } from 'sonner';
 
@@ -26,7 +26,6 @@ interface CommunityData {
   name: string;
   description: string;
   type: 'PUBLIC' | 'PRIVATE';
-  tags?: string[];
   createdAt: string;
   _count?: {
     Enrollment?: number;
@@ -54,7 +53,6 @@ const CommunityManagementModal: React.FC<CommunityManagementModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [editedCommunity, setEditedCommunity] = useState<Partial<CommunityData>>({});
-  const [newTag, setNewTag] = useState('');
 
   useEffect(() => {
     if (open && communityId) {
@@ -62,7 +60,6 @@ const CommunityManagementModal: React.FC<CommunityManagementModalProps> = ({
     } else {
       setCommunity(null);
       setEditedCommunity({});
-      setNewTag('');
     }
   }, [open, communityId]);
 
@@ -128,28 +125,16 @@ const CommunityManagementModal: React.FC<CommunityManagementModalProps> = ({
   };
 
   const handleAddTag = () => {
-    if (!newTag.trim()) return;
-    
-    const currentTags = editedCommunity.tags || [];
-    if (!currentTags.includes(newTag.trim())) {
-      setEditedCommunity({
-        ...editedCommunity,
-        tags: [...currentTags, newTag.trim()],
-      });
-      setNewTag('');
-    }
+    // tags removed from modal
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
-    setEditedCommunity({
-      ...editedCommunity,
-      tags: (editedCommunity.tags || []).filter(tag => tag !== tagToRemove),
-    });
+    // tags removed from modal
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Building2 className="w-5 h-5" />
@@ -165,12 +150,12 @@ const CommunityManagementModal: React.FC<CommunityManagementModalProps> = ({
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-turf-green-500"></div>
           </div>
         ) : community ? (
-          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+          <div className="p-6 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 160px)' }}>
             {/* Community ID and Stats */}
             <div className="grid grid-cols-3 gap-3">
               <div className="p-3 bg-muted/50 rounded-lg">
                 <p className="text-xs text-muted-foreground">Community ID</p>
-                <p className="font-mono text-xs truncate">{community.id}</p>
+                <p className="font-mono text-xs break-all">{community.id}</p>
               </div>
               <div className="p-3 bg-muted/50 rounded-lg">
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -259,45 +244,7 @@ const CommunityManagementModal: React.FC<CommunityManagementModalProps> = ({
               </DropdownMenu>
             </div>
 
-            {/* Tags */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Tag className="w-4 h-4" />
-                Tags
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
-                  placeholder="Add a tag..."
-                  className="flex-1"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleAddTag}
-                  disabled={!newTag.trim()}
-                >
-                  Add
-                </Button>
-              </div>
-              {editedCommunity.tags && editedCommunity.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {editedCommunity.tags.map((tag) => (
-                    <Badge
-                      key={tag}
-                      variant="secondary"
-                      className="gap-1 cursor-pointer hover:bg-destructive/10"
-                      onClick={() => handleRemoveTag(tag)}
-                    >
-                      {tag}
-                      <X className="w-3 h-3" />
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* Tags removed from modal per admin request */}
 
             {/* Created Date */}
             <div className="p-3 bg-muted/50 rounded-lg">

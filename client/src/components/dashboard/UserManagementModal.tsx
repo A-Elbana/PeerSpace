@@ -51,6 +51,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [editedUser, setEditedUser] = useState<Partial<UserData>>({});
+  const [passwordOverride, setPasswordOverride] = useState<string>('');
 
   useEffect(() => {
     if (open && userId) {
@@ -97,6 +98,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({
         lname: editedUser.lname,
         email: editedUser.email,
         role: editedUser.role,
+        ...(passwordOverride ? { password: passwordOverride } : {}),
       });
       
       toast.success('User updated successfully');
@@ -146,7 +148,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="w-5 h-5" />
@@ -162,7 +164,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-turf-green-500"></div>
           </div>
         ) : user ? (
-          <div className="space-y-4">
+          <div className="p-6 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 160px)' }}>
             {/* User ID and Status */}
             <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
               <div>
@@ -262,6 +264,22 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+            </div>
+
+            {/* Password override */}
+            <div className="space-y-2">
+              <Label htmlFor="password" className="flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                Override Password
+              </Label>
+              <Input
+                id="password"
+                type="text"
+                value={passwordOverride}
+                onChange={(e) => setPasswordOverride(e.target.value)}
+                placeholder="Enter new password to override"
+              />
+              <p className="text-xs text-muted-foreground">Setting a value here will replace the user's password immediately.</p>
             </div>
           </div>
         ) : (

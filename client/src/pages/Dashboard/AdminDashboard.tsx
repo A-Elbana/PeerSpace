@@ -36,9 +36,11 @@ import {
 import UserManagementModal from '../../components/dashboard/UserManagementModal';
 import CommunityManagementModal from '../../components/dashboard/CommunityManagementModal';
 import PostManagementModal from '../../components/dashboard/PostManagementModal';
+import CreateCommunityModal, { type CreateCommunityData } from '../../components/dashboard/CreateCommunityModal';
+import CreateUserModal, { type CreateUserData } from '../../components/dashboard/CreateUserModal';
 
 // API
-import { adminApi, userApi, communityApi, postApi } from '../../services/api';
+import api, { adminApi, userApi, communityApi, postApi } from '../../services/api';
 
 interface AdminDashboardProps {
     user: {
@@ -65,7 +67,6 @@ interface CommunityItem {
     id: string;
     name: string;
     type: string;
-    tags?: string[];
     _count?: {
         Enrollment: number;
         Post: number;
@@ -128,6 +129,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
     const [posts, setPosts] = useState<PostItem[]>([]);
     const [communitiesChartData, setCommunitiesChartData] = useState<ChartDataPoint[]>([]);
     const [postsChartData, setPostsChartData] = useState<ChartDataPoint[]>([]);
+    const [communitiesMonths, setCommunitiesMonths] = useState<number>(6);
+    const [postsMonths, setPostsMonths] = useState<number>(6);
 
     // User filter states
     const [userSearch, setUserSearch] = useState('');
@@ -136,7 +139,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
     // Community filter states
     const [communitySearch, setCommunitySearch] = useState('');
     const [communityVisibilityFilter, setCommunityVisibilityFilter] = useState<string>('all');
-    const [communityTagSearch, setCommunityTagSearch] = useState('');
 
     // Post filter states
     const [postSearch, setPostSearch] = useState('');
@@ -161,6 +163,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
     const [userModalOpen, setUserModalOpen] = useState(false);
     const [communityModalOpen, setCommunityModalOpen] = useState(false);
     const [postModalOpen, setPostModalOpen] = useState(false);
+    const [createCommunityOpen, setCreateCommunityOpen] = useState(false);
+    const [isCreatingCommunity, setIsCreatingCommunity] = useState(false);
+    const [createUserOpen, setCreateUserOpen] = useState(false);
+    const [isCreatingUser, setIsCreatingUser] = useState(false);
 
     // Reusable fetch functions
     const fetchStats = async () => {
@@ -174,7 +180,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
 
     const fetchCommunitiesTimeSeries = async () => {
         try {
-            const communitiesData = await adminApi.getCommunitiesTimeSeries(6);
+            const communitiesData = await adminApi.getCommunitiesTimeSeries(communitiesMonths);
             setCommunitiesChartData(communitiesData.data);
         } catch (error) {
             console.error('Failed to fetch communities time series:', error);
@@ -184,7 +190,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
     const fetchPostsTimeSeries = async () => {
         try {
             const postsData = await adminApi.getPostsTimeSeries({
-                months: 6,
+                months: postsMonths,
                 communityId: chartCommunityIdFilter || undefined,
                 tag: chartTagFilter || undefined,
                 resolvedOnly: chartResolvedOnly,
@@ -215,7 +221,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
     };
 
     const fetchCommunities = async () => {
-        if (!communitySearch.trim() && !communityTagSearch.trim()) {
+        if (!communitySearch.trim()) {
             setCommunities([]);
             return;
         }
@@ -223,7 +229,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
         try {
             const response = await communityApi.getAll({
                 search: communitySearch,
-                tags: communityTagSearch,
                 type: communityVisibilityFilter !== 'all' ? communityVisibilityFilter.toUpperCase() as 'PUBLIC' | 'PRIVATE' : undefined,
                 limit: 50,
             });
@@ -270,6 +275,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
         fetchData();
     }, []);
 
+    // Refetch communities chart when months selection changes
+    useEffect(() => {
+        const debounce = setTimeout(fetchCommunitiesTimeSeries, 300);
+        return () => clearTimeout(debounce);
+    }, [communitiesMonths]);
+
+    // Refetch posts chart when filters or months change
+    useEffect(() => {
+        const debounce = setTimeout(fetchPostsTimeSeries, 300);
+        return () => clearTimeout(debounce);
+    }, [chartCommunityIdFilter, chartTagFilter, chartResolvedOnly, postsMonths]);
+
     // Fetch users when search changes
     useEffect(() => {
         const debounce = setTimeout(fetchUsers, 300);
@@ -280,7 +297,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
     useEffect(() => {
         const debounce = setTimeout(fetchCommunities, 300);
         return () => clearTimeout(debounce);
-    }, [communitySearch, communityTagSearch, communityVisibilityFilter]);
+    }, [communitySearch, communityVisibilityFilter]);
 
     // Fetch posts when search changes
     useEffect(() => {
@@ -288,11 +305,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
         return () => clearTimeout(debounce);
     }, [postSearch, postTagSearch]);
 
-    // Fetch posts chart data when filters change
-    useEffect(() => {
-        const debounce = setTimeout(fetchPostsTimeSeries, 300);
-        return () => clearTimeout(debounce);
-    }, [chartCommunityIdFilter, chartTagFilter, chartResolvedOnly]);
+    
 
     if (isLoading) {
         return (
@@ -365,6 +378,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                             <div className="flex items-center gap-2 mb-4">
                                 <TrendingUp className="w-5 h-5 text-tech-blue-500" />
                                 <h2 className="text-lg font-semibold text-foreground">Communities Over Time</h2>
+                                <div className="ml-auto">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="outline" className="gap-2 min-w-[120px]">
+                                                Last {communitiesMonths} months
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => setCommunitiesMonths(1)}>Last 1 month</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setCommunitiesMonths(3)}>Last 3 months</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setCommunitiesMonths(6)}>Last 6 months</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setCommunitiesMonths(12)}>Last 12 months</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setCommunitiesMonths(24)}>Last 24 months</DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
                             </div>
                             <ChartContainer config={chartConfig} className="h-[300px] w-full">
                                 <AreaChart data={communitiesChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -395,6 +424,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                                 <div className="flex items-center gap-2">
                                     <TrendingUp className="w-5 h-5 text-turf-green-500" />
                                     <h2 className="text-lg font-semibold text-foreground">Posts Over Time</h2>
+                                    <div className="ml-auto">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="outline" className="gap-2 min-w-[120px]">
+                                                    Last {postsMonths} months
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={() => setPostsMonths(1)}>Last 1 month</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => setPostsMonths(3)}>Last 3 months</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => setPostsMonths(6)}>Last 6 months</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => setPostsMonths(12)}>Last 12 months</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => setPostsMonths(24)}>Last 24 months</DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
                                 </div>
                                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                                     <Input
@@ -458,13 +503,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                             <div className="p-4 border-b border-border">
                                 <div className="flex items-center justify-between mb-3">
                                     <h2 className="text-lg font-semibold text-foreground">Users</h2>
-                                    <Button 
-                                        onClick={() => navigate('/admin/add-admin')}
-                                        className="gap-2 bg-tech-blue-500 hover:bg-tech-blue-600 text-white"
-                                    >
-                                        <UserPlus className="w-4 h-4" />
-                                        Add Admin
-                                    </Button>
                                 </div>
                                 <div className="flex flex-col sm:flex-row gap-3">
                                     <div className="relative flex-1">
@@ -475,6 +513,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                                             onChange={(e) => setUserSearch(e.target.value)}
                                             className="pl-9"
                                         />
+                                    </div>
+                                    <div className="flex items-center ml-2">
+                                        <Button
+                                            className="gap-2 bg-tech-blue-500 hover:bg-tech-blue-600 text-white"
+                                            onClick={() => setCreateUserOpen(true)}
+                                        >
+                                            <UserPlus className="w-4 h-4" />
+                                            Create User
+                                        </Button>
                                     </div>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
@@ -490,6 +537,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                                             <DropdownMenuItem onClick={() => setUserRoleFilter('admin')}>Admin</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
+                                    
                                 </div>
                             </div>
                             <div className="max-h-[400px] overflow-y-auto">
@@ -541,14 +589,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                                             className="pl-9"
                                         />
                                     </div>
-                                    <div className="relative flex-1 sm:max-w-[200px]">
-                                        <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                        <Input
-                                            placeholder="Search tags..."
-                                            value={communityTagSearch}
-                                            onChange={(e) => setCommunityTagSearch(e.target.value)}
-                                            className="pl-9"
-                                        />
+                                    <div className="relative sm:max-w-[200px]">
+                                        {/* placeholder column reserved for future filters */}
+                                        <div />
+                                    </div>
+                                    <div className="flex items-center ml-2">
+                                        <Button
+                                            className="gap-2 bg-tech-blue-500 hover:bg-tech-blue-600 text-white"
+                                            onClick={() => setCreateCommunityOpen(true)}
+                                        >
+                                            <Building2 className="w-4 h-4" />
+                                            Create Community
+                                        </Button>
                                     </div>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
@@ -577,10 +629,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                                 </div>
                             </div>
                             <div className="max-h-[400px] overflow-y-auto">
-                                {!communitySearch.trim() && !communityTagSearch.trim() ? (
+                                {!communitySearch.trim() ? (
                                     <div className="p-8 text-center text-muted-foreground">
                                         <Building2 className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                                        <p>Enter an ID, name, or tag to search communities</p>
+                                        <p>Enter an ID or name to search communities</p>
                                     </div>
                                 ) : communities.length === 0 ? (
                                     <div className="p-8 text-center text-muted-foreground">No communities found</div>
@@ -606,21 +658,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                                                             <Globe className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                                                         )}
                                                     </div>
-                                                    <p className="text-sm text-muted-foreground truncate">
-                                                        ID: {community.id} • {community._count?.Enrollment || 0} members
+                                                    <p className="text-sm text-muted-foreground">
+                                                        <span className="font-mono text-xs break-all">ID: {community.id}</span>
+                                                        <span className="ml-2">• {community._count?.Enrollment || 0} members</span>
                                                     </p>
-                                                    {community.tags && community.tags.length > 0 && (
-                                                        <div className="flex flex-wrap gap-1 mt-1">
-                                                            {community.tags.slice(0, 2).map(tag => (
-                                                                <span key={tag} className="text-xs px-1.5 py-0.5 bg-muted rounded text-muted-foreground">
-                                                                    {tag}
-                                                                </span>
-                                                            ))}
-                                                            {community.tags.length > 2 && (
-                                                                <span className="text-xs text-muted-foreground">+{community.tags.length - 2}</span>
-                                                            )}
-                                                        </div>
-                                                    )}
+                                                    {/* tags removed */}
                                                 </div>
                                                 <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                                             </div>
@@ -735,7 +777,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                     fetchStats();
                     fetchCommunitiesTimeSeries();
                     setCommunitySearch('');
-                    setCommunityTagSearch('');
                 }}
             />
 
@@ -754,6 +795,108 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                     fetchPostsTimeSeries();
                     setPostSearch('');
                     setPostTagSearch('');
+                }}
+            />
+
+            <CreateUserModal
+                isOpen={createUserOpen}
+                onClose={() => setCreateUserOpen(false)}
+                isLoading={isCreatingUser}
+                onSubmit={async (data: CreateUserData) => {
+                    setIsCreatingUser(true);
+                    try {
+                        if (data.role === 'ADMIN') {
+                            await api.post('/users/admin', {
+                                fname: data.fname,
+                                lname: data.lname,
+                                email: data.email,
+                                password: data.password,
+                            });
+                        } else {
+                            await api.post('/auth/register', {
+                                fname: data.fname,
+                                lname: data.lname,
+                                email: data.email,
+                                password: data.password,
+                                role: data.role,
+                            });
+                        }
+
+                        // Refresh lists
+                        fetchUsers();
+                        fetchStats();
+                    } catch (err: any) {
+                        console.error('Failed to create user:', err);
+                        throw err;
+                    } finally {
+                        setIsCreatingUser(false);
+                    }
+                }}
+            />
+
+            <CreateCommunityModal
+                isOpen={createCommunityOpen}
+                onClose={() => setCreateCommunityOpen(false)}
+                isLoading={isCreatingCommunity}
+                onSubmit={async (data: CreateCommunityData) => {
+                    setIsCreatingCommunity(true);
+                    try {
+                        let bannerFileId: string | undefined;
+
+                        if (data.bannerFile) {
+                            // Sign upload
+                            const signRes = await api.post('/uploads/sign', {
+                                context: 'COMMUNITY_BANNER',
+                                context_id: 'admin-create',
+                                is_private: false,
+                                resource_type: 'auto'
+                            });
+
+                            const { timestamp, signature, folder, cloudName, apiKey } = signRes.data;
+
+                            const formData = new FormData();
+                            formData.append('file', data.bannerFile);
+                            formData.append('timestamp', timestamp.toString());
+                            formData.append('signature', signature);
+                            formData.append('api_key', apiKey);
+                            formData.append('folder', folder);
+
+                            const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
+                            const uploadResp = await fetch(uploadUrl, { method: 'POST', body: formData });
+                            if (!uploadResp.ok) throw new Error('Banner upload failed');
+                            const cloudData = await uploadResp.json();
+
+                            // Create file record
+                            const fileResp = await api.post('/files', {
+                                public_id: cloudData.public_id,
+                                secure_url: cloudData.secure_url,
+                                resource_type: cloudData.resource_type,
+                                format: cloudData.format,
+                                context: 'COMMUNITY_BANNER',
+                                context_id: 'admin-create',
+                                is_private: false,
+                            });
+
+                            bannerFileId = fileResp.data.data.id;
+                        }
+
+                        await communityApi.create({
+                            name: data.name,
+                            description: data.description,
+                            type: data.type,
+                            ...(bannerFileId ? { banner_file_id: bannerFileId } : {}),
+                        });
+
+                        // Refresh lists
+                        fetchCommunities();
+                        fetchStats();
+                        fetchCommunitiesTimeSeries();
+                    } catch (err: any) {
+                        console.error('Failed to create community:', err);
+                        throw err;
+                    } finally {
+                        setIsCreatingCommunity(false);
+                    }
                 }}
             />
         </div>

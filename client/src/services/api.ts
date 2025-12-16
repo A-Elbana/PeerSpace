@@ -661,6 +661,7 @@ export const userApi = {
       lname?: string;
       email?: string;
       role?: string;
+      password?: string;
     }
   ): Promise<{
     success: boolean;
