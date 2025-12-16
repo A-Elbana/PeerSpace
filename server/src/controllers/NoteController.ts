@@ -216,15 +216,15 @@ export const deleteNote = async (req: NoteRequest, res: Response) => {
   const note = req.note;
 
   try {
-    await prisma.note.delete({
-      where: { id: note.id },
-    });
-
-    // Log the activity
+    // Log the activity BEFORE deleting the note
     await ActivityLogService.logNoteDeleted(
       (req as any).userId,
       note.title
     );
+
+    await prisma.note.delete({
+      where: { id: note.id },
+    });
 
     return res.status(200).json({ message: "Note deleted successfully" });
   } catch (error) {

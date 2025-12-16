@@ -760,16 +760,20 @@ export const deleteCommunity = async (req: Request, res: Response) => {
       await tx.enrollment.deleteMany({ where: { cid: community.id } });
       await tx.manages.deleteMany({ where: { cid: community.id } });
 
+      // Log the activity BEFORE deleting the community
+      await tx.activityLog.create({
+        data: {
+          associated_uid: (req as any).userId,
+          associated_cid: community.id,
+          action_type: 3, // COMMUNITY_DELETED
+          description: `Deleted community "${community.name}"`,
+          date: new Date(),
+        },
+      });
+
       // Delete the community
       await tx.community.delete({ where: { id: community.id } });
     });
-
-    // Log the activity
-    await ActivityLogService.logCommunityDeleted(
-      (req as any).userId,
-      community.id,
-      `Deleted community "${community.name}"`
-    );
 
     res.status(200).json({
       success: true,

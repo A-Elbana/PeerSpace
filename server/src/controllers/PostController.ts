@@ -400,15 +400,15 @@ export const deletePost = async (req: PostRequest, res: Response) => {
       },
     });
 
-    // Delete the post
-    const deletedPost = await prisma.post.delete({ where: { id: req.post.id } });
-
-    // Log the activity
+    // Log the activity BEFORE deleting the post
     await ActivityLogService.logPostDeleted(
       (req as any).userId,
       req.post.cid,
-      `Deleted post "${deletedPost.title}"`
+      `Deleted post "${req.post.title}"`
     );
+
+    // Delete the post
+    await prisma.post.delete({ where: { id: req.post.id } });
 
     res.status(200).json({ message: "Post deleted successfully" });
   } catch (error) {

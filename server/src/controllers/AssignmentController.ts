@@ -538,18 +538,21 @@ export const deleteAssignment = async (
         where: { aid: assignment.id },
       });
 
+      // Log the activity BEFORE deleting the assignment
+      await tx.activityLog.create({
+        data: {
+          associated_uid: (req as any).userId,
+          associated_cid: assignment.cid,
+          action_type: 32, // ASSIGNMENT_DELETED
+          description: `Deleted assignment "${assignment.title}"`,
+          date: new Date(),
+        },
+      });
+
       // Finally, delete the assignment
       await tx.assignment.delete({
         where: { id: assignment.id },
       });
-    });
-
-    // Log the activity
-    await ActivityLogService.logActivity({
-      userId: (req as any).userId,
-      communityId: assignment.cid,
-      actionType: 32, // ASSIGNMENT_DELETED
-      description: `Deleted assignment "${assignment.title}"`,
     });
 
     res.status(200).json({ message: "Assignment deleted successfully" });

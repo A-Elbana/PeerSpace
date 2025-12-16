@@ -512,16 +512,16 @@ export const deleteTask = async (req: TaskRequest, res: Response) => {
   const task = req.task;
 
   try {
-    // Cascade will handle subtasks, tags, assignees, and assignment relation
-    await prisma.task.delete({
-      where: { id: task.id },
-    });
-
-    // Log the activity
+    // Log the activity BEFORE deleting the task
     await ActivityLogService.logActivity({
       userId: (req as any).userId,
       actionType: 52, // TASK_DELETED
       description: `Deleted task "${task.title}"`,
+    });
+
+    // Cascade will handle subtasks, tags, assignees, and assignment relation
+    await prisma.task.delete({
+      where: { id: task.id },
     });
 
     return res.status(200).json({ message: "Task deleted successfully" });

@@ -282,16 +282,16 @@ export const deleteComment = async (req: Request, res: Response) => {
       where: { parent_comment_id: commentId },
     });
 
+    // Log the activity BEFORE deleting the comment
+    await ActivityLogService.logCommentDeleted(
+      (req as any).userId,
+      "",
+      `Deleted comment #${commentId}`
+    );
+
     if (repliesCount === 0) {
       // No replies: hard delete
       await prisma.comment.delete({ where: { id: commentId } });
-      
-      // Log the activity
-      await ActivityLogService.logCommentDeleted(
-        (req as any).userId,
-        "",
-        `Deleted comment #${commentId}`
-      );
 
       return res.status(200).json({ success: true, deleted: "hard" });
     }
@@ -304,13 +304,6 @@ export const deleteComment = async (req: Request, res: Response) => {
         content: "This comment was deleted",
       },
     });
-
-    // Log the activity
-    await ActivityLogService.logCommentDeleted(
-      (req as any).userId,
-      "",
-      `Deleted comment #${commentId}`
-    );
 
     return res.status(200).json({ success: true, deleted: "soft" });
   } catch (error) {
