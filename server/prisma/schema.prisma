@@ -50,8 +50,12 @@ model ActivityLog {
   associated_cid String?    @db.Uuid
   description    String?    @db.VarChar
   action_type    Int?
-  Community      Community? @relation(fields: [associated_cid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  Community      Community? @relation(fields: [associated_cid], references: [id], onDelete: SetNull, onUpdate: Cascade)
   User           User       @relation(fields: [associated_uid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([associated_uid])
+  @@index([associated_cid])
+  @@index([date])
 }
 
 model Admin {
@@ -73,6 +77,11 @@ model Assignment {
   AssignmentFileAttachment AssignmentFileAttachment[]
   Submission               Submission[]
   TaskAssignmentRelation   TaskAssignmentRelation[]
+
+  @@index([cid])
+  @@index([assigner_uid])
+  @@index([due_date])
+  @@index([cid, due_date])
 }
 
 model AssignmentFileAttachment {
@@ -106,6 +115,12 @@ model Comment {
   Comment            Comment?  @relation("CommentToComment", fields: [parent_comment_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   other_Comment      Comment[] @relation("CommentToComment")
   Post               Post      @relation(fields: [pid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([pid])
+  @@index([commenter_uid])
+  @@index([parent_comment_id])
+  @@index([comment_date])
+  @@index([pid, isDeleted])
 }
 
 model Community {
@@ -121,6 +136,10 @@ model Community {
   Manages        Manages[]
   Post           Post[]
   Session        Session?
+
+  @@index([type])
+  @@index([name])
+  @@index([banner_file_id])
 }
 
 model Enrollment {
@@ -130,6 +149,8 @@ model Enrollment {
   Student   Student   @relation(fields: [sid], references: [uid], onDelete: Cascade, onUpdate: Cascade)
 
   @@id([cid, sid])
+  @@index([sid])
+  @@index([cid])
 }
 
 model File {
@@ -180,6 +201,8 @@ model Manages {
   Instructor Instructor @relation(fields: [iid], references: [uid], onDelete: Cascade, onUpdate: Cascade)
 
   @@id([iid, cid])
+  @@index([iid])
+  @@index([cid])
 }
 
 model Note {
@@ -194,6 +217,10 @@ model Note {
   User               User                 @relation(fields: [owner_uid], references: [id], onDelete: Cascade, onUpdate: Cascade)
   NoteFileAttachment NoteFileAttachment[]
   PostNoteAttachment PostNoteAttachment[]
+
+  @@index([owner_uid])
+  @@index([notebook_id])
+  @@index([created_at])
 }
 
 model NoteFileAttachment {
@@ -212,6 +239,8 @@ model Notebook {
   owner_uid   Int
   Note        Note[]
   User        User      @relation(fields: [owner_uid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([owner_uid])
 }
 
 // Normalized notification content model (shared details for a notification event)
@@ -255,6 +284,13 @@ model Post {
   PostNoteAttachment PostNoteAttachment[]
   PostTag            PostTag[]
   Voted              Voted[]
+
+  @@index([cid])
+  @@index([owner_uid])
+  @@index([post_date])
+  @@index([cid, post_date])
+  @@index([title])
+  @@index([type])
 }
 
 model PostFileAttachment {
@@ -279,6 +315,8 @@ model PostTag {
   Post    Post   @relation(fields: [post_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@id([post_id, tag])
+  @@index([tag])
+  @@index([post_id])
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -320,6 +358,11 @@ model Submission {
   Assignment               Assignment                 @relation(fields: [aid], references: [id], onDelete: Cascade, onUpdate: Cascade)
   Student                  Student                    @relation(fields: [sid], references: [uid], onDelete: Cascade, onUpdate: Cascade)
   SubmissionFileAttachment SubmissionFileAttachment[]
+
+  @@index([aid])
+  @@index([sid])
+  @@index([subm_date])
+  @@index([sid, aid])
 }
 
 model SubmissionFileAttachment {
@@ -345,6 +388,11 @@ model Task {
   TaskAssignees          TaskAssignees[]
   TaskAssignmentRelation TaskAssignmentRelation?
   TaskTag                TaskTag[]
+
+  @@index([author])
+  @@index([status])
+  @@index([end_date])
+  @@index([parent_task])
 }
 
 model TaskAssignees {
@@ -355,6 +403,8 @@ model TaskAssignees {
   Task       Task    @relation(fields: [tid], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@id([tid, sid])
+  @@index([sid])
+  @@index([tid])
 }
 
 model TaskAssignmentRelation {
@@ -393,6 +443,9 @@ model User {
   Post           Post[]
   Student        Student?
   Notification   UserNotification[]
+
+  @@index([role])
+  @@index([avatar_file_id])
 }
 
 model Voted {
@@ -403,4 +456,7 @@ model Voted {
   Student  Student @relation(fields: [sid], references: [uid], onDelete: Cascade, onUpdate: Cascade)
 
   @@id([sid, pid])
+  @@index([pid])
+  @@index([sid])
+  @@index([pid, voteType])
 }

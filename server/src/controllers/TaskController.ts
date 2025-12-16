@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
+import ActivityLogService from "../services/ActivityLogService";
 
 /**
  * Extended Request with task data
@@ -23,7 +24,10 @@ export const TaskStatus = {
  * Check if setting parentTaskId as parent of taskId would create a cycle
  * by traversing up the parent chain from parentTaskId
  */
-const detectCycle = async (taskId: number, parentTaskId: number): Promise<boolean> => {
+const detectCycle = async (
+  taskId: number,
+  parentTaskId: number
+): Promise<boolean> => {
   let currentId: number | null = parentTaskId;
   const visited = new Set<number>();
 
@@ -59,14 +63,23 @@ const detectCycle = async (taskId: number, parentTaskId: number): Promise<boolea
 
 /**
  * Create a new task.
- * Expects: title, status, description (optional), priority (optional), 
- *          start_date (optional), end_date (optional), parent_task (optional), 
+ * Expects: title, status, description (optional), priority (optional),
+ *          start_date (optional), end_date (optional), parent_task (optional),
  *          assignment_id (optional - to link to an assignment)
  * author is taken from the authenticated user's token (req.userId)
  * Requires: authenticateToken + requireStudentRole + validateTaskCreate middleware
  */
 export const createTask = async (req: Request, res: Response) => {
-  const { title, description, priority, start_date, end_date, status, parent_task, assignment_id } = req.body;
+  const {
+    title,
+    description,
+    priority,
+    start_date,
+    end_date,
+    status,
+    parent_task,
+    assignment_id,
+  } = req.body;
   const author = (req as any).userId;
 
   try {
@@ -81,7 +94,9 @@ export const createTask = async (req: Request, res: Response) => {
       }
 
       if (parentTask.author !== author) {
-        return res.status(403).json({ message: "You can only create subtasks for your own tasks" });
+        return res
+          .status(403)
+          .json({ message: "You can only create subtasks for your own tasks" });
       }
 
       // Check for cycles - no cycle detection needed for new task, but verify parent is valid
@@ -109,7 +124,11 @@ export const createTask = async (req: Request, res: Response) => {
       });
 
       if (!enrollment) {
-        return res.status(403).json({ message: "You must be enrolled in the assignment's community" });
+        return res
+          .status(403)
+          .json({
+            message: "You must be enrolled in the assignment's community",
+          });
       }
     }
 
@@ -181,6 +200,11 @@ export const createTask = async (req: Request, res: Response) => {
       },
     });
 
+    // Log the activity
+    if (completeTask) {
+      await ActivityLogService.logTaskCreated(author, completeTask.title);
+    }
+
     return res.status(201).json(completeTask);
   } catch (error) {
     console.error("Create Task Error:", error);
@@ -200,7 +224,8 @@ export const getMyTasks = async (req: Request, res: Response) => {
   const pageParam = parseInt(req.query.page as string);
   const limitParam = parseInt(req.query.limit as string);
   const page = !isNaN(pageParam) && pageParam > 0 ? pageParam : 1;
-  const limit = !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
+  const limit =
+    !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
   const skip = (page - 1) * limit;
 
   // Filters
@@ -226,7 +251,10 @@ export const getMyTasks = async (req: Request, res: Response) => {
   const whereClause: any = {
     OR: [
       { author: author, ...baseFilters },
-      { TaskAssignees: { some: { sid: author, isAccepted: true } }, ...baseFilters },
+      {
+        TaskAssignees: { some: { sid: author, isAccepted: true } },
+        ...baseFilters,
+      },
     ],
   };
 
@@ -236,11 +264,7 @@ export const getMyTasks = async (req: Request, res: Response) => {
         where: whereClause,
         skip,
         take: limit,
-        orderBy: [
-          { status: "asc" },
-          { end_date: "asc" },
-          { priority: "desc" },
-        ],
+        orderBy: [{ status: "asc" }, { end_date: "asc" }, { priority: "desc" }],
         include: {
           Task: {
             select: { id: true, title: true },
@@ -335,7 +359,15 @@ export const getSubtasks = async (req: TaskRequest, res: Response) => {
 export const updateTask = async (req: TaskRequest, res: Response) => {
   const task = req.task;
   const author = (req as any).userId;
-  const { title, description, priority, start_date, end_date, status, parent_task } = req.body;
+  const {
+    title,
+    description,
+    priority,
+    start_date,
+    end_date,
+    status,
+    parent_task,
+  } = req.body;
 
   const updateData: {
     title?: string;
@@ -352,7 +384,8 @@ export const updateTask = async (req: TaskRequest, res: Response) => {
   }
 
   if (description !== undefined) {
-    updateData.description = description !== null ? String(description).trim() : null;
+    updateData.description =
+      description !== null ? String(description).trim() : null;
   }
 
   if (priority !== undefined) {
@@ -385,18 +418,24 @@ export const updateTask = async (req: TaskRequest, res: Response) => {
       }
 
       if (parentTaskRecord.author !== author) {
-        return res.status(403).json({ message: "You can only set parent to your own tasks" });
+        return res
+          .status(403)
+          .json({ message: "You can only set parent to your own tasks" });
       }
 
       // Prevent circular reference - direct self-reference
       if (parentTaskRecord.id === task.id) {
-        return res.status(400).json({ message: "A task cannot be its own parent" });
+        return res
+          .status(400)
+          .json({ message: "A task cannot be its own parent" });
       }
 
       // Check for cycles (e.g., t1 parent of t2, t2 parent of t3, t3 parent of t1)
       const hasCycle = await detectCycle(task.id, parseInt(parent_task));
       if (hasCycle) {
-        return res.status(400).json({ message: "Circular parent relationship would be created" });
+        return res
+          .status(400)
+          .json({ message: "Circular parent relationship would be created" });
       }
 
       updateData.parent_task = parseInt(parent_task);
@@ -434,6 +473,13 @@ export const updateTask = async (req: TaskRequest, res: Response) => {
           select: { other_Task: true, TaskAssignees: true },
         },
       },
+    });
+
+    // Log the activity
+    await ActivityLogService.logActivity({
+      userId: (req as any).userId,
+      actionType: 51, // TASK_UPDATED
+      description: `Updated task "${updatedTask.title}"`,
     });
 
     return res.status(200).json({
@@ -496,6 +542,13 @@ export const deleteTask = async (req: TaskRequest, res: Response) => {
   const task = req.task;
 
   try {
+    // Log the activity BEFORE deleting the task
+    await ActivityLogService.logActivity({
+      userId: (req as any).userId,
+      actionType: 52, // TASK_DELETED
+      description: `Deleted task "${task.title}"`,
+    });
+
     // Cascade will handle subtasks, tags, assignees, and assignment relation
     await prisma.task.delete({
       where: { id: task.id },
@@ -535,7 +588,9 @@ export const addTaskTag = async (req: TaskRequest, res: Response) => {
     });
 
     if (existingTag) {
-      return res.status(409).json({ message: "Tag already exists on this task" });
+      return res
+        .status(409)
+        .json({ message: "Tag already exists on this task" });
     }
 
     await prisma.taskTag.create({
@@ -651,7 +706,11 @@ export const linkTaskToAssignment = async (req: TaskRequest, res: Response) => {
     });
 
     if (!enrollment) {
-      return res.status(403).json({ message: "You must be enrolled in the assignment's community" });
+      return res
+        .status(403)
+        .json({
+          message: "You must be enrolled in the assignment's community",
+        });
     }
 
     // Create or update the relation
@@ -685,7 +744,9 @@ export const linkTaskToAssignment = async (req: TaskRequest, res: Response) => {
     });
   } catch (error) {
     console.error("Link Task to Assignment Error:", error);
-    return res.status(500).json({ message: "Failed to link task to assignment" });
+    return res
+      .status(500)
+      .json({ message: "Failed to link task to assignment" });
   }
 };
 
@@ -694,7 +755,10 @@ export const linkTaskToAssignment = async (req: TaskRequest, res: Response) => {
  * Expects: id (path param)
  * Requires: authenticateToken + requireStudentRole + loadTask + authorizeTaskAccess middleware
  */
-export const unlinkTaskFromAssignment = async (req: TaskRequest, res: Response) => {
+export const unlinkTaskFromAssignment = async (
+  req: TaskRequest,
+  res: Response
+) => {
   const task = req.task;
 
   try {
@@ -702,12 +766,18 @@ export const unlinkTaskFromAssignment = async (req: TaskRequest, res: Response) 
       where: { tid: task.id },
     });
 
-    return res.status(200).json({ message: "Task unlinked from assignment successfully" });
+    return res
+      .status(200)
+      .json({ message: "Task unlinked from assignment successfully" });
   } catch (error: any) {
     if (error.code === "P2025") {
-      return res.status(404).json({ message: "Task is not linked to any assignment" });
+      return res
+        .status(404)
+        .json({ message: "Task is not linked to any assignment" });
     }
     console.error("Unlink Task from Assignment Error:", error);
-    return res.status(500).json({ message: "Failed to unlink task from assignment" });
+    return res
+      .status(500)
+      .json({ message: "Failed to unlink task from assignment" });
   }
 };

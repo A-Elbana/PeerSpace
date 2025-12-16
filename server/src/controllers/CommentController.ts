@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
 import { Role } from "../generated/prisma/client";
+import ActivityLogService from "../services/ActivityLogService";
 
 // Create a comment
 export const createComment = async (req: Request, res: Response) => {
@@ -87,6 +88,13 @@ export const createComment = async (req: Request, res: Response) => {
       },
     });
 
+    // Log the activity
+    await ActivityLogService.logCommentCreated(
+      userId,
+      post.cid,
+      `Created comment on post #${pidNum}`
+    );
+
     res.status(201).json({ success: true, data: comment });
   } catch (error) {
     console.error("Create Comment Error:", error);
@@ -103,7 +111,7 @@ export const getCommentsByPost = async (req: Request, res: Response) => {
     Math.max(1, parseInt((req.query.limit as string) || "10"))
   );
   const skip = (page - 1) * limit;
- // default true
+  // default true
   const sortBy = (req.query.sortBy as string) || "date"; // "date" or "approved"
 
   const pidNum = Number(pid);
@@ -122,7 +130,6 @@ export const getCommentsByPost = async (req: Request, res: Response) => {
     const where: any = { pid: pidNum };
 
     where.parent_comment_id = null;
-
 
     // Determine orderBy based on sortBy
     let orderBy: any = { comment_date: "asc" };
@@ -269,14 +276,32 @@ export const deleteComment = async (req: Request, res: Response) => {
   }
 
   try {
+    // Fetch comment to get post/community info
+    const comment = await prisma.comment.findUnique({
+      where: { id: commentId },
+      include: { Post: { select: { cid: true } } },
+    });
+
+    if (!comment) {
+      return res.status(404).json({ message: "Comment not found" });
+    }
+
     // Check if this comment has any replies
     const repliesCount = await prisma.comment.count({
       where: { parent_comment_id: commentId },
     });
 
+    // Log the activity BEFORE deleting the comment
+    await ActivityLogService.logCommentDeleted(
+      (req as any).userId,
+      comment.Post.cid,
+      `Deleted comment #${commentId}`
+    );
+
     if (repliesCount === 0) {
       // No replies: hard delete
       await prisma.comment.delete({ where: { id: commentId } });
+
       return res.status(200).json({ success: true, deleted: "hard" });
     }
 
@@ -314,7 +339,16 @@ export const approveByInstructor = async (req: Request, res: Response) => {
         User: {
           select: { id: true, fname: true, lname: true, avatar_file_id: true },
         },
+        Post: { select: { cid: true } },
       },
+    });
+
+    // Log the activity
+    await ActivityLogService.logActivity({
+      userId: (req as any).userId,
+      communityId: comment.Post.cid,
+      actionType: 23, // COMMENT_APPROVED
+      description: `Approved comment #${commentId} by instructor`,
     });
 
     res.status(200).json({ success: true, data: comment });
@@ -342,7 +376,16 @@ export const approveByOriginalPoster = async (req: Request, res: Response) => {
         User: {
           select: { id: true, fname: true, lname: true, avatar_file_id: true },
         },
+        Post: { select: { cid: true } },
       },
+    });
+
+    // Log the activity
+    await ActivityLogService.logActivity({
+      userId: (req as any).userId,
+      communityId: comment.Post.cid,
+      actionType: 23, // COMMENT_APPROVED
+      description: `Approved comment #${commentId} by original poster`,
     });
 
     res.status(200).json({ success: true, data: comment });

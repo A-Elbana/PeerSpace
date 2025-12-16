@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../config/prisma";
 import { CommunityType } from "../generated/prisma/client";
 import { isValidUUID, isUserMemberOfCommunity } from "../utils/helpers";
+import ActivityLogService from "../services/ActivityLogService";
 
 /**
  * Extended Request with post and community data (set by middleware)
@@ -91,6 +92,13 @@ export const createPost = async (req: PostRequest, res: Response) => {
         skipDuplicates: true,
       });
     }
+
+    // Log the activity
+    await ActivityLogService.logPostCreated(
+      userId,
+      String(cid),
+      `Created post "${post.title}"`
+    );
 
     res.status(201).json(post);
   } catch (error) {
@@ -185,7 +193,10 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
   if (Array.isArray(rawCid)) {
     communityIds = rawCid.map(String);
   } else if (typeof rawCid === "string") {
-    communityIds = rawCid.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+    communityIds = rawCid
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
   }
 
   if (communityIds.length === 0) {
@@ -195,7 +206,9 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
   // Validate UUIDs
   const invalidIds = communityIds.filter((id) => !isValidUUID(id));
   if (invalidIds.length > 0) {
-    return res.status(400).json({ message: "Invalid community ID(s) provided" });
+    return res
+      .status(400)
+      .json({ message: "Invalid community ID(s) provided" });
   }
 
   try {
@@ -209,7 +222,11 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
     }
 
     if (allowedIds.length === 0) {
-      return res.status(403).json({ message: "No accessible communities found for the current user" });
+      return res
+        .status(403)
+        .json({
+          message: "No accessible communities found for the current user",
+        });
     }
 
     const posts = await prisma.post.findMany({
@@ -246,45 +263,52 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
       },
     });
 
-    // Get vote counts for all posts
-    const postsWithVotes = await Promise.all(
-      posts.map(async (post) => {
-        const upvotes = await prisma.voted.count({
-          where: { pid: post.id, voteType: true },
-        });
+    // Get vote counts for all posts - OPTIMIZED: batch query instead of N+1
+    const postIds = posts.map(p => p.id);
+    
+    // Batch fetch all votes for all posts at once
+    const allVotes = await prisma.voted.findMany({
+      where: { pid: { in: postIds } },
+      select: { pid: true, voteType: true, sid: true }
+    });
 
-        const downvotes = await prisma.voted.count({
-          where: { pid: post.id, voteType: false },
-        });
+    // Group votes by post ID
+    const votesByPost = new Map<number, { upvotes: number, downvotes: number, userVote: boolean | null }>();
+    
+    postIds.forEach(pid => {
+      votesByPost.set(pid, { upvotes: 0, downvotes: 0, userVote: null });
+    });
 
-        // Get current user's vote if authenticated and is a student
-        let userVote = null;
-        if (userId) {
-          const student = await prisma.student.findUnique({
-            where: { uid: userId },
-          });
+    allVotes.forEach(vote => {
+      const postVotes = votesByPost.get(vote.pid)!;
+      if (vote.voteType) {
+        postVotes.upvotes++;
+      } else {
+        postVotes.downvotes++;
+      }
+      // Check if this vote is from current user
+      if (userId && vote.sid === userId) {
+        postVotes.userVote = vote.voteType;
+      }
+    });
 
-          if (student) {
-            const vote = await prisma.voted.findUnique({
-              where: { sid_pid: { sid: student.uid, pid: post.id } },
-            });
-            userVote = vote ? vote.voteType : null;
-          }
-        }
+    // Map posts with their vote data
+    const postsWithVotes = posts.map(post => {
+      const votes = votesByPost.get(post.id)!;
+      return {
+        ...post,
+        votes: {
+          upvotes: votes.upvotes,
+          downvotes: votes.downvotes,
+          score: votes.upvotes - votes.downvotes,
+          userVote: votes.userVote,
+        },
+      };
+    });
 
-        return {
-          ...post,
-          votes: {
-            upvotes,
-            downvotes,
-            score: upvotes - downvotes,
-            userVote,
-          },
-        };
-      })
-    );
-
-    const total = await prisma.post.count({ where: { cid: { in: allowedIds } } });
+    const total = await prisma.post.count({
+      where: { cid: { in: allowedIds } },
+    });
 
     res.status(200).json({
       data: postsWithVotes,
@@ -341,6 +365,13 @@ export const updatePost = async (req: PostRequest, res: Response) => {
       }
     }
 
+    // Log the activity
+    await ActivityLogService.logPostUpdated(
+      (req as any).userId,
+      req.post.cid,
+      `Updated post "${updatedPost.title}"`
+    );
+
     res.status(200).json(updatedPost);
   } catch (error) {
     console.error("Update Post Error:", error);
@@ -385,8 +416,16 @@ export const deletePost = async (req: PostRequest, res: Response) => {
       },
     });
 
+    // Log the activity BEFORE deleting the post
+    await ActivityLogService.logPostDeleted(
+      (req as any).userId,
+      req.post.cid,
+      `Deleted post "${req.post.title}"`
+    );
+
     // Delete the post
     await prisma.post.delete({ where: { id: req.post.id } });
+
     res.status(200).json({ message: "Post deleted successfully" });
   } catch (error) {
     console.error("Delete Post Error:", error);
@@ -407,6 +446,16 @@ export const togglePostResolved = async (req: PostRequest, res: Response) => {
         is_resolved: !req.post.is_resolved,
       },
     });
+
+    // Log the activity
+    await ActivityLogService.logPostResolved(
+      (req as any).userId,
+      req.post.cid,
+      `${updatedPost.is_resolved ? "Marked" : "Unmarked"} post "${
+        updatedPost.title
+      }" as resolved`
+    );
+
     res.status(200).json(updatedPost);
   } catch (error) {
     console.error("Toggle Resolved Error:", error);
@@ -594,7 +643,8 @@ export const getAllMyPosts = async (req: Request, res: Response) => {
   const pageParam = parseInt(req.query.page as string);
   const limitParam = parseInt(req.query.limit as string);
   const page = !isNaN(pageParam) && pageParam > 0 ? pageParam : 1;
-  const limit = !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
+  const limit =
+    !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
   const skip = (page - 1) * limit;
 
   try {

@@ -3,6 +3,8 @@ import bcrypt from "bcrypt";
 const jwt = require("jsonwebtoken");
 import prisma from "../config/prisma";
 import { Role } from "../generated/prisma/client";
+import ActivityLogService from "../services/ActivityLogService";
+import { ActivityActionType } from "../services/ActivityLogService";
 
 // Security constants
 const BCRYPT_ROUNDS = 12; // High work factor for password hashing
@@ -143,6 +145,13 @@ export const registerUser = async (
       data: { token_hash: tokenHash },
     });
 
+    // Log user registration
+    await ActivityLogService.log(
+      result.id,
+      ActivityActionType.USER_REGISTERED,
+      `User ${result.email} registered as ${result.role}`
+    );
+
     // Return success WITH tokens (Auto-login)
     res.status(201).json({
       message: "User registered successfully",
@@ -241,6 +250,13 @@ export const loginUser = async (
       data: { token_hash: tokenHash },
     });
 
+    // Log user login
+    await ActivityLogService.log(
+      user.id,
+      ActivityActionType.USER_LOGGED_IN,
+      `User ${user.email} logged in`
+    );
+
     // Return tokens WITHOUT sensitive data
     res.status(200).json({
       message: "Login successful",
@@ -272,10 +288,18 @@ export const logoutUser = async (req: Request, res: Response) => {
     }
 
     // Revoke session by clearing token hash
-    await prisma.user.update({
+    const user = await prisma.user.update({
       where: { id: userId },
       data: { token_hash: null },
+      select: { email: true },
     });
+
+    // Log the logout activity
+    await ActivityLogService.log(
+      userId,
+      ActivityActionType.USER_LOGGED_OUT,
+      `User ${user.email} logged out`
+    );
 
     res.status(200).json({ message: "Logout successful" });
   } catch (error: any) {
