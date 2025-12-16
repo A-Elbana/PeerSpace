@@ -117,6 +117,7 @@ api.interceptors.response.use(
         }
 
         // Process queued requests
+        processQueue(null, accessToken);
 
         // Retry the original request
         return api(originalRequest);
@@ -134,6 +135,17 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// Types for API responses
+export interface BadgeResponse {
+  id: number;
+  name: string;
+  icon_url: string;
+  description?: string | null;
+  _count?: {
+    StudentBadge?: number;
+  };
+}
 
 // Types for API responses
 export interface CommunityResponse {
@@ -317,6 +329,34 @@ export const communityApi = {
   },
 };
 
+export const badgeApi = {
+  getAll: async (params?: { page?: number; limit?: number }) => {
+    const cleanParams: Record<string, number> = {};
+    if (params) {
+      if (params.page) cleanParams.page = params.page;
+      if (params.limit) cleanParams.limit = params.limit;
+    }
+    const response = await api.get('/badges', { params: cleanParams });
+    return response.data as {
+      message: string;
+      data: BadgeResponse[];
+      meta: PaginationMeta;
+    };
+  },
+  getMine: async (params?: { page?: number; limit?: number }) => {
+    const cleanParams: Record<string, number> = {};
+    if (params) {
+      if (params.page) cleanParams.page = params.page;
+      if (params.limit) cleanParams.limit = params.limit;
+    }
+    const response = await api.get('/badges/me', { params: cleanParams });
+    return response.data as {
+      message: string;
+      data: { Badge: BadgeResponse }[];
+      meta: PaginationMeta;
+    };
+  },
+};
 // Post API calls (for all post types including announcements)
 export const postApi = {
   create: async (data: {
@@ -524,6 +564,17 @@ export const commentApi = {
     return response.data;
   },
 
+  // Fetch first-level replies for a comment
+  getReplies: async (commentId: number, params?: { page?: number; limit?: number }) => {
+    const cleanParams: any = {};
+    if (params) {
+      if (params.page) cleanParams.page = params.page;
+      if (params.limit) cleanParams.limit = params.limit;
+    }
+    const response = await api.get(`/comments/${commentId}/replies`, { params: cleanParams });
+    return response.data;
+  },
+
   create: async (data: {
     pid: number;
     content: string;
@@ -552,12 +603,12 @@ export const fileApi = {
     resource_type: string;
     format?: string;
     context:
-      | "POST"
-      | "SUBMISSION"
-      | "NOTE"
-      | "ASSIGNMENT"
-      | "COMMUNITY_BANNER"
-      | "USER_AVATAR";
+    | "POST"
+    | "SUBMISSION"
+    | "NOTE"
+    | "ASSIGNMENT"
+    | "COMMUNITY_BANNER"
+    | "USER_AVATAR";
     context_id: string;
     is_private?: boolean;
   }) => {

@@ -568,7 +568,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                 <Sidebar onLogout={onLogout} />
 
                 {/* Main Content Area */}
-                <main 
+                <main
                     className="flex-1 p-4 sm:p-6 transition-all duration-300"
                     style={{ marginLeft: `${sidebarWidth}px` }}
                 >
@@ -592,8 +592,8 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
 
                                 {/* Create Post Widget */}
                                 <CreatePostWidget
-                                  currentUser={user || undefined}
-                                  onCreated={() => fetchPostsFromCommunities(communities)}
+                                    currentUser={user || undefined}
+                                    onCreated={() => fetchPostsFromCommunities(communities)}
                                 />
 
                                 {/* Editor Overlay */}
@@ -836,7 +836,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
 
                                         {/* Load More Trigger */}
                                         <div ref={loadMoreRef} className="py-4">
-                                                    {isLoadingMore && (
+                                            {isLoadingMore && (
                                                 <div className="flex items-center justify-center gap-3">
                                                     <Loader2 className="w-5 h-5 text-frosted-blue-500 animate-spin" />
                                                     <span className="text-sm text-muted-foreground">Loading more posts...</span>

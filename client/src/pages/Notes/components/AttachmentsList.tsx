@@ -93,8 +93,8 @@ const AttachmentsList: React.FC<Props> = ({ files, onDelete, className, isDeleti
         <div className={`border border-border rounded-lg p-2 bg-card/50 ${className || ''}`}>
             <div className="flex items-center justify-between mb-3 px-3">
                 <div className="flex items-center gap-2">
-                    <ExternalLink className="w-4 h-4 text-muted-foreground" />
-                    <h4 className="text-sm font-medium">Attachments</h4>
+                    <ExternalLink className="w-6 h-6 text-muted-foreground" />
+                    <h4 className="text-base md:text-lg font-semibold">Attachments</h4>
                 </div>
             </div>
 

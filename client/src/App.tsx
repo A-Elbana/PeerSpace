@@ -1,4 +1,5 @@
-import Profile from './pages/Profile/index.tsx';
+import MyProfile from './pages/Profile/MyProfile';
+import ProfileView from './pages/Profile/ProfileView';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -29,6 +30,7 @@ import Tasks from './pages/Tasks/index.tsx';
 import TaskDetail from './pages/Tasks/TaskDetail';
 import './styles/App.css';
 import LandingPage from './pages/LandingPage';
+import BadgesPage from './pages/Badges';
 
 /**
  * Main Application Component
@@ -198,10 +200,18 @@ function App() {
             }
           />
           <Route
+            path="/badges"
+            element={
+              <ProtectedRoute>
+                <BadgesPage onLogout={redirectToLogout} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/profile"
             element={
               <ProtectedRoute>
-                <Profile onLogout={redirectToLogout} />
+                <MyProfile onLogout={redirectToLogout} />
               </ProtectedRoute>
             }
           />
@@ -209,7 +219,7 @@ function App() {
             path="/profile/:userId"
             element={
               <ProtectedRoute>
-                <Profile onLogout={redirectToLogout} />
+                <ProfileView onLogout={redirectToLogout} />
               </ProtectedRoute>
             }
           />

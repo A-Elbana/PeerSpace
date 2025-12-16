@@ -1,0 +1,89 @@
+.badge-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.05), transparent 35%),
+    radial-gradient(circle at 80% 0%, rgba(255, 215, 0, 0.08), transparent 30%),
+    #0f172a;
+  color: #e2e8f0;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(8px);
+}
+
+.badge-card__body {
+  position: relative;
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  z-index: 1;
+}
+
+.badge-card__glow {
+  position: absolute;
+  inset: -40%;
+  background: linear-gradient(120deg, rgba(255, 215, 0, 0.35), rgba(56, 189, 248, 0.25), rgba(236, 72, 153, 0.25));
+  filter: blur(40px);
+  opacity: 0.8;
+  animation: glow-slide 6s linear infinite;
+}
+
+.badge-card__image-wrap {
+  width: 72px;
+  height: 72px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.badge-card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.badge-card__placeholder {
+  font-size: 28px;
+}
+
+.badge-card__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.badge-card__title {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: #f8fafc;
+}
+
+.badge-card__description {
+  font-size: 0.9rem;
+  color: #cbd5e1;
+  line-height: 1.4;
+}
+
+.badge-card__earned {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: #34d399;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+@keyframes glow-slide {
+  0% {
+    transform: translate(-30%, -30%) rotate(0deg);
+  }
+  50% {
+    transform: translate(10%, 20%) rotate(180deg);
+  }
+  100% {
+    transform: translate(40%, 50%) rotate(360deg);
+  }
+}

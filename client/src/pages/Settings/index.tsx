@@ -69,6 +69,7 @@ const Settings: React.FC = () => {
   const [avatarUrl, setAvatarUrl] = useState('');
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
   // Password state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -92,7 +93,8 @@ const Settings: React.FC = () => {
       setFname(data.fname || '');
       setLname(data.lname || '');
       setEmail(data.email || '');
-      setAvatarUrl(data.avatar_url || '');
+      // Backend may return either `avatar_file_id` (file record id) or `avatar_url` (direct URL)
+      setAvatarUrl(data.avatar_file_id ?? data.avatar_url ?? '');
     } catch (error) {
       console.error('Failed to fetch user data:', error);
       removeTokens();
@@ -118,68 +120,17 @@ const Settings: React.FC = () => {
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user) return;
+    if (!file) return;
 
-    setIsUploadingAvatar(true);
-    setMessage(null);
-
+    // Preview locally and store the file; do NOT upload until user saves
     try {
-      const signResponse = await api.post('/uploads/sign', {
-        context: 'USER_AVATAR',
-        context_id: user.id.toString(),
-        is_private: false,
-        resource_type: 'auto'
-      });
-
-      const { timestamp, signature, folder, cloudName, apiKey } = signResponse.data;
-
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('timestamp', timestamp.toString());
-      formData.append('signature', signature);
-      formData.append('api_key', apiKey);
-      formData.append('folder', folder);
-
-      const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error('Cloudinary upload failed');
-      }
-
-      const cloudinaryData = await uploadResponse.json();
-
-      const fileResponse = await api.post('/files', {
-        public_id: cloudinaryData.public_id,
-        secure_url: cloudinaryData.secure_url,
-        resource_type: cloudinaryData.resource_type,
-        format: cloudinaryData.format,
-        context: 'USER_AVATAR',
-        context_id: user.id.toString(),
-        is_private: false
-      });
-
-      const fileRecord = fileResponse.data.data;
-
-      const { data } = await api.put(`/users/${user.id}`, {
-        avatar_file_id: fileRecord.id
-      });
-
-      setUser(prev => (prev ? { ...prev, ...data.user } : data.user));
-      setAvatarUrl(fileRecord.id);
-      setAvatarPreview(fileRecord.secure_url);
-      setMessage({ type: 'success', text: 'Avatar updated successfully!' });
-    } catch (err: any) {
-      console.error('Failed to upload avatar:', err);
-      setMessage({
-        type: 'error',
-        text: err.response?.data?.message || err.message || 'Failed to upload avatar'
-      });
-    } finally {
-      setIsUploadingAvatar(false);
+      const url = URL.createObjectURL(file);
+      setAvatarPreview(url);
+      setAvatarFile(file);
+      setMessage(null);
+    } catch (err) {
+      console.error('Failed to preview avatar file', err);
+      setMessage({ type: 'error', text: 'Failed to preview selected image' });
     }
   };
 
@@ -196,10 +147,64 @@ const Settings: React.FC = () => {
       if (fname && fname !== user.fname) updateData.fname = fname;
       if (lname && lname !== user.lname) updateData.lname = lname;
 
-      if (Object.keys(updateData).length === 0) {
+      if (Object.keys(updateData).length === 0 && !avatarFile) {
         setMessage({ type: 'error', text: 'No changes to save' });
         setIsSaving(false);
         return;
+      }
+
+      // If there's a selected avatar file, upload it first and include in update
+      if (avatarFile) {
+        setIsUploadingAvatar(true);
+        try {
+          const signResponse = await api.post('/uploads/sign', {
+            context: 'USER_AVATAR',
+            context_id: user.id.toString(),
+            is_private: false,
+            resource_type: 'auto'
+          });
+
+          const { timestamp, signature, folder, cloudName, apiKey } = signResponse.data;
+
+          const formData = new FormData();
+          formData.append('file', avatarFile);
+          formData.append('timestamp', timestamp.toString());
+          formData.append('signature', signature);
+          formData.append('api_key', apiKey);
+          formData.append('folder', folder);
+
+          const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
+          const uploadResponse = await fetch(uploadUrl, {
+            method: 'POST',
+            body: formData
+          });
+
+          if (!uploadResponse.ok) throw new Error('Cloudinary upload failed');
+
+          const cloudinaryData = await uploadResponse.json();
+
+          const fileResponse = await api.post('/files', {
+            public_id: cloudinaryData.public_id,
+            secure_url: cloudinaryData.secure_url,
+            resource_type: cloudinaryData.resource_type,
+            format: cloudinaryData.format,
+            context: 'USER_AVATAR',
+            context_id: user.id.toString(),
+            is_private: false
+          });
+
+          const fileRecord = fileResponse.data.data;
+          // include avatar_file_id in update
+          (updateData as any).avatar_file_id = fileRecord.id;
+        } catch (err: any) {
+          console.error('Failed to upload avatar during save:', err);
+          setMessage({ type: 'error', text: err.response?.data?.message || err.message || 'Failed to upload avatar' });
+          setIsUploadingAvatar(false);
+          setIsSaving(false);
+          return;
+        } finally {
+          setIsUploadingAvatar(false);
+        }
       }
 
       const { data } = await api.put(`/users/${user.id}`, updateData);
@@ -208,8 +213,15 @@ const Settings: React.FC = () => {
       setFname(data.user.fname || fname);
       setLname(data.user.lname || lname);
       setAvatarUrl(data.user.avatar_file_id || '');
+      // If avatar was uploaded, clear pending file and preview
+      setAvatarFile(null);
       setAvatarPreview(null);
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
+
+      // Show toast for avatar update if avatar_file_id was set
+      if ((updateData as any).avatar_file_id) {
+        toast.success('Avatar updated successfully');
+      }
     } catch (error: unknown) {
       console.error('Failed to update profile:', error);
       const axiosError = error as { response?: { data?: { message?: string } } };
@@ -404,9 +416,7 @@ const Settings: React.FC = () => {
                   </div>
                   <div className="flex-1">
                     <h3 className="font-medium text-foreground">Profile Photo</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Upload a new photo or enter a URL below
-                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">Upload a new photo (preview shown). Changes are applied when you click Save.</p>
                   </div>
                 </div>
 
@@ -458,26 +468,7 @@ const Settings: React.FC = () => {
                   </p>
                 </div>
 
-                {/* Avatar URL Field */}
-                <div className="space-y-2">
-                  <Label htmlFor="avatarUrl" className="text-foreground flex items-center gap-2">
-                    <ImageIcon className="w-4 h-4" />
-                    Avatar URL
-                  </Label>
-                  <Input
-                    id="avatarUrl"
-                    type="url"
-                    value={avatarUrl}
-                    onChange={(e) => {
-                      setAvatarUrl(e.target.value);
-                      setAvatarPreview(null);
-                    }}
-                    placeholder="https://example.com/avatar.jpg"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Enter a direct link to your avatar image
-                  </p>
-                </div>
+                {/* Avatar URL removed: preview only, upload on Save */}
 
                 <Separator />
 

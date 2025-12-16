@@ -4,10 +4,8 @@ import { Loader2, Plus, PenSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../../components/ui/button';
 import { Sidebar } from '../../components/dashboard';
-import { useSidebar } from '../../contexts/SidebarContext';
-import { CommunityHeader, PostsList, MembersPanel } from './components';
+import { CommunityHeader, PostsList, MembersPanel, CreatePost } from './components';
 import { AssignmentList, AssignmentModal } from '../../components/assignments';
-import CreatePostWidget from '../../components/posts/CreatePostWidget';
 import api, { communityApi, postApi, type CommunityResponse, type PostResponse } from '../../services/api';
 import { removeTokens } from '../../utils/auth';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
@@ -45,7 +43,6 @@ import { Link } from 'react-router-dom';
 const Community: React.FC = () => {
   const { communityId } = useParams<{ communityId: string }>();
   const navigate = useNavigate();
-  const { sidebarWidth } = useSidebar();
 
   // State
   const [user, setUser] = useState<UserData | null>(null);
@@ -143,20 +140,6 @@ const Community: React.FC = () => {
 
     fetchPosts();
   }, [communityId]);
-
-  const refreshPosts = async () => {
-    if (!communityId) return;
-    try {
-      setIsLoadingPosts(true);
-      const postsResponse = await postApi.getByCommunity(communityId, { limit: 50 });
-      const sortedPosts = postsResponse.data.sort(
-        (a, b) => new Date(b.post_date).getTime() - new Date(a.post_date).getTime()
-      );
-      setPosts(sortedPosts);
-    } finally {
-      setIsLoadingPosts(false);
-    }
-  };
 
   // Fetch members
   useEffect(() => {
@@ -261,10 +244,7 @@ const Community: React.FC = () => {
       <Sidebar onLogout={handleLogout} />
 
       {/* Main Content */}
-      <main 
-        className="flex-1 p-6 transition-all duration-300 flex justify-center"
-        style={{ marginLeft: `${sidebarWidth}px` }}
-      >
+      <main className="flex-1 p-6 ml-20 transition-all duration-300 flex justify-center">
         {/* Layout matched to Explore */}
         <div className="max-w-5xl w-full">
           {/* Breadcrumb Navigation */}
@@ -303,10 +283,13 @@ const Community: React.FC = () => {
               {/* Assignments Section (Top of Feed) */}
               {/* Create Post - Only show if enrolled */}
               {isEnrolledInCommunity && (
-                <CreatePostWidget
-                  currentUser={user}
-                  defaultCommunityId={community.id}
-                  onCreated={refreshPosts}
+                <CreatePost
+                  communityId={community.id}
+                  userFirstName={user.fname}
+                  userId={user.id}
+                  userLastName={user.lname}
+                  userAvatarUrl={user.avatar_file_id}
+                  onPostCreated={handlePostCreated}
                 />
               )}
 
@@ -316,7 +299,6 @@ const Community: React.FC = () => {
                 isLoading={isLoadingPosts}
                 currentUser={user}
                 isInstructorOfCommunity={isInstructorOfCommunity}
-                communityId={community.id}
                 onDeletePost={handleDeletePost}
                 onEditPost={handleEditPost}
               />
