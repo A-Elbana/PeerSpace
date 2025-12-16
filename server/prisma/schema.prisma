@@ -215,17 +215,17 @@ model Notebook {
 
 model Notification {
   id          Int              @id @default(autoincrement())
-  recipientId Int              // Foreign key to User
+  recipientId Int // Foreign key to User
   message     String           @db.VarChar
   type        NotificationType
-  
+
   // Metadata to help frontend redirect users (e.g., link to specific assignment ID)
-  resourceId  String?          @db.VarChar // Store UUID or Int ID as string
-  isRead      Boolean          @default(false)
-  createdAt   DateTime         @default(now()) @db.Timestamp(6)
+  resourceId String?  @db.VarChar // Store UUID or Int ID as string
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now()) @db.Timestamp(6)
 
   // Relation: link to the recipient user
-  recipient   User             @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
 
   // Indexes: optimize lookup for a user's notifications and unread-count queries
   @@index([recipientId], name: "idx_notification_recipient")
@@ -365,26 +365,26 @@ model TaskTag {
 }
 
 model User {
-  id             Int           @id @default(autoincrement())
-  email          String        @unique @db.VarChar
-  fname          String        @db.VarChar
-  lname          String        @db.VarChar
-  activated      Boolean       @default(true)
-  hashedPassword String        @db.VarChar
-  role           Role?         @default(STUDENT)
-  token_hash     String?       @db.VarChar
-  avatar_file_id String?       @db.Uuid
+  id             Int            @id @default(autoincrement())
+  email          String         @unique @db.VarChar
+  fname          String         @db.VarChar
+  lname          String         @db.VarChar
+  activated      Boolean        @default(true)
+  hashedPassword String         @db.VarChar
+  role           Role?          @default(STUDENT)
+  token_hash     String?        @db.VarChar
+  avatar_file_id String?        @db.Uuid
   ActivityLog    ActivityLog[]
   Admin          Admin?
-  AvatarFile     File?         @relation("UserAvatar", fields: [avatar_file_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  AvatarFile     File?          @relation("UserAvatar", fields: [avatar_file_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
   Comment        Comment[]
-  File           File[]        @relation("FileUploader")
+  File           File[]         @relation("FileUploader")
   Instructor     Instructor?
   Note           Note[]
   Notebook       Notebook[]
   Post           Post[]
   Student        Student?
-  Notification Notification[]
+  Notification   Notification[]
 }
 
 model Voted {
