@@ -204,6 +204,14 @@ function App() {
             }
           />
           <Route
+            path="/profile/:userId"
+            element={
+              <ProtectedRoute>
+                <Profile onLogout={redirectToLogout} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/community/:communityId/manage"
             element={
               <ProtectedRoute>

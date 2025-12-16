@@ -208,19 +208,27 @@ export const getMyTasks = async (req: Request, res: Response) => {
   const priorityParam = req.query.priority as string;
   const parentOnly = req.query.parent_only === "true"; // Only top-level tasks
 
-  const whereClause: any = { author: author };
-
+  // Build base filters
+  const baseFilters: any = {};
   if (statusParam !== undefined && !isNaN(parseInt(statusParam))) {
-    whereClause.status = parseInt(statusParam);
+    baseFilters.status = parseInt(statusParam);
   }
 
   if (priorityParam !== undefined && !isNaN(parseInt(priorityParam))) {
-    whereClause.priority = parseInt(priorityParam);
+    baseFilters.priority = parseInt(priorityParam);
   }
 
   if (parentOnly) {
-    whereClause.parent_task = null;
+    baseFilters.parent_task = null;
   }
+
+  // Include tasks where user is the author OR where the user is an assignee
+  const whereClause: any = {
+    OR: [
+      { author: author, ...baseFilters },
+      { TaskAssignees: { some: { sid: author, isAccepted: true } }, ...baseFilters },
+    ],
+  };
 
   try {
     const [tasks, total] = await Promise.all([
@@ -245,6 +253,17 @@ export const getMyTasks = async (req: Request, res: Response) => {
             },
           },
           TaskTag: true,
+          TaskAssignees: {
+            include: {
+              Student: {
+                include: {
+                  User: {
+                    select: { id: true, fname: true, lname: true },
+                  },
+                },
+              },
+            },
+          },
           _count: {
             select: { other_Task: true, TaskAssignees: true },
           },

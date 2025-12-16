@@ -297,6 +297,15 @@ export const communityApi = {
     const response = await api.get("/communities/mine", { params });
     return response.data;
   },
+  getCommonCommunities: async (uid: number, params?: { page?: number; limit?: number; }): Promise<{ message?: string; data: CommunityResponse[]; meta: PaginationMeta; }> => {
+    const cleanParams: any = {};
+    if (params) {
+      if (params.page) cleanParams.page = params.page;
+      if (params.limit) cleanParams.limit = params.limit;
+    }
+    const response = await api.get(`/communities/common/${uid}`, { params: cleanParams });
+    return response.data;
+  },
 };
 
 // Post API calls (for all post types including announcements)
@@ -319,6 +328,15 @@ export const postApi = {
     }
   ): Promise<PostsListResponse> => {
     const response = await api.get("/posts", { params: { cid, ...params } });
+    return response.data;
+  },
+
+  getByCommunities: async (
+    cids: string[],
+    params?: { page?: number; limit?: number }
+  ): Promise<PostsListResponse> => {
+    const cidParam = cids.join(',');
+    const response = await api.get('/posts', { params: { cid: cidParam, ...params } });
     return response.data;
   },
 
