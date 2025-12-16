@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../config/prisma";
 import { CommunityType } from "../generated/prisma/client";
 import { isValidUUID, isUserMemberOfCommunity } from "../utils/helpers";
+import ActivityLogService from "../services/ActivityLogService";
 
 /**
  * Extended Request with post and community data (set by middleware)
@@ -91,6 +92,13 @@ export const createPost = async (req: PostRequest, res: Response) => {
         skipDuplicates: true,
       });
     }
+
+    // Log the activity
+    await ActivityLogService.logPostCreated(
+      userId,
+      String(cid),
+      `Created post "${post.title}"`
+    );
 
     res.status(201).json(post);
   } catch (error) {
@@ -341,6 +349,13 @@ export const updatePost = async (req: PostRequest, res: Response) => {
       }
     }
 
+    // Log the activity
+    await ActivityLogService.logPostUpdated(
+      (req as any).userId,
+      req.post.cid,
+      `Updated post "${updatedPost.title}"`
+    );
+
     res.status(200).json(updatedPost);
   } catch (error) {
     console.error("Update Post Error:", error);
@@ -386,7 +401,15 @@ export const deletePost = async (req: PostRequest, res: Response) => {
     });
 
     // Delete the post
-    await prisma.post.delete({ where: { id: req.post.id } });
+    const deletedPost = await prisma.post.delete({ where: { id: req.post.id } });
+
+    // Log the activity
+    await ActivityLogService.logPostDeleted(
+      (req as any).userId,
+      req.post.cid,
+      `Deleted post "${deletedPost.title}"`
+    );
+
     res.status(200).json({ message: "Post deleted successfully" });
   } catch (error) {
     console.error("Delete Post Error:", error);
@@ -407,6 +430,14 @@ export const togglePostResolved = async (req: PostRequest, res: Response) => {
         is_resolved: !req.post.is_resolved,
       },
     });
+
+    // Log the activity
+    await ActivityLogService.logPostResolved(
+      (req as any).userId,
+      req.post.cid,
+      `${updatedPost.is_resolved ? "Marked" : "Unmarked"} post "${updatedPost.title}" as resolved`
+    );
+
     res.status(200).json(updatedPost);
   } catch (error) {
     console.error("Toggle Resolved Error:", error);

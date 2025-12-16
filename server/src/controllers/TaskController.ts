@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
+import ActivityLogService from "../services/ActivityLogService";
 
 /**
  * Extended Request with task data
@@ -180,6 +181,14 @@ export const createTask = async (req: Request, res: Response) => {
         },
       },
     });
+
+    // Log the activity
+    if (completeTask) {
+      await ActivityLogService.logTaskCreated(
+        author,
+        completeTask.title
+      );
+    }
 
     return res.status(201).json(completeTask);
   } catch (error) {
@@ -436,6 +445,13 @@ export const updateTask = async (req: TaskRequest, res: Response) => {
       },
     });
 
+    // Log the activity
+    await ActivityLogService.logActivity({
+      userId: (req as any).userId,
+      actionType: 51, // TASK_UPDATED
+      description: `Updated task "${updatedTask.title}"`,
+    });
+
     return res.status(200).json({
       message: "Task updated successfully",
       task: updatedTask,
@@ -499,6 +515,13 @@ export const deleteTask = async (req: TaskRequest, res: Response) => {
     // Cascade will handle subtasks, tags, assignees, and assignment relation
     await prisma.task.delete({
       where: { id: task.id },
+    });
+
+    // Log the activity
+    await ActivityLogService.logActivity({
+      userId: (req as any).userId,
+      actionType: 52, // TASK_DELETED
+      description: `Deleted task "${task.title}"`,
     });
 
     return res.status(200).json({ message: "Task deleted successfully" });

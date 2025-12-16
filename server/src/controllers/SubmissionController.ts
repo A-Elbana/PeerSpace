@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
 import { Role } from "../generated/prisma/client";
+import ActivityLogService from "../services/ActivityLogService";
 
 // Create a submission (Student only)
 export const createSubmission = async (req: Request, res: Response) => {
@@ -58,6 +59,13 @@ export const createSubmission = async (req: Request, res: Response) => {
           },
         },
       },
+    });
+
+    // Log the activity
+    await ActivityLogService.logActivity({
+      userId,
+      actionType: 40, // SUBMISSION_CREATED
+      description: `Submitted assignment ${aid}`,
     });
 
     res.status(201).json({ success: true, data: result });
@@ -333,6 +341,14 @@ export const gradeSubmission = async (req: Request, res: Response) => {
       where: { id: Number(id) },
       data: { grade, feedback: feedback ?? null },
     });
+
+    // Log the activity
+    await ActivityLogService.logSubmissionGraded(
+      (req as any).userId,
+      "",
+      grade
+    );
+
     res.status(200).json({ success: true, data: updated });
   } catch (error) {
     console.error("Grade Submission Error:", error);

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
 import { Role, CommunityType } from "../generated/prisma/client";
+import ActivityLogService from "../services/ActivityLogService";
 
 // Community selection for safe public responses
 const communitySelect = {
@@ -108,6 +109,13 @@ export const createCommunity = async (req: Request, res: Response) => {
         },
       });
     }
+
+    // Log the activity
+    await ActivityLogService.logCommunityCreated(
+      userId,
+      community.id,
+      `Created community "${community.name}"`
+    );
 
     res.status(201).json({
       success: true,
@@ -406,6 +414,13 @@ export const updateCommunity = async (req: Request, res: Response) => {
       data: updateData,
       select: communitySelect,
     });
+
+    // Log the activity
+    await ActivityLogService.logCommunityUpdated(
+      (req as any).userId,
+      updatedCommunity.id,
+      `Updated community "${updatedCommunity.name}"`
+    );
 
     res.status(200).json({
       success: true,
@@ -748,6 +763,13 @@ export const deleteCommunity = async (req: Request, res: Response) => {
       // Delete the community
       await tx.community.delete({ where: { id: community.id } });
     });
+
+    // Log the activity
+    await ActivityLogService.logCommunityDeleted(
+      (req as any).userId,
+      community.id,
+      `Deleted community "${community.name}"`
+    );
 
     res.status(200).json({
       success: true,

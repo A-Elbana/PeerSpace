@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
 import { isValidUUID, isUserMemberOfCommunity } from "../utils/helpers";
+import ActivityLogService from "../services/ActivityLogService";
 
 /**
  * Extended Request with assignment data
@@ -84,6 +85,13 @@ export const createAssignment = async (req: Request, res: Response) => {
 
       return created;
     });
+
+    // Log the activity
+    await ActivityLogService.logAssignmentCreated(
+      userId,
+      cid,
+      assignment.title
+    );
 
     res.status(201).json(assignment);
   } catch (error) {
@@ -418,6 +426,14 @@ export const updateAssignment = async (
       }
     }
 
+    // Log the activity
+    await ActivityLogService.logActivity({
+      userId: (req as any).userId,
+      communityId: assignment.cid,
+      actionType: 31, // ASSIGNMENT_UPDATED
+      description: `Updated assignment "${updatedAssignment.title}"`,
+    });
+
     res.status(200).json({
       message: "Assignment updated successfully",
       assignment: updatedAssignment,
@@ -526,6 +542,14 @@ export const deleteAssignment = async (
       await tx.assignment.delete({
         where: { id: assignment.id },
       });
+    });
+
+    // Log the activity
+    await ActivityLogService.logActivity({
+      userId: (req as any).userId,
+      communityId: assignment.cid,
+      actionType: 32, // ASSIGNMENT_DELETED
+      description: `Deleted assignment "${assignment.title}"`,
     });
 
     res.status(200).json({ message: "Assignment deleted successfully" });

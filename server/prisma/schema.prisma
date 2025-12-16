@@ -50,7 +50,7 @@ model ActivityLog {
   associated_cid String?    @db.Uuid
   description    String?    @db.VarChar
   action_type    Int?
-  Community      Community? @relation(fields: [associated_cid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  Community      Community? @relation(fields: [associated_cid], references: [id], onDelete: SetNull, onUpdate: Cascade)
   User           User       @relation(fields: [associated_uid], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 

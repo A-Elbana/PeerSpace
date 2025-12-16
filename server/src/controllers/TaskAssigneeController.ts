@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
 import { hasCommonCommunity } from "../utils/helpers";
+import ActivityLogService from "../services/ActivityLogService";
 
 /**
  * Invite a student to be a task assignee
@@ -150,6 +151,13 @@ export const inviteTaskAssignee = async (req: Request, res: Response) => {
       },
     });
 
+    // Log the activity
+    await ActivityLogService.logTaskAssigneeInvited(
+      inviterId,
+      (undefined as unknown) as string | undefined,
+      `Invited ${taskAssigneeWithRelations?.Student?.User?.fname || "user"} to task "${taskAssigneeWithRelations?.Task?.title || "task"}"`
+    );
+
     res.status(201).json({
       message: "Student invited successfully",
       data: taskAssigneeWithRelations,
@@ -229,6 +237,13 @@ export const acceptTaskAssignee = async (req: Request, res: Response) => {
         },
       },
     });
+
+    // Log the activity
+    await ActivityLogService.logTaskAssigneeAccepted(
+      studentId,
+      (undefined as unknown) as string | undefined,
+      `Accepted invitation to task "${updatedAssignee?.Task?.title || "task"}"`
+    );
 
     res.status(200).json({
       message: "Invitation accepted successfully",
@@ -419,6 +434,22 @@ export const removeTaskAssignee = async (req: Request, res: Response) => {
           sid: studentId,
         },
       },
+      include: {
+        Student: {
+          select: {
+            User: {
+              select: {
+                fname: true,
+              },
+            },
+          },
+        },
+        Task: {
+          select: {
+            title: true,
+          },
+        },
+      },
     });
 
     if (!assignment) {
@@ -436,6 +467,13 @@ export const removeTaskAssignee = async (req: Request, res: Response) => {
         },
       },
     });
+
+    // Log the activity
+    await ActivityLogService.logTaskAssigneeRemoved(
+      ownerId,
+      (undefined as unknown) as string | undefined,
+      `Removed ${assignment?.Student?.User?.fname || "user"} from task "${assignment?.Task?.title || "task"}"`
+    );
 
     res.status(200).json({
       message: "Task assignee removed successfully",
@@ -468,6 +506,13 @@ export const declineTaskAssignee = async (req: Request, res: Response) => {
           sid: studentId,
         },
       },
+      include: {
+        Task: {
+          select: {
+            title: true,
+          },
+        },
+      },
     });
 
     if (!taskAssignee) {
@@ -485,6 +530,13 @@ export const declineTaskAssignee = async (req: Request, res: Response) => {
         },
       },
     });
+
+    // Log the activity
+    await ActivityLogService.logTaskAssigneeDeclined(
+      studentId,
+      undefined,
+      `Declined invitation to task "${taskAssignee?.Task?.title || "task"}"`
+    );
 
     res.status(200).json({
       message: "Task invitation declined successfully",

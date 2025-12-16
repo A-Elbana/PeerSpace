@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
+import ActivityLogService from "../services/ActivityLogService";
 
 /**
  * Extended Request with note data
@@ -15,35 +16,33 @@ interface NoteRequest extends Request {
  * Requires: authenticateToken + validateNoteCreate middleware
  */
 export const createNote = async (req: Request, res: Response) => {
-  const { title, body, notebook_id, file_ids } = req.body;
-  const owner_uid = (req as any).userId;
-  try {
-    const note = await prisma.note.create({
-      data: {
-        title: String(title).trim(),
-        body: body ? String(body).trim() : null,
-        created_at: new Date(),
-        notebook_id: notebook_id ? parseInt(notebook_id) : null,
-        owner_uid: owner_uid,
-      },
-    });
 
-    // Create file attachments if file_ids provided
-    if (file_ids && Array.isArray(file_ids) && file_ids.length > 0) {
-      await prisma.noteFileAttachment.createMany({
-        data: file_ids.map((fid: string) => ({
-          nid: note.id,
-          fid: String(fid),
-        })),
-        skipDuplicates: true,
-      });
+    const {title,body,notebook_id}=req.body;
+    const owner_uid=(req as any).userId;
+    try {
+        const note=await prisma.note.create({
+            data:{
+                title: String(title).trim(),
+                body: body ? String(body).trim() : null,
+                created_at: new Date(),
+                notebook_id: notebook_id ? parseInt(notebook_id) : null,
+                owner_uid: owner_uid,
+            }
+        })
+
+        // Log the activity
+        await ActivityLogService.logNoteCreated(
+            owner_uid,
+            note.title
+        );
+
+        return res.status(201).json(note);
+
+    } catch (error) {
+        console.error("Create Note Error:", error);
+        return res.status(500).json({ message: "Failed to create a note" });
     }
 
-    return res.status(201).json(note);
-  } catch (error) {
-    console.error("Create Note Error:", error);
-    return res.status(500).json({ message: "Failed to create a note" });
-  }
 };
 
 /**
@@ -52,8 +51,9 @@ export const createNote = async (req: Request, res: Response) => {
  * Requires: authenticateToken middleware
  */
 export const getMyNotes = async (req: Request, res: Response) => {
-  const owner_uid = (req as any).userId;
-  // Pagination with validation
+
+   const owner_uid=(req as any).userId;
+    // Pagination with validation
   const pageParam = parseInt(req.query.page as string);
   const limitParam = parseInt(req.query.limit as string);
 
@@ -84,7 +84,7 @@ export const getMyNotes = async (req: Request, res: Response) => {
     whereClause.notebook_id = null;
   }
 
-  try {
+   try {
     // Get notes and total count in parallel
     const [notes, total] = await Promise.all([
       prisma.note.findMany({
@@ -97,20 +97,6 @@ export const getMyNotes = async (req: Request, res: Response) => {
             select: {
               id: true,
               title: true,
-            },
-          },
-          NoteFileAttachment: {
-            include: {
-              File: {
-                select: {
-                  id: true,
-                  public_id: true,
-                  secure_url: true,
-                  resource_type: true,
-                  format: true,
-                  is_private: true,
-                },
-              },
             },
           },
         },
@@ -127,10 +113,12 @@ export const getMyNotes = async (req: Request, res: Response) => {
         totalPages: Math.ceil(total / limit),
       },
     });
-  } catch (error) {
+   } 
+   
+   catch (error) {
     console.error("Get My Notes Error:", error);
     return res.status(500).json({ message: "Failed to fetch notes" });
-  }
+   }
 };
 
 /**
@@ -140,28 +128,8 @@ export const getMyNotes = async (req: Request, res: Response) => {
  * req.note is set by loadNote middleware
  */
 export const getNoteById = async (req: NoteRequest, res: Response) => {
-  // Get attached files
-  const files = await prisma.file.findMany({
-    where: {
-      context: "NOTE",
-      context_id: String(req.note.id),
-    },
-    select: {
-      id: true,
-      public_id: true,
-      secure_url: true,
-      resource_type: true,
-      format: true,
-      is_private: true,
-      created_at: true,
-    },
-  });
-
-  // note already loaded and access authorized by middleware
-  res.status(200).json({
-    ...req.note,
-    files,
-  });
+    // note already loaded and access authorized by middleware
+  res.status(200).json(req.note);
 };
 
 /**
@@ -172,7 +140,7 @@ export const getNoteById = async (req: NoteRequest, res: Response) => {
  */
 export const updateNote = async (req: NoteRequest, res: Response) => {
   const note = req.note;
-  const { title, body, notebook_id, file_ids } = req.body;
+  const { title, body, notebook_id } = req.body;
 
   const updateData: {
     title?: string;
@@ -191,11 +159,10 @@ export const updateNote = async (req: NoteRequest, res: Response) => {
 
   if (notebook_id !== undefined) {
     // Allow setting notebook_id to null (remove from notebook) or to a new notebook
-    updateData.notebook_id =
-      notebook_id !== null ? parseInt(notebook_id) : null;
+    updateData.notebook_id = notebook_id !== null ? parseInt(notebook_id) : null;
   }
 
-  if (Object.keys(updateData).length === 0 && file_ids === undefined) {
+  if (Object.keys(updateData).length === 0) {
     return res.status(400).json({ message: "No valid fields to update" });
   }
 
@@ -222,24 +189,12 @@ export const updateNote = async (req: NoteRequest, res: Response) => {
       },
     });
 
-    // Update file attachments if file_ids provided
-    if (file_ids !== undefined && Array.isArray(file_ids)) {
-      // Delete existing attachments
-      await prisma.noteFileAttachment.deleteMany({
-        where: { nid: note.id },
-      });
-
-      // Create new attachments
-      if (file_ids.length > 0) {
-        await prisma.noteFileAttachment.createMany({
-          data: file_ids.map((fid: string) => ({
-            nid: note.id,
-            fid: String(fid),
-          })),
-          skipDuplicates: true,
-        });
-      }
-    }
+    // Log the activity
+    await ActivityLogService.logActivity({
+      userId: (req as any).userId,
+      actionType: 71, // NOTE_UPDATED
+      description: `Updated note "${updatedNote.title}"`,
+    });
 
     return res.status(200).json({
       message: "Note updated successfully",
@@ -259,39 +214,18 @@ export const updateNote = async (req: NoteRequest, res: Response) => {
  */
 export const deleteNote = async (req: NoteRequest, res: Response) => {
   const note = req.note;
+
   try {
-    // Delete associated files from Cloudinary and database
-    const files = await prisma.file.findMany({
-      where: {
-        context: "NOTE",
-        context_id: String(note.id),
-      },
+    await prisma.note.delete({
+      where: { id: note.id },
     });
 
-    // Delete from Cloudinary
-    const cloudinary = require("../config/cloudinary").default;
-    for (const file of files) {
-      try {
-        await cloudinary.uploader.destroy(file.public_id);
-      } catch (error) {
-        console.error(
-          `Failed to delete file from Cloudinary: ${file.public_id}`,
-          error
-        );
-        // Continue with deletion even if Cloudinary fails
-      }
-    }
+    // Log the activity
+    await ActivityLogService.logNoteDeleted(
+      (req as any).userId,
+      note.title
+    );
 
-    // Delete files from database
-    await prisma.file.deleteMany({
-      where: {
-        context: "NOTE",
-        context_id: String(note.id),
-      },
-    });
-
-    // Delete the note
-    await prisma.note.delete({ where: { id: note.id } });
     return res.status(200).json({ message: "Note deleted successfully" });
   } catch (error) {
     console.error("Delete Note Error:", error);

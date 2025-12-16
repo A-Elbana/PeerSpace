@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
 import { Role } from "../generated/prisma/client";
+import ActivityLogService from "../services/ActivityLogService";
 
 // Create a comment
 export const createComment = async (req: Request, res: Response) => {
@@ -86,6 +87,13 @@ export const createComment = async (req: Request, res: Response) => {
         other_Comment: true,
       },
     });
+
+    // Log the activity
+    await ActivityLogService.logCommentCreated(
+      userId,
+      "",
+      `Created comment on post #${pidNum}`
+    );
 
     res.status(201).json({ success: true, data: comment });
   } catch (error) {
@@ -277,6 +285,14 @@ export const deleteComment = async (req: Request, res: Response) => {
     if (repliesCount === 0) {
       // No replies: hard delete
       await prisma.comment.delete({ where: { id: commentId } });
+      
+      // Log the activity
+      await ActivityLogService.logCommentDeleted(
+        (req as any).userId,
+        "",
+        `Deleted comment #${commentId}`
+      );
+
       return res.status(200).json({ success: true, deleted: "hard" });
     }
 
@@ -288,6 +304,13 @@ export const deleteComment = async (req: Request, res: Response) => {
         content: "This comment was deleted",
       },
     });
+
+    // Log the activity
+    await ActivityLogService.logCommentDeleted(
+      (req as any).userId,
+      "",
+      `Deleted comment #${commentId}`
+    );
 
     return res.status(200).json({ success: true, deleted: "soft" });
   } catch (error) {
@@ -317,6 +340,13 @@ export const approveByInstructor = async (req: Request, res: Response) => {
       },
     });
 
+    // Log the activity
+    await ActivityLogService.logActivity({
+      userId: (req as any).userId,
+      actionType: 23, // COMMENT_APPROVED
+      description: `Approved comment #${commentId} by instructor`,
+    });
+
     res.status(200).json({ success: true, data: comment });
   } catch (error) {
     console.error("Approve by Instructor Error:", error);
@@ -343,6 +373,13 @@ export const approveByOriginalPoster = async (req: Request, res: Response) => {
           select: { id: true, fname: true, lname: true, avatar_file_id: true },
         },
       },
+    });
+
+    // Log the activity
+    await ActivityLogService.logActivity({
+      userId: (req as any).userId,
+      actionType: 23, // COMMENT_APPROVED
+      description: `Approved comment #${commentId} by original poster`,
     });
 
     res.status(200).json({ success: true, data: comment });
