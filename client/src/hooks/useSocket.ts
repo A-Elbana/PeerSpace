@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
-import { io, type Socket } from 'socket.io-client';
-import { getAccessToken } from '../utils/auth';
+import { useEffect, useRef } from "react";
+import { io, type Socket } from "socket.io-client";
+import { getAccessToken } from "../utils/auth";
 
 let socketSingleton: Socket | null = null;
 
@@ -19,7 +19,9 @@ export function useSocket() {
         if (apiFromEnv) {
           try {
             const parsed = new URL(apiFromEnv);
-            return `${parsed.protocol}//${parsed.hostname}${parsed.port ? `:${parsed.port}` : ''}`;
+            return `${parsed.protocol}//${parsed.hostname}${
+              parsed.port ? `:${parsed.port}` : ""
+            }`;
           } catch (e) {
             // fallthrough to explicit fallback
           }
@@ -29,7 +31,7 @@ export function useSocket() {
 
       socketSingleton = io(defaultWs, {
         auth: { token },
-        transports: ['websocket'],
+        transports: ["websocket"],
       });
     }
 

@@ -63,8 +63,16 @@ export async function startNotificationBroadcaster(io: IOServer) {
       intervalMs = baseInterval;
     } catch (err) {
       consecutiveErrors += 1;
-      intervalMs = Math.min(maxInterval, baseInterval * Math.pow(2, consecutiveErrors));
-      console.error("Error polling notifications:", err, "— increasing interval to", intervalMs);
+      intervalMs = Math.min(
+        maxInterval,
+        baseInterval * Math.pow(2, consecutiveErrors)
+      );
+      console.error(
+        "Error polling notifications:",
+        err,
+        "— increasing interval to",
+        intervalMs
+      );
     } finally {
       // Prune emitted map entries older than 10 minutes
       const cutoff = Date.now() - 10 * 60 * 1000;

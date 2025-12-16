@@ -21,7 +21,8 @@ export function initSocket(server: HttpServer) {
     console.log("socket connected:", socket.id);
 
     // Optionally authenticate socket using token passed in handshake.auth.token
-    const token = (socket.handshake.auth && (socket.handshake.auth as any).token) || null;
+    const token =
+      (socket.handshake.auth && (socket.handshake.auth as any).token) || null;
     if (token) {
       try {
         const decoded = jwt.verify(token, JWT_SECRET) as any;

@@ -346,13 +346,20 @@ export const postApi = {
   },
 
   // Get posts created by the authenticated user
-  getMyPosts: async (params?: { page?: number; limit?: number; }): Promise<{ message?: string; data: PostResponse[]; meta: PaginationMeta; }> => {
+  getMyPosts: async (params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    message?: string;
+    data: PostResponse[];
+    meta: PaginationMeta;
+  }> => {
     const cleanParams: any = {};
     if (params) {
       if (params.page) cleanParams.page = params.page;
       if (params.limit) cleanParams.limit = params.limit;
     }
-    const response = await api.get('/posts/me', { params: cleanParams });
+    const response = await api.get("/posts/me", { params: cleanParams });
     return response.data;
   },
 
@@ -467,21 +474,31 @@ export const announcementApi = {
 export const commentApi = {
   getByPost: async (
     pid: number,
-    params?: { includeReplies?: boolean; page?: number; limit?: number; sortBy?: string }
+    params?: {
+      includeReplies?: boolean;
+      page?: number;
+      limit?: number;
+      sortBy?: string;
+    }
   ) => {
     const cleanParams: any = { pid };
     if (params) {
-      if (params.includeReplies !== undefined) cleanParams.includeReplies = params.includeReplies;
+      if (params.includeReplies !== undefined)
+        cleanParams.includeReplies = params.includeReplies;
       if (params.page) cleanParams.page = params.page;
       if (params.limit) cleanParams.limit = params.limit;
       if (params.sortBy) cleanParams.sortBy = params.sortBy;
     }
-    const response = await api.get('/comments', { params: cleanParams });
+    const response = await api.get("/comments", { params: cleanParams });
     return response.data;
   },
 
-  create: async (data: { pid: number; content: string; parentCommentId?: number }) => {
-    const response = await api.post('/comments', data);
+  create: async (data: {
+    pid: number;
+    content: string;
+    parentCommentId?: number;
+  }) => {
+    const response = await api.post("/comments", data);
     return response.data;
   },
 
@@ -504,12 +521,12 @@ export const fileApi = {
     resource_type: string;
     format?: string;
     context:
-    | "POST"
-    | "SUBMISSION"
-    | "NOTE"
-    | "ASSIGNMENT"
-    | "COMMUNITY_BANNER"
-    | "USER_AVATAR";
+      | "POST"
+      | "SUBMISSION"
+      | "NOTE"
+      | "ASSIGNMENT"
+      | "COMMUNITY_BANNER"
+      | "USER_AVATAR";
     context_id: string;
     is_private?: boolean;
   }) => {
@@ -896,12 +913,12 @@ export default api;
 // Notifications API
 export const notificationsApi = {
   getNotifications: async (params?: { page?: number; pageSize?: number }) => {
-    const response = await api.get('/notifications', { params });
+    const response = await api.get("/notifications", { params });
     return response.data;
   },
 
   getUnreadCount: async () => {
-    const response = await api.get('/notifications/count');
+    const response = await api.get("/notifications/count");
     return response.data;
   },
 
@@ -911,7 +928,7 @@ export const notificationsApi = {
   },
 
   markAllRead: async () => {
-    const response = await api.post('/notifications/mark-all-read');
+    const response = await api.post("/notifications/mark-all-read");
     return response.data;
   },
 };
