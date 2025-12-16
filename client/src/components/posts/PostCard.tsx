@@ -334,7 +334,7 @@ export default function PostCard({ post, currentUser, isInstructorOfCommunity, o
           {images.length > 0 && (
             <>
               {/* Smart responsive grid for multiple images */}
-                {images.length === 1 ? (
+              {images.length === 1 ? (
                 <div className="mb-3 rounded-lg overflow-hidden bg-muted/30 border border-border cursor-pointer group"
                   onClick={(e: any) => { e.stopPropagation(); setShowImageModal(true); setNavigateOnCloseImage(Boolean(clickable)); }}>
                   <div className="relative bg-black/5 aspect-video flex items-center justify-center">
@@ -355,7 +355,7 @@ export default function PostCard({ post, currentUser, isInstructorOfCommunity, o
                       alt={getFileName(images[currentImageIndex].File)}
                       className="w-full h-full object-contain transition-opacity group-hover:opacity-90"
                     />
-                      <div className="absolute inset-0 flex items-center justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute inset-0 flex items-center justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={(e: any) => { e.stopPropagation(); goToPrevImage(); }} className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70"><ChevronLeft size={20} /></button>
                       <button onClick={(e: any) => { e.stopPropagation(); goToNextImage(); }} className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70"><ChevronRight size={20} /></button>
                     </div>
@@ -378,7 +378,7 @@ export default function PostCard({ post, currentUser, isInstructorOfCommunity, o
               )}
 
               {/* Image Modal */}
-                {showImageModal && (
+              {showImageModal && (
                 <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => { setShowImageModal(false); if (navigateOnCloseImage) goToPreview(); }}>
                   <div className="relative max-w-4xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
                     <button
@@ -462,18 +462,18 @@ export default function PostCard({ post, currentUser, isInstructorOfCommunity, o
             )}
           </div>
 
-              <PostModal
-                isOpen={isEditOpen}
-                onClose={() => setIsEditOpen(false)}
-                post={post as any}
-                onSuccess={(updated) => {
-                  post.title = (updated.title as any) ?? post.title;
-                  post.body = (updated.body as any) ?? post.body;
-                  setIsEditOpen(false);
-                  toast.success('Post updated');
-                  onEdit?.(updated as any);
-                }}
-              />
+          <PostModal
+            isOpen={isEditOpen}
+            onClose={() => setIsEditOpen(false)}
+            post={post as any}
+            onSuccess={(updated) => {
+              post.title = (updated.title as any) ?? post.title;
+              post.body = (updated.body as any) ?? post.body;
+              setIsEditOpen(false);
+              toast.success('Post updated');
+              onEdit?.(updated as any);
+            }}
+          />
         </div>
       </div>
     </div>
