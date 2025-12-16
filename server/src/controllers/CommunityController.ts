@@ -266,38 +266,47 @@ export const getCommunities = async (req: Request, res: Response) => {
       },
     });
 
-    // Resolve banner URLs
-    const communitiesWithBanner = await Promise.all(
-      communities.map(async (c) => {
-        let banner_url: string | null = null;
-        if (c.banner_file_id) {
-          try {
-            const file = await prisma.file.findUnique({
-              where: { id: c.banner_file_id },
-            });
-            if (file) {
-              if (file.is_private) {
-                banner_url =
-                  require("../config/cloudinary").default.utils.private_download_url(
-                    file.public_id,
-                    file.resource_type,
-                    {
-                      expires_at: Math.floor(Date.now() / 1000) + 3600,
-                      attachment: false,
-                    }
-                  );
-              } else {
-                banner_url = file.secure_url;
-              }
-            }
-          } catch (e) {
-            banner_url = null;
+    // Resolve banner URLs - OPTIMIZED: batch query instead of sequential
+    const bannerFileIds = communities
+      .map(c => c.banner_file_id)
+      .filter((id): id is string => id !== null);
+    
+    const bannerFiles = await prisma.file.findMany({
+      where: { id: { in: bannerFileIds } },
+      select: {
+        id: true,
+        public_id: true,
+        secure_url: true,
+        resource_type: true,
+        is_private: true,
+      }
+    });
+
+    const bannerFileMap = new Map(bannerFiles.map(f => [f.id, f]));
+
+    const communitiesWithBanner = communities.map((c) => {
+      let banner_url: string | null = null;
+      if (c.banner_file_id) {
+        const file = bannerFileMap.get(c.banner_file_id);
+        if (file) {
+          if (file.is_private) {
+            banner_url =
+              require("../config/cloudinary").default.utils.private_download_url(
+                file.public_id,
+                file.resource_type,
+                {
+                  expires_at: Math.floor(Date.now() / 1000) + 3600,
+                  attachment: false,
+                }
+              );
+          } else {
+            banner_url = file.secure_url;
           }
         }
+      }
 
-        return { ...c, banner_url };
-      })
-    );
+      return { ...c, banner_url };
+    });
 
     const total = await prisma.community.count({ where: whereClause });
 

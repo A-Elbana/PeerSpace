@@ -263,43 +263,48 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
       },
     });
 
-    // Get vote counts for all posts
-    const postsWithVotes = await Promise.all(
-      posts.map(async (post) => {
-        const upvotes = await prisma.voted.count({
-          where: { pid: post.id, voteType: true },
-        });
+    // Get vote counts for all posts - OPTIMIZED: batch query instead of N+1
+    const postIds = posts.map(p => p.id);
+    
+    // Batch fetch all votes for all posts at once
+    const allVotes = await prisma.voted.findMany({
+      where: { pid: { in: postIds } },
+      select: { pid: true, voteType: true, sid: true }
+    });
 
-        const downvotes = await prisma.voted.count({
-          where: { pid: post.id, voteType: false },
-        });
+    // Group votes by post ID
+    const votesByPost = new Map<number, { upvotes: number, downvotes: number, userVote: boolean | null }>();
+    
+    postIds.forEach(pid => {
+      votesByPost.set(pid, { upvotes: 0, downvotes: 0, userVote: null });
+    });
 
-        // Get current user's vote if authenticated and is a student
-        let userVote = null;
-        if (userId) {
-          const student = await prisma.student.findUnique({
-            where: { uid: userId },
-          });
+    allVotes.forEach(vote => {
+      const postVotes = votesByPost.get(vote.pid)!;
+      if (vote.voteType) {
+        postVotes.upvotes++;
+      } else {
+        postVotes.downvotes++;
+      }
+      // Check if this vote is from current user
+      if (userId && vote.sid === userId) {
+        postVotes.userVote = vote.voteType;
+      }
+    });
 
-          if (student) {
-            const vote = await prisma.voted.findUnique({
-              where: { sid_pid: { sid: student.uid, pid: post.id } },
-            });
-            userVote = vote ? vote.voteType : null;
-          }
-        }
-
-        return {
-          ...post,
-          votes: {
-            upvotes,
-            downvotes,
-            score: upvotes - downvotes,
-            userVote,
-          },
-        };
-      })
-    );
+    // Map posts with their vote data
+    const postsWithVotes = posts.map(post => {
+      const votes = votesByPost.get(post.id)!;
+      return {
+        ...post,
+        votes: {
+          upvotes: votes.upvotes,
+          downvotes: votes.downvotes,
+          score: votes.upvotes - votes.downvotes,
+          userVote: votes.userVote,
+        },
+      };
+    });
 
     const total = await prisma.post.count({
       where: { cid: { in: allowedIds } },
