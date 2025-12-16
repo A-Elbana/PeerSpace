@@ -347,10 +347,11 @@ model Task {
 }
 
 model TaskAssignees {
-  tid     Int
-  sid     Int
-  Student Student @relation(fields: [sid], references: [uid], onDelete: Cascade, onUpdate: Cascade)
-  Task    Task    @relation(fields: [tid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  tid        Int
+  sid        Int
+  isAccepted Boolean @default(false)
+  Student    Student @relation(fields: [sid], references: [uid], onDelete: Cascade, onUpdate: Cascade)
+  Task       Task    @relation(fields: [tid], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@id([tid, sid])
 }
