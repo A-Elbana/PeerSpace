@@ -19,6 +19,7 @@ import {
     ChevronDown
 } from 'lucide-react';
 import { Sidebar } from '../../components/dashboard';
+import { useSidebar } from '../../contexts/SidebarContext';
 import { Button } from '../../components/ui/button';
 import DropdownSearch from '../../components/ui/DropdownSearch';
 import { DeleteConfirmationModal } from '../../components/common/DeleteConfirmationModal';
@@ -77,6 +78,7 @@ interface TaskDetailProps {
 const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
     const { taskId } = useParams<{ taskId: string }>();
     const navigate = useNavigate();
+    const { sidebarWidth } = useSidebar();
     const [user, setUser] = useState<UserData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [task, setTask] = useState<Task | null>(null);
@@ -526,7 +528,10 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
         return (
             <div className="flex min-h-screen bg-background text-foreground">
                 <Sidebar onLogout={onLogout || (() => {})} />
-                <main className="flex-1 ml-20 p-8">
+                <main 
+                  className="flex-1 p-8 transition-all duration-300"
+                  style={{ marginLeft: `${sidebarWidth}px` }}
+                >
                     <div className="max-w-4xl mx-auto">
                         <Button
                             variant="ghost"

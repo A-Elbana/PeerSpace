@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Sidebar } from '../../components/dashboard';
+import { useSidebar } from '../../contexts/SidebarContext';
 import api, { communityApi, postApi, type CommunityResponse, type PostResponse } from '../../services/api';
 import { useResolvedFileUrl } from '../../hooks/useResolvedFileUrl';
 import { Loader2, ArrowRight } from 'lucide-react';
@@ -33,6 +34,7 @@ import CommunityCard from '../../components/common/CommunityCard';
 const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
   const navigate = useNavigate();
   const { userId } = useParams<{ userId?: string }>();
+  const { sidebarWidth } = useSidebar();
   const [user, setUser] = useState<UserData | null>(null); // viewer (logged in)
   const [viewedUser, setViewedUser] = useState<UserData | null>(null); // profile being viewed
   const [isLoading, setIsLoading] = useState(true);
@@ -356,7 +358,10 @@ const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
     return (
       <div className="flex min-h-screen bg-background text-foreground font-sans">
         <Sidebar onLogout={onLogout} />
-        <main className="flex-1 ml-20 p-6 transition-all duration-300 flex items-center justify-center">
+        <main 
+          className="flex-1 p-6 transition-all duration-300 flex items-center justify-center"
+          style={{ marginLeft: `${sidebarWidth}px` }}
+        >
           <div className="flex items-center gap-2">
             <Loader2 className="h-5 w-5 animate-spin" />
             <span>Loading profile...</span>
@@ -370,7 +375,10 @@ const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
     return (
       <div className="flex min-h-screen bg-background text-foreground font-sans">
         <Sidebar onLogout={onLogout} />
-        <main className="flex-1 ml-20 p-6 transition-all duration-300 flex items-center justify-center">
+        <main 
+          className="flex-1 p-6 transition-all duration-300 flex items-center justify-center"
+          style={{ marginLeft: `${sidebarWidth}px` }}
+        >
           <div className="text-center">
             <p className="text-muted-foreground">{error || 'User not found'}</p>
           </div>
@@ -384,7 +392,10 @@ const Profile: React.FC<ProfileProps> = ({ onLogout }) => {
       <Sidebar onLogout={onLogout} />
 
       {/* Main Content Area */}
-      <main className="flex-1 ml-20 p-6 transition-all duration-300">
+      <main 
+        className="flex-1 p-6 transition-all duration-300"
+        style={{ marginLeft: `${sidebarWidth}px` }}
+      >
         <div className="w-full max-w-none">
           {/* Header / Profile Card */}
           <div className="flex items-start gap-6 mb-6">

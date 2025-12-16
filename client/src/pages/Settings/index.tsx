@@ -18,6 +18,7 @@ import {
   EyeOff
 } from 'lucide-react';
 import { Sidebar } from '../../components/dashboard';
+import { useSidebar } from '../../contexts/SidebarContext';
 import api from '../../services/api';
 import { removeTokens } from '../../utils/auth';
 
@@ -46,6 +47,7 @@ interface UserData {
 const Settings: React.FC = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { sidebarWidth } = useSidebar();
 
   const [user, setUser] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -312,7 +314,10 @@ const Settings: React.FC = () => {
     <div className="flex min-h-screen bg-background">
       <Sidebar onLogout={handleLogout} />
 
-      <main className="flex-1 ml-20 transition-all duration-300">
+      <main 
+        className="flex-1 transition-all duration-300"
+        style={{ marginLeft: `${sidebarWidth}px` }}
+      >
         {/* Header Section */}
         <div className="border-b border-border bg-card">
           <div className="max-w-4xl mx-auto px-8 py-6">

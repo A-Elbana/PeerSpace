@@ -28,7 +28,7 @@ const CommunityItem: React.FC<CommunityItemProps> = ({ communityId, name, descri
       <div className="min-w-0 flex flex-col">
         <button
           onClick={() => onNavigate(communityId)}
-          className="text-sm font-medium text-foreground group-hover:text-tech-blue-600 transition-colors truncate flex items-center gap-1 hover:underline cursor-pointer text-left max-w-[180px]"
+          className="text-sm font-medium text-foreground group-hover:text-frosted-blue-600 transition-colors truncate flex items-center gap-1 hover:underline cursor-pointer text-left max-w-[180px]"
           title={name}
         >
           <span className="truncate max-w-[110px]">{name}</span>
@@ -46,7 +46,7 @@ const CommunityItem: React.FC<CommunityItemProps> = ({ communityId, name, descri
         <button
           onClick={onJoin}
           disabled={isJoining}
-          className="px-3 py-1 bg-tech-blue-500 text-white text-xs font-bold rounded-full hover:bg-tech-blue-600 transition-all duration-300 disabled:opacity-50 flex-shrink-0 ml-2 shadow-sm hover:shadow-md"
+          className="px-3 py-1 bg-frosted-blue-500 text-white text-xs font-bold rounded-full hover:bg-frosted-blue-600 transition-all duration-300 disabled:opacity-50 flex-shrink-0 ml-2 shadow-sm hover:shadow-md"
         >
           {isJoining ? <Loader2 size={12} className="animate-spin" /> : 'Enroll'}
         </button>

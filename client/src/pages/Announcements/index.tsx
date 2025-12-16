@@ -14,6 +14,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { Sidebar } from '../../components/dashboard';
+import { useSidebar } from '../../contexts/SidebarContext';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { removeTokens } from '../../utils/auth';
@@ -60,6 +61,7 @@ export interface Community {
 
 const AnnouncementsPage = () => {
   const navigate = useNavigate();
+  const { sidebarWidth } = useSidebar();
 
   // State
   const [user, setUser] = useState<UserData | null>(null);
@@ -292,7 +294,10 @@ const AnnouncementsPage = () => {
     return (
       <div className="flex min-h-screen bg-background">
         <Sidebar onLogout={handleLogout} />
-        <main className="flex-1 ml-20 p-8 flex items-center justify-center">
+        <main 
+          className="flex-1 p-8 flex items-center justify-center transition-all duration-300"
+          style={{ marginLeft: `${sidebarWidth}px` }}
+        >
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
             <p className="text-muted-foreground">Loading announcements...</p>
@@ -307,7 +312,10 @@ const AnnouncementsPage = () => {
     return (
       <div className="flex min-h-screen bg-background">
         <Sidebar onLogout={handleLogout} />
-        <main className="flex-1 ml-20 p-8 flex items-center justify-center">
+        <main 
+          className="flex-1 p-8 flex items-center justify-center transition-all duration-300"
+          style={{ marginLeft: `${sidebarWidth}px` }}
+        >
           <div className="flex flex-col items-center gap-4 text-center">
             <AlertCircle className="w-10 h-10 text-destructive" />
             <p className="text-foreground font-medium">{error}</p>
@@ -324,7 +332,10 @@ const AnnouncementsPage = () => {
     <div className="flex min-h-screen bg-background">
       <Sidebar onLogout={handleLogout} />
 
-      <main className="flex-1 ml-20 p-8 transition-all duration-300">
+      <main 
+        className="flex-1 p-8 transition-all duration-300"
+        style={{ marginLeft: `${useSidebar().sidebarWidth}px` }}
+      >
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">

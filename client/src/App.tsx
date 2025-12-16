@@ -2,6 +2,7 @@ import Profile from './pages/Profile/index.tsx';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { SidebarProvider } from './contexts/SidebarContext';
 import { redirectToLogout } from './utils/navigation';
 import { TOASTER_CONFIG } from './constants/ui';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -37,8 +38,9 @@ function App() {
   return (
     <ErrorBoundary>
       <NotificationProvider>
-        <Toaster {...TOASTER_CONFIG} />
-        <Router>
+        <SidebarProvider>
+          <Toaster {...TOASTER_CONFIG} />
+          <Router>
             <Routes>
           <Route path="/" element={<LandingPage />} />
 
@@ -234,7 +236,8 @@ function App() {
           {/* Fallback route for 404 */}
           <Route path="*" element={<LandingPage />} />
         </Routes>
-      </Router>
+        </Router>
+        </SidebarProvider>
       </NotificationProvider>
     </ErrorBoundary>
   );

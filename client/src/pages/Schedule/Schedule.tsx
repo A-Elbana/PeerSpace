@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, Circle, Loader2, Plus } from 'lucide-react';
 import { Sidebar, Header } from '../../components/dashboard';
+import { useSidebar } from '../../contexts/SidebarContext';
 import { Button } from '../../components/ui/button';
 import { assignmentApi } from '../../services/api';
 import { communityApi } from '../../services/api';
@@ -20,6 +21,7 @@ interface ScheduleItem {
 
 const Schedule: React.FC = () => {
     const navigate = useNavigate();
+    const { sidebarWidth } = useSidebar();
     const [items, setItems] = useState<ScheduleItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -146,7 +148,10 @@ const Schedule: React.FC = () => {
     return (
         <div className="flex min-h-screen bg-background">
             <Sidebar onLogout={() => navigate('/login')} />
-            <main className="flex-1 ml-20 p-8">
+            <main 
+              className="flex-1 p-8 transition-all duration-300"
+              style={{ marginLeft: `${sidebarWidth}px` }}
+            >
                 <Header
                     title="My Schedule"
                     subtitle="Manage your assignments and personal tasks"

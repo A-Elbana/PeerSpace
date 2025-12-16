@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileCheck, Calendar, FileText, Loader2, Home, ChevronRight, Eye, Trash2, Edit3 } from 'lucide-react';
+import { FileCheck, Calendar, FileText, Loader2, Home, ChevronRight, Eye } from 'lucide-react';
 import { Sidebar } from '../../components/dashboard';
+import { useSidebar } from '../../contexts/SidebarContext';
 import { removeTokens } from '../../utils/auth';
-import { submissionApi, assignmentApi } from '../../services/api';
+import { submissionApi } from '../../services/api';
 import { toast } from 'sonner';
 
 interface Submission {
@@ -36,13 +37,25 @@ const Submissions: React.FC = () => {
   const navigate = useNavigate();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { sidebarWidth } = useSidebar();
 
   useEffect(() => {
     const fetchSubmissions = async () => {
       try {
         setIsLoading(true);
         const response = await submissionApi.getMySubmissions({ limit: 100 });
-        setSubmissions(response.data);
+        const transformedData = response.data.map((submission: any) => ({
+          ...submission,
+          Assignment: {
+            id: submission.Assignment.id,
+            title: submission.Assignment.title,
+            due_date: submission.Assignment.due_date || null,
+            Community: {
+              name: submission.Assignment.Community?.name || 'Unknown Community'
+            }
+          }
+        }));
+        setSubmissions(transformedData);
       } catch (error) {
         console.error('Failed to fetch submissions:', error);
         toast.error('Failed to load submissions');
@@ -88,7 +101,10 @@ const Submissions: React.FC = () => {
     <div className="flex min-h-screen bg-background">
       <Sidebar onLogout={handleLogout} />
 
-      <main className="flex-1 ml-20 p-8">
+      <main 
+        className="flex-1 p-8 transition-all duration-300"
+        style={{ marginLeft: `${sidebarWidth}px` }}
+      >
         <div className="max-w-6xl mx-auto">
           {/* Breadcrumb */}
           <div className="mb-6 flex items-center text-sm text-muted-foreground">
@@ -170,14 +186,14 @@ const Submissions: React.FC = () => {
                               </div>
                               {submission.SubmissionFileAttachment && submission.SubmissionFileAttachment.length > 0 && (
                                 <div className="flex flex-wrap gap-1 mt-1">
-                                  {submission.SubmissionFileAttachment.slice(0, 2).map((attachment, index) => (
+                                  {submission.SubmissionFileAttachment.slice(0, 2).map((attachment) => (
                                     <span
                                       key={attachment.File.id}
                                       className="inline-flex items-center gap-1 px-2 py-0.5 bg-muted rounded text-xs"
                                       title={attachment.File.original_filename}
                                     >
                                       <FileText className="w-3 h-3" />
-                                      <span className="truncate max-w-[80px]">
+                                      <span className="truncate max-w-20">
                                         {attachment.File.original_filename || `File.${attachment.File.format}`}
                                       </span>
                                     </span>

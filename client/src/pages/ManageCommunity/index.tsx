@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Sidebar } from '../../components/dashboard';
+import { useSidebar } from '../../contexts/SidebarContext';
 import { Button } from '../../components/ui/button';
 import { DeleteConfirmationModal } from '../../components/common/DeleteConfirmationModal';
 import { Input } from '../../components/ui/input';
@@ -30,6 +31,7 @@ const ManageCommunity: React.FC = () => {
   const [community, setCommunity] = useState<CommunityResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const { sidebarWidth } = useSidebar();
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -163,7 +165,10 @@ const ManageCommunity: React.FC = () => {
     <div className="flex min-h-screen bg-background">
       <Sidebar onLogout={handleLogout} />
 
-      <main className="flex-1 ml-20 p-8 transition-all duration-300 flex flex-col items-center justify-center">
+      <main 
+        className="flex-1 p-8 transition-all duration-300 flex flex-col items-center justify-center"
+        style={{ marginLeft: `${sidebarWidth}px` }}
+      >
         {/* Form Card */}
         <div className="w-full max-w-2xl">
           {/* Header */}

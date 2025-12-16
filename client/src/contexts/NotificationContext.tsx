@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import  { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { toast } from 'sonner';
 import { useSocket } from '../hooks/useSocket';
@@ -68,7 +68,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     if (!isAuthenticated()) return;
     if (!socket) return;
 
-    const handler = (payload: any) => {
+    const handler = () => {
       // When notified, refetch list and update unread badge immediately
       fetchNotifications();
       // optional toast

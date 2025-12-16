@@ -32,7 +32,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
             <div className="bg-card w-full max-w-md rounded-xl shadow-2xl border border-border overflow-hidden animate-in zoom-in-95 duration-200">
                 <div className="p-6">
                     <div className="flex items-center gap-4 mb-4">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${isDestructive ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-primary/10 text-primary'}`}>
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${isDestructive ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-frosted-blue-500/10 text-frosted-blue-600'}`}>
                             <AlertTriangle size={24} />
                         </div>
                         <div>

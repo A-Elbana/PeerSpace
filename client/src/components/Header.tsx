@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, LogOut, Home, Compass, Search, X, Menu, Plus, MessageSquare, TrendingUp, Users } from 'lucide-react';
 import NotificationContext from '../contexts/NotificationContext';
+import { useSidebar } from '../contexts/SidebarContext';
 
 interface UserInfo {
     id?: number | string;
@@ -15,7 +16,7 @@ const Avatar: React.FC<{ user?: UserInfo; size?: number }> = ({ user, size = 32 
     return (
         <div
             style={{ width: size, height: size }}
-            className="flex-shrink-0 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold flex items-center justify-center overflow-hidden"
+            className="flex-shrink-0 rounded-full bg-gradient-to-br from-frosted-blue-500 to-turf-green-500 text-white font-semibold flex items-center justify-center overflow-hidden"
         >
             {user?.avatar_file_id ? (
                 <img src={`/api/files/${user.avatar_file_id}`} alt="avatar" className="w-full h-full object-cover" />
@@ -48,6 +49,7 @@ const Header: React.FC<HeaderProps> = ({
     unreadCount = 0,
 }) => {
     const navigate = useNavigate();
+    const { sidebarWidth } = useSidebar();
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [showMobileMenu, setShowMobileMenu] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
@@ -96,9 +98,12 @@ const Header: React.FC<HeaderProps> = ({
     const showSearchResults = isFocused && searchValue && (searchedPosts?.length > 0 || searchedCommunities?.length > 0 || isSearching);
 
     return (
-        <header className="sticky top-0 z-50 w-full bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm px-3 sm:px-4 md:pl-20">
-            <div className="max-w-6xl mx-auto w-full">
-                    <div className="flex items-center justify-between h-12 sm:h-14 gap-2 sm:gap-4">
+        <header 
+            className="sticky top-0 z-30 w-full px-3 sm:px-4 lg:pr-4 bg-transparent transition-all duration-300"
+            style={{ paddingLeft: `${sidebarWidth + 16}px` }}
+        >
+            <div className="max-w-6xl mx-auto w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm px-4 sm:px-6">
+                <div className="flex items-center justify-between h-12 sm:h-14 gap-2 sm:gap-4">
                     {/* Left Section - Logo & Nav */}
                     <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
                         {/* Mobile Menu Toggle */}
@@ -114,10 +119,10 @@ const Header: React.FC<HeaderProps> = ({
                             onClick={() => navigate('/')} 
                             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                         >
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-frosted-blue-500 to-turf-green-500 flex items-center justify-center text-white font-bold text-sm">
                                 PS
                             </div>
-                            <span className="hidden sm:block text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                            <span className="hidden sm:block text-lg font-bold bg-gradient-to-r from-frosted-blue-600 to-turf-green-600 bg-clip-text text-transparent">
                                 PeerSpace
                             </span>
                         </button>
@@ -158,7 +163,7 @@ const Header: React.FC<HeaderProps> = ({
                                         }
                                     }}
                                     placeholder="Search PeerSpace (press /)"
-                                    className="w-full h-9 sm:h-10 pl-10 pr-10 rounded-full border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-gray-900 transition-all"
+                                    className="w-full h-9 sm:h-10 pl-10 pr-10 rounded-full border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm placeholder-gray-500 focus:outline-none focus:border-frosted-blue-500 focus:bg-white dark:focus:bg-gray-900 transition-all"
                                 />
                                 {searchValue && (
                                     <button 
@@ -178,7 +183,7 @@ const Header: React.FC<HeaderProps> = ({
                                 <div className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl overflow-hidden max-h-[70vh] overflow-y-auto">
                                     {isSearching && (
                                         <div className="px-4 py-8 text-center text-gray-500">
-                                            <div className="inline-block w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                                            <div className="inline-block w-5 h-5 border-2 border-gray-300 border-t-frosted-blue-500 rounded-full animate-spin"></div>
                                             <p className="mt-2 text-sm">Searching...</p>
                                         </div>
                                     )}
@@ -252,7 +257,7 @@ const Header: React.FC<HeaderProps> = ({
                         {/* Create Post Button - Hidden on mobile */}
                         <button 
                             onClick={() => navigate('/create-post')}
-                            className="hidden lg:flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white text-sm font-medium hover:opacity-90 transition-opacity"
+                            className="hidden lg:flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-frosted-blue-500 to-turf-green-500 text-white text-sm font-medium hover:opacity-90 transition-opacity"
                         >
                             <Plus className="w-4 h-4" />
                             <span>Create</span>
@@ -348,11 +353,10 @@ const Header: React.FC<HeaderProps> = ({
                         </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Mobile Menu Overlay */}
-            {showMobileMenu && (
-                <div className="md:hidden border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+                {/* Mobile Menu Overlay */}
+                {showMobileMenu && (
+                    <div className="md:hidden border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 rounded-b-2xl">
                     <nav className="px-4 py-3 space-y-1">
                         <button
                             onClick={() => {
@@ -375,8 +379,9 @@ const Header: React.FC<HeaderProps> = ({
                             <span className="font-medium">Explore</span>
                         </button>
                     </nav>
-                </div>
-            )}
+                    </div>
+                )}
+            </div>
         </header>
     );
 };

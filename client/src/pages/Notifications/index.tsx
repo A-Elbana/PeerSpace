@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Check, ChevronLeft, Trash2 } from 'lucide-react';
 import { Sidebar } from '../../components/dashboard';
+import { useSidebar } from '../../contexts/SidebarContext';
 import { Button } from '../../components/ui/button';
 import { removeTokens } from '../../utils/auth';
 import { useNotifications } from '../../contexts/NotificationContext';
@@ -16,60 +17,9 @@ export interface Notification {
   type: 'assignment' | 'grade' | 'course' | 'announcement' | 'general';
 }
 
-// Mock notifications for UI demonstration
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    title: 'New Assignment',
-    message: 'Database Project Phase 3 has been posted. Due date: December 15, 2025.',
-    time: '5 min ago',
-    read: false,
-    type: 'assignment',
-  },
-  {
-    id: '2',
-    title: 'Grade Posted',
-    message: 'Your Quiz 3 has been graded. You scored 85/100.',
-    time: '1 hour ago',
-    read: false,
-    type: 'grade',
-  },
-  {
-    id: '3',
-    title: 'Course Update',
-    message: 'New material added to Web Development course: "Introduction to React Hooks".',
-    time: '2 hours ago',
-    read: true,
-    type: 'course',
-  },
-  {
-    id: '4',
-    title: 'Announcement',
-    message: 'Campus will be closed on December 25th for the holiday break.',
-    time: '1 day ago',
-    read: true,
-    type: 'announcement',
-  },
-  {
-    id: '5',
-    title: 'Feedback Received',
-    message: 'You received feedback on your project submission from Dr. Smith.',
-    time: '2 days ago',
-    read: true,
-    type: 'general',
-  },
-  {
-    id: '6',
-    title: 'Assignment Reminder',
-    message: 'Your assignment "Data Structures Lab 5" is due in 3 days.',
-    time: '3 days ago',
-    read: true,
-    type: 'assignment',
-  },
-];
-
 const NotificationsPage = () => {
   const navigate = useNavigate();
+  const { sidebarWidth } = useSidebar();
   const { notifications, unreadCount, fetchNotifications, markAllRead } = useNotifications();
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
@@ -109,6 +59,10 @@ const NotificationsPage = () => {
 
   const filteredNotifications = filter === 'unread' ? notifications.filter((n) => !n.read) : notifications;
 
+  const getNotificationType = (notification: typeof notifications[0]): Notification['type'] => {
+    return (notification as any).type || 'general';
+  };
+
   const getTypeColor = (type: Notification['type']) => {
     switch (type) {
       case 'assignment':
@@ -128,7 +82,10 @@ const NotificationsPage = () => {
     <div className="flex min-h-screen bg-background">
       <Sidebar onLogout={handleLogout} />
 
-      <main className="flex-1 p-8 ml-20 transition-all duration-300">
+      <main 
+        className="flex-1 p-8 transition-all duration-300"
+        style={{ marginLeft: `${sidebarWidth}px` }}
+      >
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <Button
@@ -226,9 +183,9 @@ const NotificationsPage = () => {
                 >
                   <div className="flex items-start gap-4">
                     {/* Type Indicator */}
-                    <div className="flex-shrink-0 mt-1">
+                    <div className="shrink-0 mt-1">
                       <div
-                        className={`h-3 w-3 rounded-full ${getTypeColor(notification.type)}`}
+                        className={`h-3 w-3 rounded-full ${getTypeColor(getNotificationType(notification))}`}
                       />
                     </div>
 
@@ -253,7 +210,7 @@ const NotificationsPage = () => {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex items-center gap-1 flex-shrink-0">
+                        <div className="flex items-center gap-1 shrink-0">
                           {!notification.read && (
                             <Button
                               variant="ghost"

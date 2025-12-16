@@ -18,6 +18,7 @@ import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 
 // Components
 import { Sidebar } from '../../components/dashboard';
+import { useSidebar } from '../../contexts/SidebarContext';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import {
@@ -119,6 +120,7 @@ const postsChartConfig: ChartConfig = {
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(true);
+    const { sidebarWidth } = useSidebar();
 
     // Data states
     const [users, setUsers] = useState<UserItem[]>([]);
@@ -304,7 +306,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
         <div className="flex min-h-screen bg-background text-foreground">
             <Sidebar onLogout={onLogout} />
 
-            <main className="flex-1 ml-20 p-8">
+            <main 
+              className="flex-1 p-8 transition-all duration-300"
+              style={{ marginLeft: `${sidebarWidth}px` }}
+            >
                 <div className="max-w-7xl mx-auto">
                     {/* Header */}
                     <div className="mb-8">

@@ -28,8 +28,8 @@ function ensureLinkStyle() {
     const s = document.createElement('style');
     s.id = LINK_STYLE_ID;
     s.innerHTML = `
-        .markdown-links a { color: #2563eb !important; text-decoration: underline !important; cursor: pointer !important; position: relative !important; }
-        .markdown-links a:hover { color: #1d4ed8 !important; }
+        .markdown-links a { color: rgb(61, 181, 194) !important; text-decoration: underline !important; cursor: pointer !important; position: relative !important; }
+        .markdown-links a:hover { color: rgb(49, 144, 155) !important; }
         
         .markdown-links a[data-href]:hover::after { opacity: 1; }
     `;
@@ -242,7 +242,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                     '[&_h3]:text-xl [&_h3]:font-bold [&_h3]:mb-2',
                     '[&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-4',
                     '[&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-4',
-                    '[&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-4',
+                    '[&_blockquote]:border-l-4 [&_blockquote]:border-frosted-blue-500 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-4',
                     '[&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:font-mono [&_code]:text-sm',
                     '[&_pre]:bg-muted [&_pre]:p-4 [&_pre]:rounded-lg [&_pre]:my-4 [&_pre_code]:bg-transparent [&_pre_code]:p-0',
                     className,
@@ -317,7 +317,7 @@ export const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, class
                     '[&_h3]:text-xl [&_h3]:font-bold [&_h3]:mb-2',
                     '[&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-4',
                     '[&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-4',
-                    '[&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-4',
+                    '[&_blockquote]:border-l-4 [&_blockquote]:border-frosted-blue-500 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-4',
                     '[&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:font-mono [&_code]:text-sm',
                     '[&_pre]:bg-muted [&_pre]:p-4 [&_pre]:rounded-lg [&_pre]:my-4 [&_pre_code]:bg-transparent [&_pre_code]:p-0',
                     className,

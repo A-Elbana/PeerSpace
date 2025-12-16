@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Calendar, FileText, Loader2, Home, ChevronRight, User } from 'lucide-react';
 import { Sidebar } from '../../components/dashboard';
+import { useSidebar } from '../../contexts/SidebarContext';
 import { removeTokens } from '../../utils/auth';
 import api, { assignmentApi, communityApi, submissionApi } from '../../services/api';
 
@@ -39,6 +40,7 @@ const Assignments: React.FC = () => {
     const [user, setUser] = useState<UserData | null>(null);
     const [assignments, setAssignments] = useState<AssignmentData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const { sidebarWidth } = useSidebar();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -166,7 +168,10 @@ const Assignments: React.FC = () => {
         <div className="flex min-h-screen bg-background">
             <Sidebar onLogout={handleLogout} />
 
-            <main className="flex-1 ml-20 p-8">
+            <main 
+              className="flex-1 p-8 transition-all duration-300"
+              style={{ marginLeft: `${sidebarWidth}px` }}
+            >
                 <div className="max-w-6xl mx-auto">
                     {/* Breadcrumb */}
                     <div className="mb-6 flex items-center text-sm text-muted-foreground">

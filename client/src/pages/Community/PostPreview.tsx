@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Sidebar } from '../../components/dashboard';
+import { useSidebar } from '../../contexts/SidebarContext';
 import { Loader2, MessageSquare, User, Home, FileText, ChevronRight, ArrowBigUp, ArrowBigDown } from 'lucide-react';
 import { MarkdownPreview } from '../../components/MarkdownEditor';
 import { Button } from '../../components/ui/button';
@@ -46,6 +47,7 @@ const formatDate = (dateInput: string | number | Date | undefined | null) => {
 const PostPreview: React.FC = () => {
   const { communityId, postId } = useParams<{ communityId: string; postId: string }>();
   const navigate = useNavigate();
+  const { sidebarWidth } = useSidebar();
 
   const [post, setPost] = useState<PostResponse | null>(null);
   const [community, setCommunity] = useState<CommunityResponse | null>(null);
@@ -339,7 +341,10 @@ const PostPreview: React.FC = () => {
   return (
     <div className="min-h-screen bg-background flex">
       <Sidebar onLogout={() => (window.location.href = '/logout')} />
-      <main className="flex-1 p-6 ml-20 text-white">
+      <main 
+        className="flex-1 p-6 text-white transition-all duration-300"
+        style={{ marginLeft: `${sidebarWidth}px` }}
+      >
         <div className="max-w-6xl mx-auto w-full flex flex-col md:flex-row gap-6">
           <div className="flex-1 flex flex-col gap-6">
             {/* Breadcrumb: Home / Post */}

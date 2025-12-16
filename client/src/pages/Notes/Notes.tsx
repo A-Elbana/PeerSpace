@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Sidebar } from '../../components/dashboard';
+import { useSidebar } from '../../contexts/SidebarContext';
 import type { Folder, Note } from './types';
 import { redirectToLogout } from '../../utils/navigation';
 import { FolderCard } from './components/FolderCard';
@@ -29,6 +30,7 @@ import AttachmentsList from './components/AttachmentsList';
 
 
 const Notes: React.FC = () => {
+    const { sidebarWidth } = useSidebar();
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [currentFolder, setCurrentFolder] = useState<Folder | null>(null);
     const [currentNote, setCurrentNote] = useState<Note | null>(null);
@@ -361,7 +363,10 @@ const Notes: React.FC = () => {
         <div className="flex min-h-screen bg-background text-foreground font-sans">
             <Sidebar onLogout={redirectToLogout} />
 
-            <main className="flex-1 ml-20 p-6 transition-all duration-300">
+            <main 
+              className="flex-1 p-6 transition-all duration-300"
+              style={{ marginLeft: `${sidebarWidth}px` }}
+            >
                 <div className="max-w-7xl mx-auto h-[calc(100vh-3rem)] flex flex-col">
 
                     {/* Header Section */}

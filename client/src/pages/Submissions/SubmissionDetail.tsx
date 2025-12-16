@@ -21,6 +21,7 @@ import {
 import { toast } from 'sonner';
 import { Button } from '../../components/ui/button';
 import { Sidebar } from '../../components/dashboard';
+import { useSidebar } from '../../contexts/SidebarContext';
 import { MarkdownPreview } from '../../components/MarkdownEditor';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { removeTokens } from '../../utils/auth';
@@ -81,6 +82,7 @@ interface SubmissionDetail {
 const SubmissionDetail: React.FC = () => {
   const { submissionId } = useParams<{ submissionId: string }>();
   const navigate = useNavigate();
+  const { sidebarWidth } = useSidebar();
 
   const [submission, setSubmission] = useState<SubmissionDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -395,7 +397,10 @@ const SubmissionDetail: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar onLogout={handleLogout} />
-      <main className="flex-1 ml-20 p-8">
+      <main 
+        className="flex-1 p-8 transition-all duration-300"
+        style={{ marginLeft: `${sidebarWidth}px` }}
+      >
         <div className="max-w-4xl mx-auto">
           {/* Breadcrumb Navigation */}
           <div className="mb-6 flex items-center text-sm text-muted-foreground">

@@ -149,7 +149,7 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
   };
 
   return (
-    <div className={`bg-background border rounded-lg overflow-visible hover:border-primary/50 transition-colors ${isAnnouncement ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-border'}`}>
+    <div className={`bg-card border rounded-xl overflow-visible hover:border-frosted-blue-500/50 hover:shadow-md transition-all duration-200 ${isAnnouncement ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-border'}`}>
       <div className="flex">
         {isAnnouncement ? (
           <div className="w-12 bg-gradient-to-b from-yellow-500/20 to-orange-500/20 flex flex-col items-center justify-center py-3 border-r border-yellow-500/30">
@@ -183,14 +183,14 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
               {authorAvatarUrl ? (
                 <img src={authorAvatarUrl} alt={`${post.User.fname} ${post.User.lname}`} className="w-8 h-8 rounded-full object-cover" />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                  <User className="w-4 h-4 text-primary" />
+                <div className="w-8 h-8 rounded-full bg-frosted-blue-500/20 flex items-center justify-center">
+                  <User className="w-4 h-4 text-frosted-blue-600" />
                 </div>
               )}
               <div>
                 <button
                   onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.User.id}`); }}
-                  className="text-sm font-medium text-foreground hover:underline cursor-pointer"
+                  className="text-sm font-medium text-foreground hover:text-frosted-blue-600 hover:underline cursor-pointer transition-colors"
                 >
                   {post.User.fname} {post.User.lname}
                 </button>
@@ -213,16 +213,16 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
                   <button className="p-1 hover:bg-muted rounded-full text-muted-foreground transition-colors">
                     <MoreHorizontal size={16} />
                   </button>
-                  <div className="absolute right-0 top-full mt-1 w-32 bg-card border border-border rounded-lg shadow-lg z-10 overflow-hidden">
-                    <button onClick={() => onEdit?.(post)} className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 text-foreground"><PenSquare size={14} /> Edit</button>
-                    <button onClick={() => onDelete?.(post.id)} className="w-full text-left px-3 py-2 text-xs hover:bg-red-500/10 text-red-500 flex items-center gap-2"><Trash2 size={14} /> Delete</button>
+                  <div className="absolute right-0 top-full mt-1 w-32 bg-card border border-border rounded-lg shadow-xl z-10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <button onClick={() => onEdit?.(post)} className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 text-foreground transition-colors"><PenSquare size={14} /> Edit</button>
+                    <button onClick={() => onDelete?.(post.id)} className="w-full text-left px-3 py-2 text-xs hover:bg-red-500/10 text-red-500 flex items-center gap-2 transition-colors"><Trash2 size={14} /> Delete</button>
                   </div>
                 </div>
               )}
             </div>
           </div>
 
-          <h3 className={`font-semibold mb-2 ${isAnnouncement ? 'text-yellow-600 dark:text-yellow-400' : 'text-foreground'}`}>{post.title}</h3>
+          <h3 className={`font-semibold mb-2 text-base ${isAnnouncement ? 'text-yellow-600 dark:text-yellow-400' : 'text-foreground'}`}>{post.title}</h3>
           {post.body && <MarkdownPreview content={post.body} className="text-sm mb-3" />}
 
           <div className="flex items-center gap-4 text-xs text-muted-foreground pt-3 border-t border-border">

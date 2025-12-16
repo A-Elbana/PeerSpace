@@ -70,10 +70,15 @@ export const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, post, onS
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-card w-full max-w-lg rounded-xl shadow-xl border border-border flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-                <div className="flex items-center justify-between p-4 border-b border-border">
-                    <h3 className="font-semibold text-lg text-foreground">Edit Post</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+            <div className="bg-card w-full max-w-lg rounded-xl shadow-2xl border border-border flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
+                    <h3 className="font-semibold text-lg text-foreground flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-frosted-blue-500 to-turf-green-500 flex items-center justify-center text-white text-sm font-bold shadow-md">
+                            E
+                        </div>
+                        Edit Post
+                    </h3>
                     <button onClick={onClose} className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-foreground">
                         <X size={20} />
                     </button>
@@ -134,7 +139,7 @@ export const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, post, onS
                         <Button type="button" variant="ghost" onClick={onClose} disabled={isLoading}>
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={isLoading} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                        <Button type="submit" disabled={isLoading} className="bg-turf-green-500 text-white hover:bg-turf-green-600 transition-colors">
                             {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                             Save Changes
                         </Button>

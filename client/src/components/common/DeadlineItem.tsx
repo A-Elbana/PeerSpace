@@ -15,7 +15,7 @@ const DeadlineItem: React.FC<DeadlineItemProps> = ({ course, task, due, isInstru
   >
     <div className={`w-1.5 h-12 ${isInstructor ? 'bg-royal-gold-500' : 'bg-red-500'} rounded-full flex-shrink-0 group-hover:scale-110 transition-transform`} />
     <div className="flex-1 min-w-0">
-      <div className="text-sm font-bold text-foreground truncate group-hover:text-tech-blue-600 transition-colors">{task}</div>
+      <div className="text-sm font-bold text-foreground truncate group-hover:text-frosted-blue-600 transition-colors">{task}</div>
       <div className="text-xs text-muted-foreground flex items-center gap-1">
         <span className="truncate">{course}</span>
         <span>•</span>

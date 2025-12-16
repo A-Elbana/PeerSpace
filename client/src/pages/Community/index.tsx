@@ -4,6 +4,7 @@ import { Loader2, Plus, PenSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../../components/ui/button';
 import { Sidebar } from '../../components/dashboard';
+import { useSidebar } from '../../contexts/SidebarContext';
 import { CommunityHeader, PostsList, MembersPanel, CreatePost } from './components';
 import { AssignmentList, AssignmentModal } from '../../components/assignments';
 import api, { communityApi, postApi, type CommunityResponse, type PostResponse } from '../../services/api';
@@ -43,6 +44,7 @@ import { Link } from 'react-router-dom';
 const Community: React.FC = () => {
   const { communityId } = useParams<{ communityId: string }>();
   const navigate = useNavigate();
+  const { sidebarWidth } = useSidebar();
 
   // State
   const [user, setUser] = useState<UserData | null>(null);
@@ -244,7 +246,10 @@ const Community: React.FC = () => {
       <Sidebar onLogout={handleLogout} />
 
       {/* Main Content */}
-      <main className="flex-1 p-6 ml-20 transition-all duration-300 flex justify-center">
+      <main 
+        className="flex-1 p-6 transition-all duration-300 flex justify-center"
+        style={{ marginLeft: `${sidebarWidth}px` }}
+      >
         {/* Layout matched to Explore */}
         <div className="max-w-5xl w-full">
           {/* Breadcrumb Navigation */}

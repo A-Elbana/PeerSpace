@@ -18,19 +18,14 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Sidebar } from '../components/dashboard';
 import Header from '../components/Header';
-import { Flame, Clock, Filter, MessageSquare, ArrowBigUp, ArrowBigDown, Share2, MoreHorizontal, Loader2, Sparkles, Users, BookOpen, Rocket, Send, Megaphone, Lock, Search, X, Tag, Maximize2, PenSquare, Trash2 } from 'lucide-react';
+import { useSidebar } from '../contexts/SidebarContext';
+import { Flame, Clock, Filter, Loader2, Sparkles, Users, BookOpen, Rocket, Send, Lock, Search, X, Tag, Maximize2, ArrowBigUp } from 'lucide-react';
 import api, { communityApi, postApi, assignmentApi, submissionApi, type CommunityResponse, type PostResponse } from '../services/api';
 import PostCard from '../components/posts/PostCard';
 import { removeTokens } from '../utils/auth';
-import { MarkdownEditor, MarkdownPreview } from '../components/MarkdownEditor';
+import { MarkdownEditor } from '../components/MarkdownEditor';
 import { PostModal } from '../components/posts';
 import { ConfirmationModal } from '../components/ui/ConfirmationModal';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '../components/ui/dropdown-menu';
 
 // Available post tags
 const POST_TAGS = [
@@ -63,6 +58,7 @@ import CommunityItem from '../components/common/CommunityItem';
 import DeadlineItem from '../components/common/DeadlineItem';
 
 const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
+    const { sidebarWidth } = useSidebar();
     // Search state
     const [exploreSearch, setExploreSearch] = useState('');
     const [searchedPosts, setSearchedPosts] = useState<SearchedPost[]>([]);
@@ -547,20 +543,6 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
         }
     };
 
-    const formatTimeAgo = (dateString: string) => {
-        const date = new Date(dateString);
-        const now = new Date();
-        const diffMs = now.getTime() - date.getTime();
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMs / 3600000);
-        const diffDays = Math.floor(diffMs / 86400000);
-
-        if (diffMins < 60) return `${diffMins}m ago`;
-        if (diffHours < 24) return `${diffHours}h ago`;
-        if (diffDays < 7) return `${diffDays}d ago`;
-        return date.toLocaleDateString();
-    };
-
     const getCommunityName = (cid: string) => {
         const community = communities.find(c => c.id === cid);
         return community?.name || 'Unknown';
@@ -585,19 +567,20 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                 <Sidebar onLogout={onLogout} />
 
                 {/* Main Content Area */}
-                <main className="flex-1 ml-20 p-6 transition-all duration-300 flex justify-center">
-                    <div style={{ width: '100%' }}>
-                        <div className="max-w-6xl w-full flex flex-row gap-8 m-0 p-0 justify-center">
-                            {/* Left Spacer */}
-                            <div className="hidden lg:block" style={{ width: '340px' }}></div>
+                <main 
+                    className="flex-1 p-4 sm:p-6 transition-all duration-300"
+                    style={{ marginLeft: `${sidebarWidth}px` }}
+                >
+                    <div className="w-full max-w-7xl mx-auto">
+                        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
                             {/* Feed Column (Center) */}
-                            <div className="w-full max-w-2xl space-y-4 m-0 p-0">
+                            <div className="flex-1 min-w-0 space-y-4 lg:max-w-2xl lg:mx-auto">
                                 {/* Welcome Header with decorative elements */}
                                 <div className="mb-4 relative">
-                                    <div className="absolute -top-4 -left-4 w-24 h-24 bg-tech-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+                                    <div className="absolute -top-4 -left-4 w-24 h-24 bg-frosted-blue-500/10 rounded-full blur-2xl pointer-events-none" />
                                     <div className="relative">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+                                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-frosted-blue-500 to-turf-green-500">
                                                 Welcome back, {user?.fname || 'User'}!
                                             </h1>
                                             <Sparkles className="w-5 h-5 text-royal-gold-500 animate-pulse" />
@@ -609,10 +592,10 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                 {/* Create Post Input */}
                                 <div className="bg-card p-4 rounded-xl border border-border flex flex-col gap-3 relative overflow-hidden group hover:shadow-lg transition-all duration-300">
                                     {/* Subtle hover effect */}
-                                    <div className="absolute inset-0 bg-tech-blue-500/0 group-hover:bg-tech-blue-500/5 transition-all duration-300 rounded-xl" />
+                                    <div className="absolute inset-0 bg-frosted-blue-500/0 group-hover:bg-frosted-blue-500/5 transition-all duration-300 rounded-xl" />
 
                                     <div className="flex items-start gap-3 relative">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-lg shadow-blue-500/20">
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-frosted-blue-500 to-turf-green-500 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-lg shadow-frosted-blue-500/20">
                                             {user?.fname?.[0] || 'U'}
                                         </div>
                                         <div className="flex-1 bg-muted/50 border border-input rounded-md flex flex-col overflow-hidden focus-within:border-ring transition-colors">
@@ -689,7 +672,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                         <button
                                             onClick={handleCreatePost}
                                             disabled={!user || !selectedCommunity || !newPostTitle.trim() || !newPostBody.trim() || isCreatingPost}
-                                            className="p-2.5 bg-frosted-blue-500 hover:bg-frosted-blue-600 rounded-full text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 group/btn mt-1"
+                                            className="p-2.5 bg-turf-green-500 hover:bg-turf-green-600 rounded-full text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 group/btn mt-1"
                                         >
                                             {isCreatingPost ? (
                                                 <Loader2 size={18} className="animate-spin" />
@@ -713,7 +696,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                         <div className="bg-card w-full max-w-4xl h-[80vh] rounded-xl shadow-2xl border border-border flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
                                             <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
                                                 <h3 className="font-semibold text-lg flex items-center gap-2">
-                                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold shadow-md">
+                                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-frosted-blue-500 to-turf-green-500 flex items-center justify-center text-white text-sm font-bold shadow-md">
                                                         {user?.fname?.[0] || 'U'}
                                                     </div>
                                                     Create Post
@@ -898,8 +881,8 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                     <div className="bg-card rounded-xl border border-border p-12 text-center relative overflow-hidden">
                                         {/* Decorative background elements */}
                                         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                                            <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full blur-3xl" />
-                                            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-gradient-to-tr from-green-500/10 to-blue-500/10 rounded-full blur-3xl" />
+                                            <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-frosted-blue-500/10 to-turf-green-500/10 rounded-full blur-3xl" />
+                                            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-gradient-to-tr from-turf-green-500/10 to-frosted-blue-500/10 rounded-full blur-3xl" />
                                         </div>
 
                                         {/* Illustration */}
@@ -908,17 +891,17 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                                 <Rocket className="w-12 h-12 text-tech-blue-600" />
                                             </div>
                                             <div className="absolute top-0 right-1/3 animate-pulse">
-                                                <Sparkles className="w-6 h-6 text-yellow-500" />
+                                                <Sparkles className="w-6 h-6 text-royal-gold-500" />
                                             </div>
                                             <div className="absolute bottom-0 left-1/3 animate-pulse delay-300">
-                                                <Sparkles className="w-4 h-4 text-purple-500" />
+                                                <Sparkles className="w-4 h-4 text-frosted-blue-500" />
                                             </div>
                                         </div>
 
                                         <h3 className="text-lg font-semibold text-foreground mb-2">
                                             {postTitleSearch ? 'No posts found' : 'No posts yet'}
                                         </h3>
-                                        <p className="text-muted-foreground text-sm mb-4">
+                                        <p className="text-muted-foreground text-sm mb-4 max-w-md mx-auto">
                                             {postTitleSearch
                                                 ? 'Try a different search term'
                                                 : 'Be the first to share something with the community!'
@@ -947,16 +930,16 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
 
                                         {/* Load More Trigger */}
                                         <div ref={loadMoreRef} className="py-4">
-                                            {isLoadingMore && (
+                                                    {isLoadingMore && (
                                                 <div className="flex items-center justify-center gap-3">
-                                                    <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                                                    <Loader2 className="w-5 h-5 text-frosted-blue-500 animate-spin" />
                                                     <span className="text-sm text-muted-foreground">Loading more posts...</span>
                                                 </div>
                                             )}
                                             {!hasMore && displayedPosts.length > 0 && (
                                                 <div className="text-center py-4">
                                                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-muted/50 rounded-full">
-                                                        <Sparkles className="w-4 h-4 text-purple-500" />
+                                                        <Sparkles className="w-4 h-4 text-frosted-blue-500" />
                                                         <span className="text-sm text-muted-foreground">You've seen all posts!</span>
                                                     </div>
                                                 </div>
@@ -966,19 +949,16 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                 )}
                             </div>
                             {/* Right Sidebar */}
-                            <div
-                                className="hidden lg:block space-y-6 m-0 p-0 overflow-y-auto scrollbar-hide"
-                                style={{ width: '300px', minWidth: '300px', maxWidth: '300px', maxHeight: 'calc(100vh - 48px)', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                            >
+                            <div className="hidden lg:block lg:w-80 xl:w-96 space-y-6 overflow-y-auto scrollbar-hide max-h-[calc(100vh-3rem)] sticky top-6">
 
                                 {/* Public Communities */}
                                 <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
                                     {/* Decorative corner accent */}
-                                    <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-tech-blue-500/10 to-transparent rounded-bl-full" />
+                                    <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-frosted-blue-500/10 to-transparent rounded-bl-full" />
 
                                     <div className="flex items-center justify-between mb-4">
                                         <h3 className="font-bold text-foreground text-sm uppercase tracking-wider flex items-center gap-2">
-                                            <Users className="w-4 h-4 text-blue-500" />
+                                            <Users className="w-4 h-4 text-frosted-blue-500" />
                                             Public Communities
                                         </h3>
 
@@ -1025,11 +1005,11 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                     {communityFilterSearch && (
                                         <div className="flex items-center gap-1.5 mb-3 text-xs">
                                             <span className="text-muted-foreground">Filtering:</span>
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-tech-blue-500/10 text-tech-blue-600 font-medium rounded-full">
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-frosted-blue-500/10 text-frosted-blue-600 font-medium rounded-full">
                                                 "{communityFilterSearch}"
                                                 <button
                                                     onClick={() => setCommunityFilterSearch('')}
-                                                    className="hover:bg-tech-blue-500/20 rounded-full transition-colors"
+                                                    className="hover:bg-frosted-blue-500/20 rounded-full transition-colors"
                                                 >
                                                     <X size={12} />
                                                 </button>
@@ -1040,7 +1020,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                     <div className="space-y-4">
                                         {communities.filter(c => c.name.toLowerCase().includes(communityFilterSearch.toLowerCase())).length === 0 ? (
                                             <div className="text-center py-6">
-                                                <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center">
+                                                <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-frosted-blue-500/20 to-turf-green-500/20 rounded-full flex items-center justify-center">
                                                     <Users className="w-8 h-8 text-muted-foreground" />
                                                 </div>
                                                 <p className="text-sm text-muted-foreground">
@@ -1085,13 +1065,13 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                     <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-frosted-blue-500/10 to-transparent rounded-bl-full" />
 
                                     <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider flex items-center gap-2">
-                                        <Lock className="w-4 h-4 text-purple-500" />
+                                        <Lock className="w-4 h-4 text-frosted-blue-500" />
                                         Private Communities
                                     </h3>
                                     <div className="space-y-4">
                                         {privateCommunities.length === 0 ? (
                                             <div className="text-center py-6">
-                                                <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full flex items-center justify-center">
+                                                <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-frosted-blue-500/20 to-tech-blue-500/20 rounded-full flex items-center justify-center">
                                                     <Lock className="w-8 h-8 text-muted-foreground" />
                                                 </div>
                                                 <p className="text-sm text-muted-foreground">No private communities yet.</p>
@@ -1130,10 +1110,10 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                 {/* Dynamic Widget based on Role */}
                                 <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
                                     {/* Decorative gradient */}
-                                    <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-tech-blue-500 via-frosted-blue-500 to-turf-green-500 opacity-50" />
+                                    <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-frosted-blue-500 via-turf-green-500 to-royal-gold-500 opacity-50" />
 
                                     <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider flex items-center gap-2">
-                                        <Clock className="w-4 h-4 text-purple-500" />
+                                        <Clock className="w-4 h-4 text-frosted-blue-500" />
                                         {user?.role === 'instructor' ? 'Pending Actions' : 'Upcoming Deadlines'}
                                     </h3>
                                     <div className="space-y-3">

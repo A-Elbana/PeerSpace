@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Button } from '../../components/ui/button';
 import api, { assignmentApi, submissionApi, communityApi, fileApi } from '../../services/api';
 import { Sidebar } from '../../components/dashboard';
+import { useSidebar } from '../../contexts/SidebarContext';
 import { AssignmentModal } from '../../components/assignments';
 import { MarkdownPreview } from '../../components/MarkdownEditor';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
@@ -52,6 +53,7 @@ interface UserData {
 const AssignmentDetails: React.FC = () => {
     const { assignmentId } = useParams<{ assignmentId: string }>();
     const navigate = useNavigate();
+    const { sidebarWidth } = useSidebar();
 
     const [assignment, setAssignment] = useState<AssignmentDetailsData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -366,7 +368,10 @@ const AssignmentDetails: React.FC = () => {
         <div className="flex min-h-screen bg-background">
             <Sidebar onLogout={() => { }} />
 
-            <main className="flex-1 ml-20 p-8">
+            <main 
+              className="flex-1 p-8 transition-all duration-300"
+              style={{ marginLeft: `${sidebarWidth}px` }}
+            >
                 <div className="max-w-4xl mx-auto">
                     {/* Breadcrumb Navigation */}
                     <div className="mb-6 flex items-center text-sm text-muted-foreground">

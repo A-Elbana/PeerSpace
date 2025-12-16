@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Plus, Flag, Calendar, Trash2, Search, Filter, CheckCircle, Circle, Link } from 'lucide-react';
 import { Sidebar } from '../../components/dashboard';
+import { useSidebar } from '../../contexts/SidebarContext';
 import api from '../../services/api';
 import { toast } from 'sonner';
 import { Button } from '../../components/ui/button';
@@ -47,6 +48,7 @@ interface TasksProps {
 
 const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
     const navigate = useNavigate();
+    const { sidebarWidth } = useSidebar();
     const [user, setUser] = useState<UserData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [tasks, setTasks] = useState<Task[]>([]);
@@ -318,7 +320,10 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
             <Sidebar onLogout={onLogout || (() => { })} />
 
             {/* Main Content */}
-            <main className="flex-1 ml-20 p-8">
+            <main 
+                className="flex-1 p-8 transition-all duration-300"
+                style={{ marginLeft: `${sidebarWidth}px` }}
+            >
                 <div className="max-w-7xl mx-auto">
                     {/* Header */}
                     <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">

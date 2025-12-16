@@ -11,6 +11,7 @@ import {
   MyCourses,
   RecentCourseActivity,
 } from '../../components/dashboard';
+import { useSidebar } from '../../contexts/SidebarContext';
 
 import { communityApi, type CommunityResponse, assignmentApi, submissionApi } from '../../services/api';
 import { Button } from '../../components/ui/button';
@@ -38,6 +39,7 @@ interface StudentDashboardProps {
  */
 const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) => {
   const navigate = useNavigate();
+  const { sidebarWidth } = useSidebar();
 
   // State
   const [isLoading, setIsLoading] = useState(true);
@@ -167,7 +169,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
     <div className="flex min-h-screen bg-background">
       <Sidebar onLogout={onLogout} />
 
-      <main className="flex-1 ml-20 p-8 transition-all duration-300">
+      <main 
+        className="flex-1 p-8 transition-all duration-300"
+        style={{ marginLeft: `${sidebarWidth}px` }}
+      >
         <Header
           title="Student Dashboard"
           subtitle={`Welcome back, ${user.fname}!`}
