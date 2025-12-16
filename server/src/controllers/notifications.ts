@@ -30,12 +30,8 @@ export const getUnreadCount = async (req: Request, res: Response) => {
 
 export const markNotificationRead = async (req: Request, res: Response) => {
   const userId = (req as any).userId as number;
-  const id = parseInt(String(req.params.id ?? ""), 10);
-  if (!Number.isInteger(id) || id <= 0) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Invalid notification id" });
-  }
+  // `validateIdParam` middleware attaches a parsed numeric id to req when used.
+  const id = (req as any).id ?? parseInt(String(req.params.id ?? ""), 10);
 
   const updated = await prisma.notification.updateMany({
     where: { id, recipientId: userId },
