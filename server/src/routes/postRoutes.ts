@@ -87,9 +87,9 @@ router.post("/", authenticateToken, requirePostMembership, createPost);
  * @swagger
  * /api/posts:
  *   get:
- *     summary: Get posts by community
+ *     summary: Get posts by community (single or multiple)
  *     tags: [Posts]
- *     description: Retrieve paginated posts from a community. PUBLIC communities accessible to guests; PRIVATE communities require authentication and membership
+ *     description: Retrieve paginated posts from one or more communities. PUBLIC communities accessible to guests; PRIVATE communities require authentication and membership. Accepts a single UUID or a comma-separated list, or repeated `cid` query params.
  *     security:
  *       - bearerAuth: []
  *       - {}
@@ -98,9 +98,19 @@ router.post("/", authenticateToken, requirePostMembership, createPost);
  *         name: cid
  *         required: true
  *         schema:
- *           type: string
- *           format: uuid
- *         description: Community UUID
+ *           oneOf:
+ *             - type: string
+ *               description: Single community UUID or comma-separated list of UUIDs
+ *               example: "550e8400-e29b-41d4-a716-446655440000,550e8400-e29b-41d4-a716-446655440001"
+ *             - type: array
+ *               items:
+ *                 type: string
+ *                 format: uuid
+ *               description: Multiple `cid` values, e.g., `cid=uuid1&cid=uuid2`
+ *               example:
+ *                 - "550e8400-e29b-41d4-a716-446655440000"
+ *                 - "550e8400-e29b-41d4-a716-446655440001"
+ *         description: Community UUID(s)
  *       - in: query
  *         name: page
  *         schema:
@@ -167,6 +177,18 @@ router.post("/", authenticateToken, requirePostMembership, createPost);
  *                       type: integer
  *                     limit:
  *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                     communitiesQueried:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                         format: uuid
+ *                     communitiesAccessible:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                         format: uuid
  *       400:
  *         description: Invalid community ID format
  *       403:

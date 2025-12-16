@@ -173,26 +173,47 @@ export const getPostById = async (req: PostRequest, res: Response) => {
  * Note: This doesn't use loadPost since it queries by community, not post ID
  */
 export const getPostsByCommunity = async (req: Request, res: Response) => {
-  const cid = req.query.cid as string;
+  const rawCid = req.query.cid as any;
   const userId = (req as any).userId;
   const role = (req as any).role;
   const page = parseInt(req.query.page as string) || 1;
   const limit = parseInt(req.query.limit as string) || 10;
   const skip = (page - 1) * limit;
 
-  if (!cid || !isValidUUID(cid)) {
-    return res.status(400).json({ message: "Community ID is required" });
+  // Normalize community IDs: support single UUID, comma-separated string, or array (cid[]=...)
+  let communityIds: string[] = [];
+  if (Array.isArray(rawCid)) {
+    communityIds = rawCid.map(String);
+  } else if (typeof rawCid === "string") {
+    communityIds = rawCid.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+  }
+
+  if (communityIds.length === 0) {
+    return res.status(400).json({ message: "Community ID(s) are required" });
+  }
+
+  // Validate UUIDs
+  const invalidIds = communityIds.filter((id) => !isValidUUID(id));
+  if (invalidIds.length > 0) {
+    return res.status(400).json({ message: "Invalid community ID(s) provided" });
   }
 
   try {
-    // Check community access (supports public communities for guests)
-    const accessCheck = await canAccessCommunity(userId, cid, role);
-    if (!accessCheck.allowed) {
-      return res.status(403).json({ message: accessCheck.message });
+    // Check access per community; include only allowed IDs
+    const allowedIds: string[] = [];
+    for (const cid of communityIds) {
+      const accessCheck = await canAccessCommunity(userId, cid, role);
+      if (accessCheck.allowed) {
+        allowedIds.push(cid);
+      }
+    }
+
+    if (allowedIds.length === 0) {
+      return res.status(403).json({ message: "No accessible communities found for the current user" });
     }
 
     const posts = await prisma.post.findMany({
-      where: { cid },
+      where: { cid: { in: allowedIds } },
       skip,
       take: limit,
       orderBy: { post_date: "desc" },
@@ -263,7 +284,7 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
       })
     );
 
-    const total = await prisma.post.count({ where: { cid } });
+    const total = await prisma.post.count({ where: { cid: { in: allowedIds } } });
 
     res.status(200).json({
       data: postsWithVotes,
@@ -272,6 +293,8 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
         page,
         limit,
         totalPages: Math.ceil(total / limit),
+        communitiesQueried: communityIds,
+        communitiesAccessible: allowedIds,
       },
     });
   } catch (error) {
