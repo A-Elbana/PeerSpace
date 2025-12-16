@@ -186,7 +186,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
       setFilePreviews({});
       if (!lockedCommunity) setCommunityId('');
       setExpanded(false);
-      onCreated?.(created?.data ?? created);
+      onCreated?.(created);
     } catch (err: any) {
       console.error('Post creation error:', err);
       toast.error(err?.response?.data?.message || 'Failed to create post');

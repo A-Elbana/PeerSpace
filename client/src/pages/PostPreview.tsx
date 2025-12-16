@@ -6,6 +6,7 @@ import { Loader2, MessageSquare, Home, FileText, ChevronRight } from 'lucide-rea
 import PostCard from '../components/posts/PostCard';
 import { Button } from '../components/ui/button';
 import CommentItem from '../components/common/CommentItem';
+import CommunityCard from '../components/common/CommunityCard';
 import { toast } from 'sonner';
 import api, * as apiServices from '../services/api';
 import type { PostResponse, CommunityResponse } from '../services/api';
@@ -29,7 +30,7 @@ interface Comment {
 
 // Comments are fetched from server; no local dummy seeding.
 
-const PostPreview: React.FC = () => {
+const PostPreview: React.FC<{}> = () => {
   const { communityId, postId } = useParams<{ communityId: string; postId: string }>();
   const navigate = useNavigate();
   const { sidebarWidth } = useSidebar();
@@ -142,79 +143,31 @@ const PostPreview: React.FC = () => {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      let pRes: any = null;
       try {
         if (!postId) return;
         // fetch current user (for permission checks)
         try {
           const me = await api.get('/auth/me');
-          const meRaw = normalizeApi(me) ?? (me && (me.data ?? me));
-          const meData = meRaw?.data ?? meRaw;
-          if (meData) setCurrentUser({ id: meData.id, role: (meData.role ?? 'user').toLowerCase() });
+          setCurrentUser(me.data);
         } catch (e) {
-          // ignore - permissions will be restricted if not available
+          console.log(e);
+          
         }
         // load post and community when available (keep errors silent for demo)
-        let postData: any = null;
         try {
           const p = await postApi.getById(Number(postId));
-          postData = normalizeApi(p) ?? (p as any);
-          console.debug('fetched post raw:', p, 'normalized:', postData);
-          // attach any files uploaded for this post so PostCard can render attachments
-          try {
-            const filesRes = await fileApi.getByContext('POST', String(postId));
-            const items = (filesRes && (filesRes.data ?? filesRes)) || [];
-            const filesArr = Array.isArray(items) ? items : items?.data ?? [];
-            if (Array.isArray(filesArr) && filesArr.length > 0) {
-              // normalize to PostCard's PostFileAttachment shape and ensure secure_url / format exist
-              const normalizeFile = (f: any) => {
-                const url = f?.secure_url ?? f?.secureUrl ?? f?.url ?? null;
-                let format = (f?.format ?? f?.resource_type ?? null) as string | null;
-                if (!format && typeof url === 'string') {
-                  const m = url.match(/\.([a-zA-Z0-9]+)(?:[?#]|$)/);
-                  if (m) format = m[1];
-                }
-                if (typeof format === 'string') format = format.toLowerCase();
-                return {
-                  ...f,
-                  secure_url: url,
-                  format,
-                };
-              };
-
-              (postData as any).PostFileAttachment = filesArr.map((f: any) => {
-                const fid = String(f.id ?? f._id ?? f.public_id ?? f.fid ?? '');
-                return { fid, File: normalizeFile(f) };
-              }).filter((a: any) => a.File?.secure_url);
-            }
-          } catch (e) {
-            console.debug('failed to fetch post files', e);
-          }
-          setPost(postData as any);
-
-          // fetch post owner's avatar if available
-          try {
-            const avatarId = postData?.User?.avatar_file_id;
-            if (avatarId) {
-              const f = await fileApi.getById(String(avatarId));
-              console.debug('fileApi.getById response:', f);
-              const fileObj = normalizeApi(f) ?? (f && (f.data ?? f));
-              const avatarUrl = fileObj?.secure_url ?? fileObj?.secureUrl ?? fileObj?.secureUrl ?? fileObj?.url ?? null;
-              if (avatarUrl) {
-                const normalizedPost = { ...postData, avatarUrl };
-                setPost(normalizedPost as any);
-              }
-            }
-          } catch (e) {
-            console.debug('avatar fetch failed', e);
-          }
+          pRes = p;
+          setPost(p as any);
+          console.log('fetched post raw:', p);
         } catch (e) {
-          postData = null;
+          pRes = null;
         }
 
         // determine community id: prefer route param, otherwise derive from post (cid)
         let cid: string | undefined = communityId ?? undefined;
-        if (!cid && postData) {
-          cid = (postData.cid ?? postData.community_id ?? postData.communityId) as string | undefined;
+        if (!cid && pRes) {
+          cid = (pRes.cid ?? pRes.community_id ?? pRes.communityId) as string | undefined;
         }
 
         if (cid) {
@@ -509,8 +462,9 @@ const PostPreview: React.FC = () => {
             <div className="mb-6">
               {post ? (
                 <PostCard
+                  key={post.id}
                   post={post as any}
-                  clickable={false}
+                  clickable={true}
                   currentUser={currentUser}
                 />
               ) : (
@@ -561,53 +515,25 @@ const PostPreview: React.FC = () => {
           {/* Right-side community info widget */}
           <aside className="w-full md:w-80">
             <div className="sticky top-24">
-              <div
-                className="bg-card border rounded-lg p-4 mb-4 cursor-pointer"
-                role="button"
-                tabIndex={0}
-                onClick={() => (community ? navigate(`/community/${(community as any).id}`) : null)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && community) navigate(`/community/${(community as any).id}`);
-                }}
-              >
-                {/* Banner area */}
-                <div className="w-full mb-3 rounded-md overflow-hidden">
-                  {((community as any)?.bannerUrl || (community as any)?.banner_url) ? (
-                    <img
-                      src={(community as any).bannerUrl ?? (community as any).banner_url}
-                      alt="community banner"
-                      className="w-full h-28 object-cover"
-                      onError={(e) => {
-                        // show placeholder and log error
-                        console.error('Failed to load community banner', (e as any)?.nativeEvent || e);
-                        const el = e.currentTarget as HTMLImageElement;
-                        el.style.display = 'none';
-                        const parent = el.parentElement;
-                        if (parent) {
-                          const fallback = document.createElement('div');
-                          fallback.className = 'w-full h-28 bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white text-sm';
-                          fallback.textContent = 'Community banner';
-                          parent.appendChild(fallback);
-                        }
-                      }}
-                    />
-                  ) : (
+              {community ? (
+                <CommunityCard community={community as any} onClick={() => navigate(`/community/${(community as any).id}`)} />
+              ) : (
+                <div className="bg-card border rounded-lg p-4 mb-4">
+                  <div className="w-full mb-3 rounded-md overflow-hidden">
                     <div className="w-full h-28 bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white text-sm">Community banner</div>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center">
-                    <Home className="w-5 h-5" />
                   </div>
-                  <div>
-                    <div className="text-sm font-semibold">{community?.name ?? 'Community'}</div>
-                    <div className="text-xs text-muted-foreground">{community ? `@${(community as any).slug ?? ''}` : 'Community info'}</div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center">
+                      <Home className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold">Community</div>
+                      <div className="text-xs text-muted-foreground">Community info</div>
+                    </div>
                   </div>
+                  <p className="text-sm text-muted-foreground mt-3">No community data available.</p>
                 </div>
-
-                <p className="text-sm text-muted-foreground mt-3">{community?.description ?? 'No description available for this community.'}</p>
-              </div>
+              )}
             </div>
           </aside>
         </div>
