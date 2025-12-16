@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MessageSquare, Clock, User, ArrowBigUp, ArrowBigDown, Megaphone, MoreHorizontal, PenSquare, Trash2, Download, FileIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useResolvedFileUrl } from '../../hooks/useResolvedFileUrl';
@@ -45,11 +45,12 @@ export interface PostShape {
 interface PostCardProps {
   post: PostShape;
   communityName?: string;
-  onNavigate?: (communityId: string) => void;
+  onNavigate?: (communityId: string) => void | Promise<void>;
   currentUser?: { id: number; role: string } | null;
   isInstructorOfCommunity?: boolean;
   onEdit?: (post: PostShape) => void;
   onDelete?: (postId: number) => void;
+  clickable?: boolean;
 }
 
 const formatDate = (dateString: string) => {
@@ -78,7 +79,7 @@ const getTypeColor = (type: string) => {
   return colors[type.toLowerCase()] || colors.discussion;
 };
 
-export default function PostCard({ post, communityName, onNavigate, currentUser, isInstructorOfCommunity, onEdit, onDelete }: PostCardProps) {
+export default function PostCard({ post, currentUser, isInstructorOfCommunity, onEdit, onDelete, clickable = true }: PostCardProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const authorAvatarUrl = useResolvedFileUrl(post.User.avatar_file_id);
   const navigate = useNavigate();
@@ -87,7 +88,6 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
   const [showImageModal, setShowImageModal] = useState<boolean>(false);
-  const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
   const [isEditOpen, setIsEditOpen] = useState<boolean>(false);
   const [editTitle, setEditTitle] = useState<string>(post.title);
   const [editBody, setEditBody] = useState<string>(post.body ?? '');
@@ -107,7 +107,7 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
   const images = attachments.filter(a => {
     const fmt = a.File?.format?.toLowerCase();
     const url = a.File?.secure_url || '';
-    const imageFormats = new Set(['jpg','jpeg','png','gif','webp','bmp','svg']);
+    const imageFormats = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg']);
     // Prefer explicit format; fall back to URL extension
     return (fmt && imageFormats.has(fmt)) || /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(url);
   });
@@ -122,9 +122,7 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
     setCurrentImageIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
   };
 
-  const handleImageLoad = (fileId: string) => {
-    setLoadedImages(prev => ({ ...prev, [fileId]: true }));
-  };
+
 
   const formatFileSize = (bytes?: number) => {
     if (!bytes) return '';
@@ -228,8 +226,13 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
     }
   };
 
+  const goToPreview = () => {
+    if (post.cid) navigate(`/community/${post.cid}/post/${post.id}`);
+    else navigate(`/posts/${post.id}`);
+  };
+
   return (
-    <div className={`bg-card border rounded-xl overflow-visible hover:border-frosted-blue-500/50 hover:shadow-md transition-all duration-200 ${isAnnouncement ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-border'}`}>
+    <div onClick={clickable ? goToPreview : undefined} className={`bg-card border rounded-xl overflow-visible ${clickable ? 'hover:border-frosted-blue-500/50 hover:shadow-md cursor-pointer' : ''} transition-all duration-200 ${isAnnouncement ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-border'}`}>
       <div className="flex">
         {isAnnouncement ? (
           <div className="w-12 bg-linear-to-b from-yellow-500/20 to-orange-500/20 flex flex-col items-center justify-center py-3 border-r border-yellow-500/30">
@@ -240,7 +243,7 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
         ) : (
           <div className="w-12 bg-muted/30 flex flex-col items-center py-3 gap-1">
             <button
-              onClick={handleUp}
+              onClick={(e) => { e.stopPropagation(); void handleUp(); }}
               className={`transition-colors flex items-center justify-center ${userVote === true ? 'bg-turf-green-600 text-white w-8 h-8 rounded-full' : 'text-turf-green-600 hover:text-turf-green-700'}`}
               aria-pressed={userVote === true}
             >
@@ -248,7 +251,7 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
             </button>
             <span className="text-sm font-bold text-foreground">{score}</span>
             <button
-              onClick={handleDown}
+              onClick={(e) => { e.stopPropagation(); void handleDown(); }}
               className={`transition-colors flex items-center justify-center ${userVote === false ? 'bg-red-600 text-white w-8 h-8 rounded-full' : 'text-red-600 hover:text-red-700'}`}
               aria-pressed={userVote === false}
             >
@@ -292,7 +295,7 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
                 <div className="relative" ref={menuRef}>
                   <button
                     className="p-1 hover:bg-muted rounded-full text-muted-foreground transition-colors"
-                    onClick={() => setIsMenuOpen(prev => !prev)}
+                    onClick={(e) => { e.stopPropagation(); setIsMenuOpen(prev => !prev); }}
                     aria-expanded={isMenuOpen}
                     aria-haspopup="menu"
                   >
@@ -300,8 +303,27 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
                   </button>
                   {isMenuOpen && (
                     <div className="absolute right-0 top-full mt-1 w-32 bg-card border border-border rounded-lg shadow-xl z-10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                      <button onClick={() => { setIsEditOpen(true); setIsMenuOpen(false); }} className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 text-foreground transition-colors"><PenSquare size={14} /> Edit</button>
-                      <button onClick={() => onDelete?.(post.id)} className="w-full text-left px-3 py-2 text-xs hover:bg-red-500/10 text-red-500 flex items-center gap-2 transition-colors"><Trash2 size={14} /> Delete</button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsMenuOpen(false);
+                          if (onEdit) onEdit(post);
+                          else setIsEditOpen(true);
+                        }}
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 text-foreground transition-colors"
+                      >
+                        <PenSquare size={14} /> Edit
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsMenuOpen(false);
+                          onDelete?.(post.id);
+                        }}
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-red-500/10 text-red-500 flex items-center gap-2 transition-colors"
+                      >
+                        <Trash2 size={14} /> Delete
+                      </button>
                     </div>
                   )}
                 </div>
@@ -323,7 +345,6 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
                     <img
                       src={images[0].File?.secure_url}
                       alt={getFileName(images[0].File)}
-                      onLoad={() => handleImageLoad(images[0].fid)}
                       className="w-full h-full object-contain"
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all" />
@@ -336,7 +357,6 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
                     <img
                       src={images[currentImageIndex].File?.secure_url}
                       alt={getFileName(images[currentImageIndex].File)}
-                      onLoad={() => handleImageLoad(images[currentImageIndex].fid)}
                       className="w-full h-full object-contain transition-opacity group-hover:opacity-90"
                     />
                     <div className="absolute inset-0 flex items-center justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -352,9 +372,8 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
                         <button
                           key={idx}
                           onClick={() => setCurrentImageIndex(idx)}
-                          className={`w-1.5 h-1.5 rounded-full transition-all ${
-                            idx === currentImageIndex ? 'bg-frosted-blue-500 w-4' : 'bg-border hover:bg-muted-foreground'
-                          }`}
+                          className={`w-1.5 h-1.5 rounded-full transition-all ${idx === currentImageIndex ? 'bg-frosted-blue-500 w-4' : 'bg-border hover:bg-muted-foreground'
+                            }`}
                         />
                       ))}
                     </div>
@@ -392,9 +411,8 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
                             <button
                               key={idx}
                               onClick={() => setCurrentImageIndex(idx)}
-                              className={`w-2 h-2 rounded-full transition-all ${
-                                idx === currentImageIndex ? 'bg-white w-6' : 'bg-white/50 hover:bg-white/70'
-                              }`}
+                              className={`w-2 h-2 rounded-full transition-all ${idx === currentImageIndex ? 'bg-white w-6' : 'bg-white/50 hover:bg-white/70'
+                                }`}
                             />
                           ))}
                         </div>

@@ -2,12 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Sidebar } from '../../components/dashboard';
 import { useSidebar } from '../../contexts/SidebarContext';
-import { Loader2, MessageSquare, User, Home, FileText, ChevronRight, ArrowBigUp, ArrowBigDown } from 'lucide-react';
-import { MarkdownPreview } from '../../components/MarkdownEditor';
+import { Loader2, MessageSquare, Home, FileText, ChevronRight } from 'lucide-react';
+import PostCard from '../../components/posts/PostCard';
 import { Button } from '../../components/ui/button';
 import CommentItem from '../../components/common/CommentItem';
 import { toast } from 'sonner';
-import * as apiServices from '../../services/api';
+import api, * as apiServices from '../../services/api';
 import type { PostResponse, CommunityResponse } from '../../services/api';
 
 const { postApi, communityApi, commentApi, fileApi } = apiServices;
@@ -22,25 +22,10 @@ interface Comment {
   votes?: number;
   userVote?: number;
   replies?: Comment[];
+  hasReplies?: boolean;
   avatarUrl?: string | null;
   attachments?: Attachment[];
 }
-
-const formatDate = (dateInput: string | number | Date | undefined | null) => {
-  if (!dateInput) return '';
-  const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  if (isNaN(date.getTime())) return '';
-  return date.toLocaleDateString();
-};
 
 // Comments are fetched from server; no local dummy seeding.
 
@@ -52,6 +37,8 @@ const PostPreview: React.FC = () => {
   const [post, setPost] = useState<PostResponse | null>(null);
   const [community, setCommunity] = useState<CommunityResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<{ id: number; role?: string } | null>(null);
+  const [instructors, setInstructors] = useState<Array<{ id: number }>>([]);
 
   // Helper to normalize API responses that may be wrapped: { success, data } or { data: { data: ... } }
   const normalizeApi = (res: any) => {
@@ -72,11 +59,82 @@ const PostPreview: React.FC = () => {
   const [expandedCommentIds, setExpandedCommentIds] = useState<Set<number>>(new Set());
 
   const toggleExpand = (id: number) => {
+    // toggle and when expanding, load replies for the comment if needed
+    const isCurrentlyExpanded = expandedCommentIds.has(id);
     setExpandedCommentIds(prev => {
       const s = new Set(prev);
       if (s.has(id)) s.delete(id); else s.add(id);
       return s;
     });
+    if (!isCurrentlyExpanded) {
+      // we are expanding -> fetch replies if the comment indicates it has children and none loaded
+      const find = (nodes: Comment[]): Comment | null => {
+        for (const n of nodes) {
+          if (n.id === id) return n;
+          if (n.replies && n.replies.length) {
+            const found = find(n.replies);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+      const node = find(comments);
+      if (node && node.hasReplies && (!node.replies || node.replies.length === 0)) {
+        void loadRepliesFor(id);
+      }
+    }
+  };
+
+  // Load first-level replies for a given comment id and insert into tree
+  const loadRepliesFor = async (parentId: number) => {
+    try {
+      const res = await commentApi.getReplies(parentId, { limit: 1000 });
+      const raw = normalizeApi(res) ?? (res && (res.data ?? res));
+      const arr = raw?.data ?? raw;
+      if (!Array.isArray(arr)) return;
+      const mapped = (arr as any[]).map(c => ({
+        id: c.id,
+        content: c.content,
+        created_at: new Date(c.comment_date).toISOString(),
+        User: c.User || { id: c.commenter_uid ?? 0, fname: 'Unknown', lname: '' },
+        votes: c.votes ?? 0,
+        replies: [],
+        avatarUrl: null,
+        hasReplies: Boolean(c.hasReplies),
+      } as Comment));
+
+      // fetch avatars for these replies if present
+      try {
+        const avatarIds = mapped.map(m => (m.User as any)?.avatar_file_id).filter(Boolean);
+        const unique = Array.from(new Set(avatarIds));
+        if (unique.length > 0) {
+          const idToUrl: Record<string, string> = {};
+          await Promise.all(unique.map(async (aid) => {
+            try {
+              const f = await fileApi.getById(String(aid));
+              const fileObj = normalizeApi(f) ?? (f && (f.data ?? f));
+              const avatarUrl = fileObj?.secure_url ?? fileObj?.secureUrl ?? fileObj?.url ?? null;
+              if (avatarUrl) idToUrl[String(aid)] = avatarUrl;
+            } catch (e) { /* ignore */ }
+          }));
+          mapped.forEach(m => {
+            const aid = (m.User as any)?.avatar_file_id;
+            if (aid && idToUrl[String(aid)]) m.avatarUrl = idToUrl[String(aid)];
+          });
+        }
+      } catch (e) {
+        console.debug('reply avatar fetch failed', e);
+      }
+
+      setComments(prev => updateCommentInTree(prev, parentId, (c) => ({ ...c, replies: mapped })));
+      setExpandedCommentIds(prev => {
+        const s = new Set(prev);
+        s.add(parentId);
+        return s;
+      });
+    } catch (err) {
+      console.error('Failed to load replies for', parentId, err);
+    }
   };
 
   useEffect(() => {
@@ -84,12 +142,40 @@ const PostPreview: React.FC = () => {
       setLoading(true);
       try {
         if (!postId) return;
+        // fetch current user (for permission checks)
+        try {
+          const me = await api.get('/auth/me');
+          const meRaw = normalizeApi(me) ?? (me && (me.data ?? me));
+          const meData = meRaw?.data ?? meRaw;
+          if (meData) setCurrentUser({ id: meData.id, role: (meData.role || '').toLowerCase() });
+        } catch (e) {
+          // ignore - permissions will be restricted if not available
+        }
         // load post and community when available (keep errors silent for demo)
         let postData: any = null;
         try {
           const p = await postApi.getById(Number(postId));
           postData = normalizeApi(p) ?? (p as any);
           console.debug('fetched post raw:', p, 'normalized:', postData);
+          // attach any files uploaded for this post so PostCard can render attachments
+          try {
+            const filesRes = await fileApi.getByContext('POST', String(postId));
+            const items = (filesRes && (filesRes.data ?? filesRes)) || [];
+            const filesArr = Array.isArray(items) ? items : items?.data ?? [];
+            if (Array.isArray(filesArr) && filesArr.length > 0) {
+              // normalize to PostCard's PostFileAttachment shape and ensure secure_url exists
+              (postData as any).PostFileAttachment = filesArr.map((f: any) => {
+                const fileObj = {
+                  ...f,
+                  secure_url: f.secure_url ?? f.secureUrl ?? f.url ?? f.secureUrl ?? f.secure_url,
+                  format: f.format ?? f.resource_type ?? f.format,
+                };
+                return { fid: String(f.id ?? f._id ?? f.public_id), File: fileObj };
+              });
+            }
+          } catch (e) {
+            console.debug('failed to fetch post files', e);
+          }
           setPost(postData as any);
 
           // fetch post owner's avatar if available
@@ -131,75 +217,59 @@ const PostPreview: React.FC = () => {
           } catch (e) {
             // ignore
           }
+          // also fetch members to determine instructors for delete permission
+          try {
+            const membersRes = await communityApi.getMembers(String(cid), { limit: 100 });
+            const membersData = normalizeApi(membersRes) ?? (membersRes && (membersRes.data ?? membersRes));
+            const instr = membersData?.instructors ?? membersData?.data?.instructors ?? [];
+            setInstructors(instr || []);
+          } catch (e) {
+            // ignore
+          }
         }
 
-        // Fetch comments from backend and build full nested tree client-side
+        // Fetch first-level comments only; replies are loaded on demand
         try {
-          const res = await commentApi.getByPost(Number(postId), { includeReplies: true, limit: 1000 });
+          const res = await commentApi.getByPost(Number(postId), { includeReplies: false, limit: 1000 });
           const raw = res && (res.data ?? res);
           const arr = raw?.data ?? raw;
 
           if (Array.isArray(arr)) {
-            // Build map of id -> node and parent map
-            const nodesById: Record<number, Comment> = {};
-            const parentById: Record<number, number | null> = {};
+            const mapped = (arr as any[]).map(c => ({
+              id: c.id,
+              content: c.content,
+              created_at: new Date(c.comment_date).toISOString(),
+              User: c.User || { id: c.commenter_uid ?? 0, fname: 'Unknown', lname: '' },
+              votes: c.votes ?? 0,
+              replies: [],
+              avatarUrl: null,
+              hasReplies: Boolean(c.hasReplies),
+            } as Comment));
 
-            const avatarIdByComment: Record<number, string | null> = {};
-            for (const c of arr) {
-              const node: Comment = {
-                id: c.id,
-                content: c.content,
-                created_at: new Date(c.comment_date).toISOString(),
-                User: c.User || { id: c.commenter_uid ?? 0, fname: 'Unknown', lname: '' },
-                votes: c.votes ?? 0,
-                replies: [],
-                avatarUrl: null,
-              };
-              nodesById[c.id] = node;
-              parentById[c.id] = c.parent_comment_id ?? null;
-              avatarIdByComment[c.id] = c?.User?.avatar_file_id ?? null;
-            }
-
-            // Fetch unique avatar URLs
-            const uniqueAvatarIds = Array.from(
-              new Set(Object.values(avatarIdByComment).filter(Boolean) as string[])
-            );
-            const avatarMap: Record<string, string> = {};
-            if (uniqueAvatarIds.length) {
-              await Promise.all(uniqueAvatarIds.map(async (aid) => {
-                try {
-                  const f = await fileApi.getById(String(aid));
-                  const fileObj = normalizeApi(f) ?? (f && (f.data ?? f));
-                  const url = fileObj?.secure_url ?? fileObj?.secureUrl ?? fileObj?.url ?? null;
-                  if (url) avatarMap[String(aid)] = url;
-                } catch (err) {
-                  // ignore per-file failures
-                }
-              }));
-            }
-
-            // Assign avatarUrl to nodes
-            for (const idStr of Object.keys(avatarIdByComment)) {
-              const id = Number(idStr);
-              const aid = avatarIdByComment[id];
-              if (aid && avatarMap[aid] && nodesById[id]) nodesById[id].avatarUrl = avatarMap[aid];
-            }
-
-            // Assemble tree
-            const roots: Comment[] = [];
-            for (const idStr of Object.keys(nodesById)) {
-              const id = Number(idStr);
-              const node = nodesById[id];
-              const parentId = parentById[id];
-              if (parentId && nodesById[parentId]) {
-                nodesById[parentId].replies = nodesById[parentId].replies ?? [];
-                nodesById[parentId].replies!.push(node);
-              } else {
-                roots.push(node);
+            // batch-fetch avatar URLs for comments that have avatar_file_id
+            try {
+              const avatarIds = mapped.map(m => (m.User as any)?.avatar_file_id).filter(Boolean);
+              const unique = Array.from(new Set(avatarIds));
+              if (unique.length > 0) {
+                const idToUrl: Record<string, string> = {};
+                await Promise.all(unique.map(async (aid) => {
+                  try {
+                    const f = await fileApi.getById(String(aid));
+                    const fileObj = normalizeApi(f) ?? (f && (f.data ?? f));
+                    const avatarUrl = fileObj?.secure_url ?? fileObj?.secureUrl ?? fileObj?.url ?? null;
+                    if (avatarUrl) idToUrl[String(aid)] = avatarUrl;
+                  } catch (e) { /* ignore individual avatar fetch errors */ }
+                }));
+                mapped.forEach(m => {
+                  const aid = (m.User as any)?.avatar_file_id;
+                  if (aid && idToUrl[String(aid)]) m.avatarUrl = idToUrl[String(aid)];
+                });
               }
+            } catch (e) {
+              console.debug('avatar batch fetch failed', e);
             }
 
-            setComments(roots);
+            setComments(mapped);
           } else {
             setComments([]);
           }
@@ -212,6 +282,34 @@ const PostPreview: React.FC = () => {
 
     void load();
   }, [postId, communityId]);
+
+  // remove a comment (and any nested replies) from the tree
+  const removeCommentFromTree = (nodes: Comment[], id: number): Comment[] => {
+    const res: Comment[] = [];
+    for (const n of nodes) {
+      if (n.id === id) continue;
+      if (n.replies && n.replies.length) {
+        const newReplies = removeCommentFromTree(n.replies, id);
+        res.push({ ...n, replies: newReplies });
+      } else {
+        res.push(n);
+      }
+    }
+    return res;
+  };
+
+  const handleDeleteComment = async (commentId: number) => {
+    if (!commentId) return;
+    if (!window.confirm('Delete this comment? This action cannot be undone.')) return;
+    try {
+      await commentApi.delete(commentId);
+      setComments(prev => removeCommentFromTree(prev, commentId));
+      toast.success('Comment deleted');
+    } catch (err) {
+      console.error('Failed to delete comment', err);
+      toast.error('Failed to delete comment');
+    }
+  };
 
   // helpers to insert reply into nested tree
   const addReplyToTree = (nodes: Comment[], parentId: number, reply: Comment): Comment[] => {
@@ -250,6 +348,7 @@ const PostPreview: React.FC = () => {
         User: c.User || { id: c.commenter_uid ?? 0, fname: 'Unknown', lname: '' },
         votes: c.votes ?? 0,
         replies: Array.isArray(c.other_Comment) ? c.other_Comment.map(map) : [],
+        hasReplies: Array.isArray(c.other_Comment) ? c.other_Comment.length > 0 : Boolean(c.hasReplies),
         avatarUrl: null,
       });
 
@@ -295,6 +394,7 @@ const PostPreview: React.FC = () => {
         User: c.User || { id: c.commenter_uid ?? 0, fname: 'Unknown', lname: '' },
         votes: c.votes ?? 0,
         replies: Array.isArray(c.other_Comment) ? c.other_Comment.map(map) : [],
+        hasReplies: Array.isArray(c.other_Comment) ? c.other_Comment.length > 0 : Boolean(c.hasReplies),
       });
 
       const mapped = map(created as any);
@@ -334,15 +434,15 @@ const PostPreview: React.FC = () => {
     return created;
   };
 
-  
+
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>;
 
   return (
     <div className="min-h-screen bg-background flex">
       <Sidebar onLogout={() => (window.location.href = '/logout')} />
-      <main 
-        className="flex-1 p-6 text-white transition-all duration-300"
+      <main
+        className="flex-1 p-6 text-black dark:text-white transition-all duration-300"
         style={{ marginLeft: `${sidebarWidth}px` }}
       >
         <div className="max-w-6xl mx-auto w-full flex flex-col md:flex-row gap-6">
@@ -366,38 +466,12 @@ const PostPreview: React.FC = () => {
               </nav>
             </div>
 
-            <div className="bg-card border rounded-lg p-6 mb-6">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 flex flex-col items-center mr-4">
-                  {(post as any)?.avatarUrl ? (
-                    <img
-                      src={(post as any).avatarUrl}
-                      alt="author avatar"
-                      className="w-12 h-12 rounded-full object-cover"
-                      onError={(e) => {
-                        console.error('Failed to load post avatar', e);
-                        const el = e.currentTarget as HTMLImageElement;
-                        el.style.display = 'none';
-                        const parent = el.parentElement;
-                        if (parent) {
-                          const fallback = document.createElement('div');
-                          fallback.className = 'w-12 h-12 rounded-full bg-muted flex items-center justify-center';
-                          parent.appendChild(fallback);
-                        }
-                      }}
-                    />
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center"><User className="w-5 h-5" /></div>
-                  )}
-                  <div className="text-sm mt-2 text-center text-muted-foreground">
-                    {(post as any)?.User ? `${(post as any).User.fname} ${(post as any).User.lname}` : 'Unknown Author'}
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <h1 className="text-xl font-semibold text-foreground">{(post as any)?.title || 'Post Preview (demo)'}</h1>
-                  <div className="mt-4 text-sm text-foreground">{post?.body ? <MarkdownPreview content={post.body} /> : <p className="text-muted-foreground">No content</p>}</div>
-                </div>
-              </div>
+            <div className="mb-6">
+              {post ? (
+                <PostCard post={post as any} clickable={false} />
+              ) : (
+                <div className="bg-card border rounded-lg p-6">Loading post...</div>
+              )}
             </div>
 
             <div className="bg-card border rounded-lg p-6">
@@ -420,6 +494,9 @@ const PostPreview: React.FC = () => {
                     handleAddReply={handleAddReply}
                     expandedCommentIds={expandedCommentIds}
                     toggleExpand={toggleExpand}
+                    currentUser={currentUser}
+                    isInstructor={Boolean(currentUser && currentUser.role === 'instructor' && instructors.some(i => i.id === currentUser.id))}
+                    handleDelete={handleDeleteComment}
                   />
                 ))}
               </div>

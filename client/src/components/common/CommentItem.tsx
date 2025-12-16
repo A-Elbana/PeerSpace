@@ -10,6 +10,7 @@ export interface Comment {
   votes?: number;
   userVote?: number;
   replies?: Comment[];
+  hasReplies?: boolean;
   avatarUrl?: string | null;
 }
 
@@ -41,6 +42,9 @@ interface Props {
   handleAddReply: (parentId: number, content?: string) => Promise<Comment | null>;
   expandedCommentIds: Set<number>;
   toggleExpand: (id: number) => void;
+  currentUser?: { id: number; role?: string } | null;
+  isInstructor?: boolean;
+  handleDelete?: (id: number) => Promise<void> | void;
 }
 
 export const CommentItem: React.FC<Props> = ({
@@ -55,6 +59,9 @@ export const CommentItem: React.FC<Props> = ({
   handleAddReply,
   expandedCommentIds,
   toggleExpand,
+  currentUser = null,
+  isInstructor = false,
+  handleDelete,
 }) => {
   const [localReply, setLocalReply] = useState('');
   const [editValue, setEditValue] = useState(comment.content);
@@ -101,7 +108,13 @@ export const CommentItem: React.FC<Props> = ({
               <div className="mt-2 flex items-center gap-3 text-xs">
                 <button onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)} className="text-muted-foreground hover:text-foreground">Reply</button>
                 <button onClick={() => { setEditingCommentId(comment.id); }} className="text-muted-foreground hover:text-foreground">Edit</button>
-                <button className="text-destructive">Delete</button>
+                {(() => {
+                  const canDelete = currentUser && (currentUser.id === comment.User.id || (currentUser.role || '').toLowerCase() === 'admin' || isInstructor);
+                  if (!canDelete) return null;
+                  return (
+                    <button className="text-destructive" onClick={() => { if (handleDelete) void handleDelete(comment.id); }}>Delete</button>
+                  );
+                })()}
               </div>
             </>
           )}
@@ -114,6 +127,18 @@ export const CommentItem: React.FC<Props> = ({
                   const created = await handleAddReply(comment.id, localReply);
                   if (created) setLocalReply('');
                 }} disabled={!localReply.trim()}>Reply</Button>
+              </div>
+            </div>
+          )}
+
+          {comment.hasReplies && (!comment.replies || comment.replies.length === 0) && !expandedCommentIds.has(comment.id) && (
+            <div style={{ marginLeft: (depth || 0) * 10 }} className="mt-2">
+              <div className="flex items-center">
+                <div className="flex-1 border-t border-muted-foreground" />
+                <div className="px-2 -mt-2">
+                  <button className="text-xs text-muted-foreground bg-background px-2 rounded" onClick={() => toggleExpand(comment.id)}>Show more</button>
+                </div>
+                <div className="flex-1 border-t border-muted-foreground" />
               </div>
             </div>
           )}
@@ -134,13 +159,16 @@ export const CommentItem: React.FC<Props> = ({
                     handleAddReply={handleAddReply}
                     expandedCommentIds={expandedCommentIds}
                     toggleExpand={toggleExpand}
+                    currentUser={currentUser}
+                    isInstructor={isInstructor}
+                    handleDelete={handleDelete}
                   />
                   {r.replies && r.replies.length > 0 && !expandedCommentIds.has(r.id) && (
                     <div style={{ marginLeft: ((depth || 0) + 1) * 10 }} className="mt-2">
                       <div className="flex items-center">
                         <div className="flex-1 border-t border-muted-foreground" />
                         <div className="px-2 -mt-2">
-                          <button className="text-xs text-muted-foreground bg-background px-2 rounded" onClick={() => toggleExpand(r.id)}>Show full discussion</button>
+                          <button className="text-xs text-muted-foreground bg-background px-2 rounded" onClick={() => toggleExpand(r.id)}>Show more</button>
                         </div>
                         <div className="flex-1 border-t border-muted-foreground" />
                       </div>

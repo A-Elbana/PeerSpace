@@ -564,6 +564,17 @@ export const commentApi = {
     return response.data;
   },
 
+  // Fetch first-level replies for a comment
+  getReplies: async (commentId: number, params?: { page?: number; limit?: number }) => {
+    const cleanParams: any = {};
+    if (params) {
+      if (params.page) cleanParams.page = params.page;
+      if (params.limit) cleanParams.limit = params.limit;
+    }
+    const response = await api.get(`/comments/${commentId}/replies`, { params: cleanParams });
+    return response.data;
+  },
+
   create: async (data: {
     pid: number;
     content: string;
@@ -592,12 +603,12 @@ export const fileApi = {
     resource_type: string;
     format?: string;
     context:
-      | "POST"
-      | "SUBMISSION"
-      | "NOTE"
-      | "ASSIGNMENT"
-      | "COMMUNITY_BANNER"
-      | "USER_AVATAR";
+    | "POST"
+    | "SUBMISSION"
+    | "NOTE"
+    | "ASSIGNMENT"
+    | "COMMUNITY_BANNER"
+    | "USER_AVATAR";
     context_id: string;
     is_private?: boolean;
   }) => {
