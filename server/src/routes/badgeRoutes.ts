@@ -4,6 +4,7 @@ import {
   getAllBadges,
   getBadgeById,
   getMyBadges,
+  getBadgesByUserId,
   updateBadge,
   deleteBadge,
 } from "../controllers/BadgeController";
@@ -210,6 +211,49 @@ router.get("/", authenticateToken, getAllBadges);
  *         description: Server error
  */
 router.get("/me", authenticateToken, getMyBadges);
+
+/**
+ * @swagger
+ * /api/badges/user/{userId}:
+ *   get:
+ *     summary: Get badges earned by a specific user
+ *     description: Retrieve badges assigned to the given user ID with pagination.
+ *     tags: [Badges]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Target user ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *           maximum: 50
+ *         description: Results per page
+ *     responses:
+ *       200:
+ *         description: Badges retrieved successfully
+ *       400:
+ *         description: Invalid user ID
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Student profile not found for the given user ID
+ *       500:
+ *         description: Server error
+ */
+router.get("/user/:userId", authenticateToken, authorizeRole(["ADMIN", "INSTRUCTOR"]), getBadgesByUserId);
 
 /**
  * @swagger

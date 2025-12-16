@@ -128,6 +128,61 @@ export const getMyBadges = async (req: Request, res: Response) => {
 };
 
 /**
+ * Get badges earned by a specific user (by ID)
+ * Params: userId
+ * Query params: page, limit
+ * Note: This endpoint does not rely on the authenticated user's token ID.
+ */
+export const getBadgesByUserId = async (req: Request, res: Response) => {
+  const userIdParam = parseInt(req.params.userId || "");
+
+  if (isNaN(userIdParam) || userIdParam <= 0) {
+    return res.status(400).json({ message: "Invalid user ID" });
+  }
+
+  const pageParam = parseInt(req.query.page as string);
+  const limitParam = parseInt(req.query.limit as string);
+  const page = !isNaN(pageParam) && pageParam > 0 ? pageParam : 1;
+  const limit = !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
+  const skip = (page - 1) * limit;
+
+  try {
+    // Ensure the user exists and is a student (badges are for students)
+    const student = await prisma.student.findUnique({ where: { uid: userIdParam } });
+    if (!student) {
+      return res.status(404).json({ message: "Student profile not found for the given user ID" });
+    }
+
+    const [studentBadges, total] = await Promise.all([
+      prisma.studentBadge.findMany({
+        where: { sid: userIdParam },
+        skip,
+        take: limit,
+        orderBy: { bid: "asc" },
+        include: {
+          Badge: true,
+        },
+      }),
+      prisma.studentBadge.count({ where: { sid: userIdParam } }),
+    ]);
+
+    return res.status(200).json({
+      message: "Badges retrieved successfully",
+      data: studentBadges,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error("Get Badges By User ID Error:", error);
+    return res.status(500).json({ message: "Failed to fetch badges" });
+  }
+};
+
+/**
  * Get a single badge by ID
  * Params: id
  */
