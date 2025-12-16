@@ -8,6 +8,7 @@ import {
   getCommunityMembers,
   shareCommunity,
   getMyCommunities,
+  getCommonCommunities,
 } from "../controllers/CommunityController";
 import {
   enrollInCommunity,
@@ -169,6 +170,44 @@ router.post(
  *         description: Server error
  */
 router.get("/mine", authenticateToken, getMyCommunities);
+
+/**
+ * @swagger
+ * /api/communities/common/{uid}:
+ *   get:
+ *     summary: Get common communities between current user and target user
+ *     tags: [Communities]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: uid
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Target user ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *           maximum: 50
+ *         description: Number of communities per page
+ *     responses:
+ *       200:
+ *         description: Common communities retrieved successfully with pagination metadata
+ *       400:
+ *         description: Invalid target user id
+ *       500:
+ *         description: Server error
+ */
+router.get("/common/:uid", authenticateToken, getCommonCommunities);
 
 /**
  * @swagger
