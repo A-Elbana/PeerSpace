@@ -57,3 +57,31 @@ export const isUserManagerOfCommunity = async (
   });
   return !!manages;
 };
+
+/**
+ * Helper to check if two students have at least one common community (both enrolled)
+ */
+export const hasCommonCommunity = async (
+  userId1: number,
+  userId2: number
+): Promise<boolean> => {
+  const user1Communities = await prisma.enrollment.findMany({
+    where: { sid: userId1 },
+    select: { cid: true },
+  });
+
+  const user1CommunityIds = new Set(user1Communities.map((e) => e.cid));
+
+  if (user1CommunityIds.size === 0) {
+    return false;
+  }
+
+  const user2Communities = await prisma.enrollment.findMany({
+    where: { sid: userId2 },
+    select: { cid: true },
+  });
+
+  const user2CommunityIds = user2Communities.map((e) => e.cid);
+
+  return user2CommunityIds.some((cid) => user1CommunityIds.has(cid));
+};
