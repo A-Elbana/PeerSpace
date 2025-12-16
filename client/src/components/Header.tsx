@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, LogOut, Home, Compass, Search, X, Menu, Plus, MessageSquare, TrendingUp, Users } from 'lucide-react';
 import NotificationContext from '../contexts/NotificationContext';
+import { useResolvedFileUrl } from '../hooks/useResolvedFileUrl';
 import { useSidebar } from '../contexts/SidebarContext';
 
 interface UserInfo {
@@ -13,13 +14,14 @@ interface UserInfo {
 
 const Avatar: React.FC<{ user?: UserInfo; size?: number }> = ({ user, size = 32 }) => {
     const initials = user?.fname ? `${user.fname[0]}${user.lname?.[0] ?? ''}`.toUpperCase() : 'U';
+    const resolvedUrl = useResolvedFileUrl(user?.avatar_file_id ?? null);
     return (
         <div
             style={{ width: size, height: size }}
-            className="flex-shrink-0 rounded-full bg-gradient-to-br from-frosted-blue-500 to-turf-green-500 text-white font-semibold flex items-center justify-center overflow-hidden"
+                className="shrink-0 rounded-full bg-linear-to-br from-frosted-blue-500 to-turf-green-500 text-white font-semibold flex items-center justify-center overflow-hidden"
         >
-            {user?.avatar_file_id ? (
-                <img src={`/api/files/${user.avatar_file_id}`} alt="avatar" className="w-full h-full object-cover" />
+            {resolvedUrl ? (
+                <img src={resolvedUrl} alt="avatar" className="w-full h-full object-cover" />
             ) : (
                 <span style={{ fontSize: size * 0.4 }}>{initials}</span>
             )}

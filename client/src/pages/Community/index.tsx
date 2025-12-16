@@ -5,8 +5,9 @@ import { toast } from 'sonner';
 import { Button } from '../../components/ui/button';
 import { Sidebar } from '../../components/dashboard';
 import { useSidebar } from '../../contexts/SidebarContext';
-import { CommunityHeader, PostsList, MembersPanel, CreatePost } from './components';
+import { CommunityHeader, PostsList, MembersPanel } from './components';
 import { AssignmentList, AssignmentModal } from '../../components/assignments';
+import CreatePostWidget from '../../components/posts/CreatePostWidget';
 import api, { communityApi, postApi, type CommunityResponse, type PostResponse } from '../../services/api';
 import { removeTokens } from '../../utils/auth';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
@@ -142,6 +143,20 @@ const Community: React.FC = () => {
 
     fetchPosts();
   }, [communityId]);
+
+  const refreshPosts = async () => {
+    if (!communityId) return;
+    try {
+      setIsLoadingPosts(true);
+      const postsResponse = await postApi.getByCommunity(communityId, { limit: 50 });
+      const sortedPosts = postsResponse.data.sort(
+        (a, b) => new Date(b.post_date).getTime() - new Date(a.post_date).getTime()
+      );
+      setPosts(sortedPosts);
+    } finally {
+      setIsLoadingPosts(false);
+    }
+  };
 
   // Fetch members
   useEffect(() => {
@@ -288,13 +303,10 @@ const Community: React.FC = () => {
               {/* Assignments Section (Top of Feed) */}
               {/* Create Post - Only show if enrolled */}
               {isEnrolledInCommunity && (
-                <CreatePost
-                  communityId={community.id}
-                  userFirstName={user.fname}
-                  userId={user.id}
-                  userLastName={user.lname}
-                  userAvatarUrl={user.avatar_file_id}
-                  onPostCreated={handlePostCreated}
+                <CreatePostWidget
+                  currentUser={user}
+                  defaultCommunityId={community.id}
+                  onCreated={refreshPosts}
                 />
               )}
 

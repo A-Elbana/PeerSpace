@@ -19,7 +19,8 @@ import { toast } from 'sonner';
 import { Sidebar } from '../components/dashboard';
 import Header from '../components/Header';
 import { useSidebar } from '../contexts/SidebarContext';
-import { Flame, Clock, Filter, Loader2, Sparkles, Users, BookOpen, Rocket, Send, Lock, Search, X, Tag, Maximize2, ArrowBigUp } from 'lucide-react';
+import { Flame, Clock, Filter, Loader2, Sparkles, Users, BookOpen, Rocket, Send, Lock, Search, X, ArrowBigUp } from 'lucide-react';
+import CreatePostWidget from '../components/posts/CreatePostWidget';
 import api, { communityApi, postApi, assignmentApi, submissionApi, type CommunityResponse, type PostResponse } from '../services/api';
 import PostCard from '../components/posts/PostCard';
 import { removeTokens } from '../utils/auth';
@@ -580,7 +581,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                     <div className="absolute -top-4 -left-4 w-24 h-24 bg-frosted-blue-500/10 rounded-full blur-2xl pointer-events-none" />
                                     <div className="relative">
                                         <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-frosted-blue-500 to-turf-green-500">
+                                            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-linear-to-r from-frosted-blue-500 to-turf-green-500">
                                                 Welcome back, {user?.fname || 'User'}!
                                             </h1>
                                             <Sparkles className="w-5 h-5 text-royal-gold-500 animate-pulse" />
@@ -589,106 +590,11 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                     </div>
                                 </div>
 
-                                {/* Create Post Input */}
-                                <div className="bg-card p-4 rounded-xl border border-border flex flex-col gap-3 relative overflow-hidden group hover:shadow-lg transition-all duration-300">
-                                    {/* Subtle hover effect */}
-                                    <div className="absolute inset-0 bg-frosted-blue-500/0 group-hover:bg-frosted-blue-500/5 transition-all duration-300 rounded-xl" />
-
-                                    <div className="flex items-start gap-3 relative">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-frosted-blue-500 to-turf-green-500 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-lg shadow-frosted-blue-500/20">
-                                            {user?.fname?.[0] || 'U'}
-                                        </div>
-                                        <div className="flex-1 bg-muted/50 border border-input rounded-md flex flex-col overflow-hidden focus-within:border-ring transition-colors">
-                                            <div className="flex border-b border-input">
-                                                <select
-                                                    value={selectedCommunity}
-                                                    onChange={(e) => setSelectedCommunity(e.target.value)}
-                                                    className="flex-1 px-3 py-2 bg-muted text-muted-foreground text-sm font-medium hover:bg-muted/80 transition-colors cursor-pointer focus:outline-none"
-                                                >
-                                                    <option value="">Select Community</option>
-                                                    {communities.map((community) => (
-                                                        <option key={community.id} value={community.id}>
-                                                            {community.name}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
-
-                                            {/* Tags Selection */}
-                                            <div className="px-3 py-2 border-b border-input bg-muted/30 flex items-center gap-2 flex-wrap">
-                                                <Tag size={12} className="text-muted-foreground flex-shrink-0" />
-                                                {POST_TAGS.map((tag) => {
-                                                    const isSelected = selectedTags.includes(tag.id);
-                                                    return (
-                                                        <button
-                                                            key={tag.id}
-                                                            onClick={() => {
-                                                                if (isSelected) {
-                                                                    setSelectedTags(prev => prev.filter(t => t !== tag.id));
-                                                                } else {
-                                                                    setSelectedTags(prev => [...prev, tag.id]);
-                                                                }
-                                                            }}
-                                                            className={`text-xs font-medium px-2 py-0.5 rounded-full transition-all ${isSelected
-                                                                ? `${tag.bgLight} ${tag.textColor} ring-1 ring-current`
-                                                                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                                                                }`}
-                                                        >
-                                                            {tag.label}
-                                                        </button>
-                                                    );
-                                                })}
-                                                {selectedTags.length > 0 && (
-                                                    <button
-                                                        onClick={() => setSelectedTags([])}
-                                                        className="ml-auto text-muted-foreground hover:text-foreground transition-colors"
-                                                    >
-                                                        <X size={12} />
-                                                    </button>
-                                                )}
-                                            </div>
-
-                                            <input
-                                                type="text"
-                                                placeholder="Post title..."
-                                                value={newPostTitle}
-                                                onChange={(e) => setNewPostTitle(e.target.value)}
-                                                className="bg-transparent px-4 py-2 text-sm font-medium focus:outline-none text-foreground placeholder-muted-foreground border-b border-input"
-                                            />
-                                            <textarea
-                                                placeholder="What's on your mind? (Shift+Enter for new line)"
-                                                value={newPostBody}
-                                                onChange={(e) => setNewPostBody(e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter' && !e.shiftKey && selectedCommunity && newPostTitle.trim() && newPostBody.trim()) {
-                                                        e.preventDefault();
-                                                        handleCreatePost();
-                                                    }
-                                                }}
-                                                rows={2}
-                                                className="flex-1 bg-transparent px-4 py-2 text-sm focus:outline-none text-foreground placeholder-muted-foreground resize-none min-h-[60px]"
-                                            />
-                                        </div>
-                                        <button
-                                            onClick={handleCreatePost}
-                                            disabled={!user || !selectedCommunity || !newPostTitle.trim() || !newPostBody.trim() || isCreatingPost}
-                                            className="p-2.5 bg-turf-green-500 hover:bg-turf-green-600 rounded-full text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 group/btn mt-1"
-                                        >
-                                            {isCreatingPost ? (
-                                                <Loader2 size={18} className="animate-spin" />
-                                            ) : (
-                                                <Send size={18} className="transform -rotate-45" />
-                                            )}
-                                        </button>
-                                        <button
-                                            onClick={() => setIsEditorOpen(true)}
-                                            className="absolute bottom-2 right-14 p-2 text-muted-foreground hover:text-primary transition-colors hover:bg-muted/50 rounded-full"
-                                            title="Open full editor"
-                                        >
-                                            <Maximize2 size={16} />
-                                        </button>
-                                    </div>
-                                </div>
+                                {/* Create Post Widget */}
+                                <CreatePostWidget
+                                  currentUser={user || undefined}
+                                  onCreated={() => fetchPostsFromCommunities(communities)}
+                                />
 
                                 {/* Editor Overlay */}
                                 {isEditorOpen && (
@@ -696,7 +602,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                         <div className="bg-card w-full max-w-4xl h-[80vh] rounded-xl shadow-2xl border border-border flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
                                             <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
                                                 <h3 className="font-semibold text-lg flex items-center gap-2">
-                                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-frosted-blue-500 to-turf-green-500 flex items-center justify-center text-white text-sm font-bold shadow-md">
+                                                    <div className="w-8 h-8 rounded-full bg-linear-to-br from-frosted-blue-500 to-turf-green-500 flex items-center justify-center text-white text-sm font-bold shadow-md">
                                                         {user?.fname?.[0] || 'U'}
                                                     </div>
                                                     Create Post
@@ -881,8 +787,8 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                     <div className="bg-card rounded-xl border border-border p-12 text-center relative overflow-hidden">
                                         {/* Decorative background elements */}
                                         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                                            <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-frosted-blue-500/10 to-turf-green-500/10 rounded-full blur-3xl" />
-                                            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-gradient-to-tr from-turf-green-500/10 to-frosted-blue-500/10 rounded-full blur-3xl" />
+                                            <div className="absolute -top-10 -right-10 w-40 h-40 bg-linear-to-br from-frosted-blue-500/10 to-turf-green-500/10 rounded-full blur-3xl" />
+                                            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-linear-to-tr from-turf-green-500/10 to-frosted-blue-500/10 rounded-full blur-3xl" />
                                         </div>
 
                                         {/* Illustration */}
@@ -954,7 +860,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                 {/* Public Communities */}
                                 <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
                                     {/* Decorative corner accent */}
-                                    <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-frosted-blue-500/10 to-transparent rounded-bl-full" />
+                                    <div className="absolute top-0 right-0 w-20 h-20 bg-linear-to-bl from-frosted-blue-500/10 to-transparent rounded-bl-full" />
 
                                     <div className="flex items-center justify-between mb-4">
                                         <h3 className="font-bold text-foreground text-sm uppercase tracking-wider flex items-center gap-2">
@@ -1062,7 +968,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                 {/* Private Communities */}
                                 <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
                                     {/* Decorative corner accent */}
-                                    <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-frosted-blue-500/10 to-transparent rounded-bl-full" />
+                                    <div className="absolute top-0 right-0 w-20 h-20 bg-linear-to-bl from-frosted-blue-500/10 to-transparent rounded-bl-full" />
 
                                     <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider flex items-center gap-2">
                                         <Lock className="w-4 h-4 text-frosted-blue-500" />
@@ -1110,7 +1016,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                 {/* Dynamic Widget based on Role */}
                                 <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
                                     {/* Decorative gradient */}
-                                    <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-frosted-blue-500 via-turf-green-500 to-royal-gold-500 opacity-50" />
+                                    <div className="absolute bottom-0 left-0 w-full h-1 bg-linear-to-r from-frosted-blue-500 via-turf-green-500 to-royal-gold-500 opacity-50" />
 
                                     <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider flex items-center gap-2">
                                         <Clock className="w-4 h-4 text-frosted-blue-500" />

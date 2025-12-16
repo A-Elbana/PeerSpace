@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Clock, User, ArrowBigUp, ArrowBigDown, Megaphone, MoreHorizontal, PenSquare, Trash2 } from 'lucide-react';
+import { MessageSquare, Clock, User, ArrowBigUp, ArrowBigDown, Megaphone, MoreHorizontal, PenSquare, Trash2, Download, FileIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useResolvedFileUrl } from '../../hooks/useResolvedFileUrl';
-import { MarkdownPreview } from '../MarkdownEditor';
-import { voteApi } from '../../services/api';
+import { MarkdownPreview, MarkdownEditor } from '../MarkdownEditor';
+import api, { voteApi, postApi } from '../../services/api';
 import { toast } from 'sonner';
 
 interface PostAuthor {
@@ -11,6 +11,21 @@ interface PostAuthor {
   fname: string;
   lname: string;
   avatar_file_id: string | null;
+}
+
+interface PostFile {
+  id: string;
+  public_id?: string;
+  secure_url?: string;
+  resource_type?: string;
+  format?: string;
+  name?: string;
+  size?: number;
+}
+
+interface PostFileAttachment {
+  fid: string;
+  File?: PostFile;
 }
 
 export interface PostShape {
@@ -24,6 +39,7 @@ export interface PostShape {
   owner_uid?: number;
   cid?: string;
   _count?: { Comment: number };
+  PostFileAttachment?: PostFileAttachment[];
 }
 
 interface PostCardProps {
@@ -68,12 +84,65 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
   const navigate = useNavigate();
   const tags = post.type?.split(',').map((t: string) => t.trim().toLowerCase()) || [];
   const isAnnouncement = tags.includes('announcement');
+  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
+  const [showImageModal, setShowImageModal] = useState<boolean>(false);
+  const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
+  const [isEditOpen, setIsEditOpen] = useState<boolean>(false);
+  const [editTitle, setEditTitle] = useState<string>(post.title);
+  const [editBody, setEditBody] = useState<string>(post.body ?? '');
+  const [isSavingEdit, setIsSavingEdit] = useState<boolean>(false);
+  const [removedAttachmentIds, setRemovedAttachmentIds] = useState<Set<string>>(new Set());
+  const [newFiles, setNewFiles] = useState<File[]>([]);
+  const [isUploadingNew, setIsUploadingNew] = useState<boolean>(false);
 
   const canModify = currentUser && (
     currentUser.id === post.User.id ||
     currentUser.role === 'admin' ||
     (currentUser.role === 'instructor' && isInstructorOfCommunity)
   );
+
+  // Get attachments - handle both old and new format
+  const attachments = (post.PostFileAttachment || []).filter(a => a.File?.secure_url);
+  const images = attachments.filter(a => {
+    const fmt = a.File?.format?.toLowerCase();
+    const url = a.File?.secure_url || '';
+    const imageFormats = new Set(['jpg','jpeg','png','gif','webp','bmp','svg']);
+    // Prefer explicit format; fall back to URL extension
+    return (fmt && imageFormats.has(fmt)) || /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(url);
+  });
+  const files = attachments.filter(a => !images.includes(a));
+
+  // Carousel handlers
+  const goToPrevImage = () => {
+    setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+  };
+
+  const goToNextImage = () => {
+    setCurrentImageIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+  };
+
+  const handleImageLoad = (fileId: string) => {
+    setLoadedImages(prev => ({ ...prev, [fileId]: true }));
+  };
+
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const getFileName = (file?: PostFile) => {
+    if (!file) return 'File';
+    if (file.name) return file.name;
+    if (file.public_id) {
+      const parts = file.public_id.split('/');
+      const name = parts[parts.length - 1];
+      return file.format ? `${name}.${file.format}` : name;
+    }
+    return `${file.format ? `file.${file.format}` : 'file'}`;
+  };
 
   // Voting state: use single score from API (upvotes - downvotes)
   const [score, setScore] = useState<number>(0);
@@ -111,6 +180,17 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
     })();
     return () => { mounted = false; };
   }, [post.id]);
+
+  // Close menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleUp = async () => {
     try {
@@ -152,8 +232,8 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
     <div className={`bg-card border rounded-xl overflow-visible hover:border-frosted-blue-500/50 hover:shadow-md transition-all duration-200 ${isAnnouncement ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-border'}`}>
       <div className="flex">
         {isAnnouncement ? (
-          <div className="w-12 bg-gradient-to-b from-yellow-500/20 to-orange-500/20 flex flex-col items-center justify-center py-3 border-r border-yellow-500/30">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg shadow-yellow-500/30">
+          <div className="w-12 bg-linear-to-b from-yellow-500/20 to-orange-500/20 flex flex-col items-center justify-center py-3 border-r border-yellow-500/30">
+            <div className="w-8 h-8 rounded-full bg-linear-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg shadow-yellow-500/30">
               <Megaphone size={16} className="text-white" />
             </div>
           </div>
@@ -210,13 +290,20 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
 
               {canModify && (
                 <div className="relative" ref={menuRef}>
-                  <button className="p-1 hover:bg-muted rounded-full text-muted-foreground transition-colors">
+                  <button
+                    className="p-1 hover:bg-muted rounded-full text-muted-foreground transition-colors"
+                    onClick={() => setIsMenuOpen(prev => !prev)}
+                    aria-expanded={isMenuOpen}
+                    aria-haspopup="menu"
+                  >
                     <MoreHorizontal size={16} />
                   </button>
-                  <div className="absolute right-0 top-full mt-1 w-32 bg-card border border-border rounded-lg shadow-xl z-10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                    <button onClick={() => onEdit?.(post)} className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 text-foreground transition-colors"><PenSquare size={14} /> Edit</button>
-                    <button onClick={() => onDelete?.(post.id)} className="w-full text-left px-3 py-2 text-xs hover:bg-red-500/10 text-red-500 flex items-center gap-2 transition-colors"><Trash2 size={14} /> Delete</button>
-                  </div>
+                  {isMenuOpen && (
+                    <div className="absolute right-0 top-full mt-1 w-32 bg-card border border-border rounded-lg shadow-xl z-10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      <button onClick={() => { setIsEditOpen(true); setIsMenuOpen(false); }} className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 text-foreground transition-colors"><PenSquare size={14} /> Edit</button>
+                      <button onClick={() => onDelete?.(post.id)} className="w-full text-left px-3 py-2 text-xs hover:bg-red-500/10 text-red-500 flex items-center gap-2 transition-colors"><Trash2 size={14} /> Delete</button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -224,6 +311,131 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
 
           <h3 className={`font-semibold mb-2 text-base ${isAnnouncement ? 'text-yellow-600 dark:text-yellow-400' : 'text-foreground'}`}>{post.title}</h3>
           {post.body && <MarkdownPreview content={post.body} className="text-sm mb-3" />}
+
+          {/* Image Gallery */}
+          {images.length > 0 && (
+            <>
+              {/* Smart responsive grid for multiple images */}
+              {images.length === 1 ? (
+                <div className="mb-3 rounded-lg overflow-hidden bg-muted/30 border border-border cursor-pointer group"
+                  onClick={() => setShowImageModal(true)}>
+                  <div className="relative bg-black/5 aspect-video flex items-center justify-center">
+                    <img
+                      src={images[0].File?.secure_url}
+                      alt={getFileName(images[0].File)}
+                      onLoad={() => handleImageLoad(images[0].fid)}
+                      className="w-full h-full object-contain"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all" />
+                  </div>
+                </div>
+              ) : (
+                <div className="mb-3 rounded-lg overflow-hidden bg-muted/30 border border-border">
+                  <div className="relative bg-black/5 aspect-video flex items-center justify-center cursor-pointer group overflow-hidden"
+                    onClick={() => setShowImageModal(true)}>
+                    <img
+                      src={images[currentImageIndex].File?.secure_url}
+                      alt={getFileName(images[currentImageIndex].File)}
+                      onLoad={() => handleImageLoad(images[currentImageIndex].fid)}
+                      className="w-full h-full object-contain transition-opacity group-hover:opacity-90"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={(e) => { e.stopPropagation(); goToPrevImage(); }} className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70"><ChevronLeft size={20} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); goToNextImage(); }} className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70"><ChevronRight size={20} /></button>
+                    </div>
+                  </div>
+                  {/* Counter */}
+                  <div className="flex items-center justify-between px-3 py-2 bg-background border-t border-border text-xs font-medium text-muted-foreground">
+                    <span>{currentImageIndex + 1} / {images.length}</span>
+                    <div className="flex gap-1">
+                      {images.map((_, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setCurrentImageIndex(idx)}
+                          className={`w-1.5 h-1.5 rounded-full transition-all ${
+                            idx === currentImageIndex ? 'bg-frosted-blue-500 w-4' : 'bg-border hover:bg-muted-foreground'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Image Modal */}
+              {showImageModal && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setShowImageModal(false)}>
+                  <div className="relative max-w-4xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => setShowImageModal(false)}
+                      className="absolute -top-10 right-0 p-2 text-white hover:bg-white/10 rounded-full"
+                    >
+                      <X size={24} />
+                    </button>
+                    <div className="relative flex-1 flex items-center justify-center">
+                      <img
+                        src={images[currentImageIndex].File?.secure_url}
+                        alt={getFileName(images[currentImageIndex].File)}
+                        className="max-w-full max-h-full object-contain"
+                      />
+                    </div>
+                    {images.length > 1 && (
+                      <>
+                        <button onClick={goToPrevImage} className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 text-white hover:bg-white/20">
+                          <ChevronLeft size={24} />
+                        </button>
+                        <button onClick={goToNextImage} className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 text-white hover:bg-white/20">
+                          <ChevronRight size={24} />
+                        </button>
+                        <div className="flex justify-center gap-1 mt-4 pb-4">
+                          {images.map((_, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => setCurrentImageIndex(idx)}
+                              className={`w-2 h-2 rounded-full transition-all ${
+                                idx === currentImageIndex ? 'bg-white w-6' : 'bg-white/50 hover:bg-white/70'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Other Files */}
+          {files.length > 0 && (
+            <div className="mb-3 space-y-2">
+              {files.map((attachment) => (
+                <a
+                  key={attachment.fid}
+                  href={attachment.File?.secure_url}
+                  download={getFileName(attachment.File)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted border border-border transition-colors group"
+                >
+                  <div className="shrink-0 w-8 h-8 rounded flex items-center justify-center bg-background">
+                    <FileIcon size={16} className="text-muted-foreground group-hover:text-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-foreground truncate group-hover:text-frosted-blue-600">
+                      {getFileName(attachment.File)}
+                    </div>
+                    {attachment.File?.size && (
+                      <div className="text-xs text-muted-foreground">
+                        {formatFileSize(attachment.File.size)}
+                      </div>
+                    )}
+                  </div>
+                  <Download size={16} className="shrink-0 text-muted-foreground group-hover:text-frosted-blue-600" />
+                </a>
+              ))}
+            </div>
+          )}
 
           <div className="flex items-center gap-4 text-xs text-muted-foreground pt-3 border-t border-border">
             <div className="flex items-center gap-1">
@@ -234,6 +446,189 @@ export default function PostCard({ post, communityName, onNavigate, currentUser,
               <span className={`px-2 py-0.5 rounded text-xs ${post.is_resolved ? 'bg-turf-green-500/10 text-turf-green-600' : 'bg-royal-gold-500/10 text-royal-gold-600'}`}>{post.is_resolved ? 'Resolved' : 'Open'}</span>
             )}
           </div>
+
+          {isEditOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => !isSavingEdit && setIsEditOpen(false)}>
+              <div className="bg-card w-full max-w-2xl rounded-xl shadow-2xl border border-border overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between p-4 border-b border-border">
+                  <h3 className="font-semibold text-lg">Edit Post</h3>
+                  <button className="p-2 hover:bg-muted rounded-lg transition-colors" onClick={() => setIsEditOpen(false)} disabled={isSavingEdit}>
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="p-4 space-y-3">
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="w-full px-3 py-2 bg-muted/50 border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    placeholder="Title"
+                  />
+                  <div className="border border-input rounded-lg overflow-hidden min-h-[200px]">
+                    <MarkdownEditor
+                      value={editBody}
+                      onChange={setEditBody}
+                      placeholder="Write your post..."
+                      className="min-h-[200px]"
+                    />
+                  </div>
+
+                  {/* Attachments Editor */}
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium">Attachments</div>
+                    {/* Existing attachments with remove toggles */}
+                    {(post.PostFileAttachment || []).length > 0 ? (
+                      <div className="space-y-2">
+                        {(post.PostFileAttachment || []).map((att) => {
+                          const fid = att.fid;
+                          const file = att.File;
+                          const name = getFileName(file);
+                          const isRemoved = removedAttachmentIds.has(fid);
+                          return (
+                            <div key={fid} className={`flex items-center gap-3 p-2 rounded-lg border ${isRemoved ? 'border-red-300 bg-red-50 dark:bg-red-900/10' : 'border-border bg-muted/30'}`}>
+                              <input
+                                type="checkbox"
+                                checked={isRemoved}
+                                onChange={(e) => {
+                                  setRemovedAttachmentIds(prev => {
+                                    const next = new Set(prev);
+                                    if (e.target.checked) next.add(fid);
+                                    else next.delete(fid);
+                                    return next;
+                                  });
+                                }}
+                                className="shrink-0"
+                                aria-label={`Remove ${name}`}
+                              />
+                              <a href={file?.secure_url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium truncate hover:text-frosted-blue-600">
+                                {name}
+                              </a>
+                              {file?.size && (
+                                <span className="text-xs text-muted-foreground">{formatFileSize(file.size)}</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-muted-foreground">No attachments</div>
+                    )}
+
+                    {/* Add new files */}
+                    <div className="flex items-center gap-2">
+                      <label className="px-3 py-1.5 rounded-md bg-muted hover:bg-muted/80 text-sm cursor-pointer">
+                        <input
+                          type="file"
+                          multiple
+                          className="hidden"
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            setNewFiles(prev => [...prev, ...files]);
+                          }}
+                        />
+                        Add files
+                      </label>
+                      {newFiles.length > 0 && (
+                        <span className="text-xs text-muted-foreground">{newFiles.length} selected</span>
+                      )}
+                    </div>
+                    {newFiles.length > 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {newFiles.map((f, idx) => (
+                          <div key={idx} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-muted/30">
+                            <span className="text-sm truncate flex-1">{f.name}</span>
+                            <button
+                              className="text-xs px-2 py-1 rounded bg-muted hover:bg-muted/80"
+                              onClick={() => setNewFiles(prev => prev.filter((_, i) => i !== idx))}
+                            >Remove</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="p-4 border-t border-border flex items-center justify-end gap-2">
+                  <button className="px-4 py-2 rounded-lg bg-muted text-foreground text-sm" onClick={() => setIsEditOpen(false)} disabled={isSavingEdit}>Cancel</button>
+                  <button
+                    className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50"
+                    disabled={isSavingEdit || isUploadingNew || !editTitle.trim()}
+                    onClick={async () => {
+                      setIsSavingEdit(true);
+                      try {
+                        // Upload new files first (if any)
+                        let newFileIds: string[] = [];
+                        if (newFiles.length > 0) {
+                          setIsUploadingNew(true);
+                          const uploadedIds: string[] = [];
+                          for (const file of newFiles) {
+                            // 1) sign
+                            const signRes = await api.post('/uploads/sign', {
+                              context: 'POST',
+                              context_id: String(post.id),
+                              is_private: false,
+                              resource_type: 'auto',
+                            });
+                            const { timestamp, signature, folder, cloudName, apiKey } = signRes.data;
+                            // 2) cloudinary upload
+                            const fd = new FormData();
+                            fd.append('file', file);
+                            fd.append('timestamp', String(timestamp));
+                            fd.append('signature', signature);
+                            fd.append('api_key', apiKey);
+                            fd.append('folder', folder);
+                            const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
+                            const upRes = await fetch(uploadUrl, { method: 'POST', body: fd });
+                            if (!upRes.ok) throw new Error('Upload failed');
+                            const cData = await upRes.json();
+                            // 3) create file record
+                            const fileRes = await api.post('/files', {
+                              public_id: cData.public_id,
+                              secure_url: cData.secure_url,
+                              resource_type: cData.resource_type,
+                              format: cData.format,
+                              context: 'POST',
+                              context_id: String(post.id),
+                              is_private: false,
+                            });
+                            uploadedIds.push(fileRes.data.data.id);
+                          }
+                          newFileIds = uploadedIds;
+                          setIsUploadingNew(false);
+                        }
+
+                        // Keep existing attachments except those marked removed
+                        const existingKeepIds = (post.PostFileAttachment || [])
+                          .filter(att => !removedAttachmentIds.has(att.fid))
+                          .map(att => att.fid);
+
+                        const updated = await postApi.update(post.id, {
+                          title: editTitle.trim(),
+                          body: editBody,
+                          file_ids: [...existingKeepIds, ...newFileIds],
+                        });
+                        // Optimistically update visible post content
+                        post.title = updated.title ?? editTitle.trim();
+                        post.body = updated.body ?? editBody;
+                        // Update attachments locally
+                        const keepSet = new Set(existingKeepIds);
+                        const kept = (post.PostFileAttachment || []).filter(att => keepSet.has(att.fid));
+                        const added = newFileIds.map(id => ({ fid: id } as any));
+                        post.PostFileAttachment = [...kept, ...added];
+                        toast.success('Post updated');
+                        setIsEditOpen(false);
+                        setRemovedAttachmentIds(new Set());
+                        setNewFiles([]);
+                      } catch (err: any) {
+                        toast.error(err?.response?.data?.message || 'Failed to update post');
+                      } finally {
+                        setIsSavingEdit(false);
+                      }
+                    }}
+                  >Save</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

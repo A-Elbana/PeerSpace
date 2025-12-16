@@ -39,9 +39,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getFileIcon = (type: string) => {
-    if (type.startsWith('image/')) return <Image className="w-5 h-5" />;
-    if (type.startsWith('video/')) return <Video className="w-5 h-5" />;
-    return <FileIcon className="w-5 h-5" />;
+    if (type.startsWith('image/')) return <Image className="w-5 h-5 shrink-0" />;
+    if (type.startsWith('video/')) return <Video className="w-5 h-5 shrink-0" />;
+    return <FileIcon className="w-5 h-5 shrink-0" />;
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {

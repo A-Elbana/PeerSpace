@@ -297,13 +297,22 @@ export const communityApi = {
     const response = await api.get("/communities/mine", { params });
     return response.data;
   },
-  getCommonCommunities: async (uid: number, params?: { page?: number; limit?: number; }): Promise<{ message?: string; data: CommunityResponse[]; meta: PaginationMeta; }> => {
+  getCommonCommunities: async (
+    uid: number,
+    params?: { page?: number; limit?: number }
+  ): Promise<{
+    message?: string;
+    data: CommunityResponse[];
+    meta: PaginationMeta;
+  }> => {
     const cleanParams: any = {};
     if (params) {
       if (params.page) cleanParams.page = params.page;
       if (params.limit) cleanParams.limit = params.limit;
     }
-    const response = await api.get(`/communities/common/${uid}`, { params: cleanParams });
+    const response = await api.get(`/communities/common/${uid}`, {
+      params: cleanParams,
+    });
     return response.data;
   },
 };
@@ -315,6 +324,7 @@ export const postApi = {
     type: string;
     body?: string;
     cid: string;
+    file_ids?: string[];
   }): Promise<PostResponse> => {
     const response = await api.post("/posts", data);
     return response.data;
@@ -335,8 +345,10 @@ export const postApi = {
     cids: string[],
     params?: { page?: number; limit?: number }
   ): Promise<PostsListResponse> => {
-    const cidParam = cids.join(',');
-    const response = await api.get('/posts', { params: { cid: cidParam, ...params } });
+    const cidParam = cids.join(",");
+    const response = await api.get("/posts", {
+      params: { cid: cidParam, ...params },
+    });
     return response.data;
   },
 
@@ -393,6 +405,7 @@ export const postApi = {
       body?: string;
       type?: string;
       is_resolved?: boolean;
+      file_ids?: string[];
     }
   ): Promise<PostResponse> => {
     const response = await api.put(`/posts/${id}`, data);
