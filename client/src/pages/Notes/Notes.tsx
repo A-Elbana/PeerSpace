@@ -40,9 +40,7 @@ const Notes: React.FC = () => {
     const [folders, setFolders] = useState<Folder[]>([]);
     const [notes, setNotes] = useState<Note[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [notebooksPage, setNotebooksPage] = useState<number>(1);
-    const [notebooksLoadingMore, setNotebooksLoadingMore] = useState<boolean>(false);
-    const [notebooksHasMore, setNotebooksHasMore] = useState<boolean>(false);
+    
     const [noteContent, setNoteContent] = useState('');
     const [noteFiles, setNoteFiles] = useState<Array<{ id: string; secure_url?: string; name?: string; resource_type?: string }>>([]);
 
@@ -242,10 +240,7 @@ const Notes: React.FC = () => {
                     }))
                 );
 
-                // Update pagination for notebooks if meta exists
-                const foldersMeta = foldersRes?.data?.meta;
-                setNotebooksPage(foldersMeta?.page ?? 1);
-                setNotebooksHasMore(foldersMeta ? (foldersMeta.page < foldersMeta.totalPages) : false);
+                // Note: pagination removed — we load the notebooks returned by the server (first page)
 
                 setNotes(
                     fetchedNotes.map((n: any) => ({
@@ -274,38 +269,7 @@ const Notes: React.FC = () => {
         };
     }, []);
 
-    const NOTEBOOKS_PER_PAGE = 5;
-
-    const loadMoreNotebooks = async () => {
-        if (notebooksLoadingMore || !notebooksHasMore) return;
-        setNotebooksLoadingMore(true);
-        try {
-            const nextPage = notebooksPage + 1;
-            const resp = await api.get('/notebooks', { params: { page: nextPage, limit: NOTEBOOKS_PER_PAGE } });
-            const newFolders = (resp && (resp.data?.data || resp.data)) || [];
-            if (Array.isArray(newFolders) && newFolders.length > 0) {
-                setFolders((s) => [
-                    ...s,
-                    ...newFolders.map((f: any) => ({
-                        id: String(f.id || f._id),
-                        name: f.name || f.title || 'Untitled',
-                        createdAt: f.createdAt ? new Date(f.createdAt) : new Date(f.created_at || Date.now()),
-                        updatedAt: f.updatedAt ? new Date(f.updatedAt) : new Date(f.updated_at || Date.now()),
-                        color: f.color || 'bg-blue-500/10 text-blue-500',
-                    }))
-                ]);
-            }
-
-            const meta = resp?.data?.meta;
-            setNotebooksPage(meta?.page ?? nextPage);
-            setNotebooksHasMore(meta ? (meta.page < meta.totalPages) : false);
-        } catch (err) {
-            // eslint-disable-next-line no-console
-            console.error('Failed to load more notebooks', err);
-        } finally {
-            setNotebooksLoadingMore(false);
-        }
-    };
+    
 
     const handleDeleteFolder = (folder: Folder) => {
         setDeleteModal({
@@ -895,9 +859,6 @@ const Notes: React.FC = () => {
                         folders={folders.map(f => ({ id: f.id, name: f.name }))}
                         onClose={() => setIsCreateOpen(false)}
                         onCreated={handleCreated}
-                        onLoadMoreFolders={loadMoreNotebooks}
-                        foldersHasMore={notebooksHasMore}
-                        foldersLoadingMore={notebooksLoadingMore}
                     />
                     <CreateNoteModal
                         isOpen={isCreateNoteInFolderOpen}

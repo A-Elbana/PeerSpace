@@ -24,7 +24,8 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
   const [expanded, setExpanded] = useState(false);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
-  const [tags, setTags] = useState(''); // comma-separated
+  const [tagsArr, setTagsArr] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
   const [communityId, setCommunityId] = useState<string>(defaultCommunityId || '');
   const [communities, setCommunities] = useState<CommunityOption[]>([]);
   const [files, setFiles] = useState<File[]>([]);
@@ -171,7 +172,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
       await postApi.create({
         title: title.trim(),
         body: body.trim() || undefined,
-        type: tags.trim() || 'discussion',
+        type: tagsArr.length ? tagsArr.join(',') : 'discussion',
         cid: (communityId || defaultCommunityId) as string,
         file_ids: fileIds.length ? fileIds : undefined,
       });
@@ -179,7 +180,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
       // Reset form
       setTitle('');
       setBody('');
-      setTags('');
+      setTagsArr([]);
       Object.values(filePreviews).forEach(url => URL.revokeObjectURL(url));
       setFiles([]);
       setFilePreviews({});
@@ -353,12 +354,34 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
             className="min-h-50"
           />
 
-          <input
-            value={tags}
-            onChange={(e) => setTags(e.target.value)}
-            placeholder="Tags (comma separated)"
-            className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none"
-          />
+          <div>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {tagsArr.map((t) => (
+                <span key={t} className="inline-flex items-center gap-2 px-2 py-1 rounded-full bg-muted/30 text-sm">
+                  <span className="capitalize">{t}</span>
+                  <button type="button" onClick={() => setTagsArr(prev => prev.filter(x => x !== t))} className="p-0.5 rounded-full hover:bg-muted">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <input
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === ' ' || e.key === 'Spacebar' || e.key === 'Enter') {
+                  e.preventDefault();
+                  const val = tagInput.trim();
+                  if (val) {
+                    setTagsArr(prev => prev.includes(val) ? prev : [...prev, val]);
+                    setTagInput('');
+                  }
+                }
+              }}
+              placeholder="Press space to add tag"
+              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none"
+            />
+          </div>
 
           {/* Attachments preview */}
           {files.length > 0 && (

@@ -1,8 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, Tag } from 'lucide-react';
+import { Loader2, Send, FileText, X } from 'lucide-react';
 import { Button } from '../ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from '@/components/ui/dialog';
 import { postApi, type PostResponse } from '../../services/api';
 import { toast } from 'sonner';
+import { MarkdownEditor } from '../MarkdownEditor';
 
 interface PostModalProps {
     isOpen: boolean;
@@ -11,27 +20,23 @@ interface PostModalProps {
     onSuccess: (post: PostResponse) => void;
 }
 
-const POST_TAGS = [
-    { id: 'math', label: 'Math', color: 'bg-tech-blue-500', textColor: 'text-tech-blue-600', bgLight: 'bg-tech-blue-500/10' },
-    { id: 'scientific', label: 'Scientific', color: 'bg-turf-green-500', textColor: 'text-turf-green-600', bgLight: 'bg-turf-green-500/10' },
-    { id: 'puzzles', label: 'Puzzles', color: 'bg-royal-gold-500', textColor: 'text-royal-gold-600', bgLight: 'bg-royal-gold-500/10' },
-] as const;
-
 export const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, post, onSuccess }) => {
     const [title, setTitle] = useState('');
     const [body, setBody] = useState('');
-    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    const [tagsArr, setTagsArr] = useState<string[]>([]);
+    const [tagInput, setTagInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
         if (post) {
             setTitle(post.title);
             setBody(post.body || '');
-            setSelectedTags(post.type ? post.type.split(',').map(t => t.trim().toLowerCase()) : []);
+            setTagsArr((post.type ?? '').split(',').map((t: string) => t.trim()).filter(Boolean));
         } else {
             setTitle('');
             setBody('');
-            setSelectedTags([]);
+            setTagsArr([]);
+            setTagInput('');
         }
     }, [post, isOpen]);
 
@@ -48,11 +53,12 @@ export const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, post, onS
         try {
             if (post) {
                 // Update
+                const selectedTags = tagsArr.map(t => t.trim()).filter(Boolean);
                 const updatedPost = await postApi.update(post.id, {
                     title: title.trim(),
                     body: body.trim(),
                     type: selectedTags.length > 0 ? selectedTags.join(',') : 'discussion',
-                    is_resolved: post.is_resolved || false // Preserve resolved status or use dedicated toggle
+                    is_resolved: (post as any)?.is_resolved ?? false,
                 });
                 toast.success('Post updated successfully');
                 // The update API might return the updated post directly or generic response. 
@@ -70,82 +76,87 @@ export const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, post, onS
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200 p-4">
-            <div className="bg-card w-full max-w-lg rounded-xl shadow-2xl border border-border flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-                <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
-                    <h3 className="font-semibold text-lg text-foreground flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-frosted-blue-500 to-turf-green-500 flex items-center justify-center text-white text-sm font-bold shadow-md">
-                            E
-                        </div>
+        <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+            <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <FileText className="w-5 h-5" />
                         Edit Post
-                    </h3>
-                    <button onClick={onClose} className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-foreground">
-                        <X size={20} />
-                    </button>
+                    </DialogTitle>
+                    <DialogDescription>Update your post content and tags.</DialogDescription>
+                </DialogHeader>
+
+                <div className="p-6 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 160px)' }}>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div>
+                            <input
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                placeholder="Title"
+                                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-frosted-blue-500"
+                            />
+                        </div>
+
+                        <MarkdownEditor
+                            value={body}
+                            onChange={setBody}
+                            placeholder="Write something..."
+                            className="min-h-40"
+                        />
+
+                        <div>
+                            <div className="flex flex-wrap gap-2 mb-2">
+                                {tagsArr.map((t) => (
+                                    <span key={t} className="inline-flex items-center gap-2 px-2 py-1 rounded-full bg-muted/30 text-sm">
+                                        <span className="capitalize">{t}</span>
+                                        <button type="button" onClick={() => setTagsArr(prev => prev.filter(x => x !== t))} className="p-0.5 rounded-full hover:bg-muted">
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </span>
+                                ))}
+                            </div>
+                            <input
+                                value={tagInput}
+                                onChange={(e) => setTagInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === ' ' || e.key === 'Spacebar' || e.key === 'Enter') {
+                                        e.preventDefault();
+                                        const val = tagInput.trim();
+                                        if (val) {
+                                            setTagsArr(prev => prev.includes(val) ? prev : [...prev, val]);
+                                            setTagInput('');
+                                        }
+                                    }
+                                }}
+                                placeholder="Press space to add tag"
+                                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none"
+                            />
+                        </div>
+                    </form>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-4 space-y-4">
-                    <div>
-                        <label className="text-sm font-medium text-muted-foreground mb-1 block">Title</label>
-                        <input
-                            type="text"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            className="w-full px-3 py-2 bg-muted/50 border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring text-foreground"
-                            placeholder="Post title"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-muted-foreground mb-1 block">Tags</label>
-                        <div className="flex gap-2 flex-wrap bg-muted/30 p-2 rounded-lg border border-input">
-                            <Tag size={16} className="text-muted-foreground" />
-                            {POST_TAGS.map((tag) => {
-                                const isSelected = selectedTags.includes(tag.id);
-                                return (
-                                    <button
-                                        key={tag.id}
-                                        type="button"
-                                        onClick={() => {
-                                            if (isSelected) {
-                                                setSelectedTags(prev => prev.filter(t => t !== tag.id));
-                                            } else {
-                                                setSelectedTags(prev => [...prev, tag.id]);
-                                            }
-                                        }}
-                                        className={`text-xs font-medium px-2 py-1 rounded-full transition-all ${isSelected
-                                            ? `${tag.bgLight} ${tag.textColor} ring-1 ring-current`
-                                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                                            }`}
-                                    >
-                                        {tag.label}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="text-sm font-medium text-muted-foreground mb-1 block">Content</label>
-                        <textarea
-                            value={body}
-                            onChange={(e) => setBody(e.target.value)}
-                            className="w-full px-3 py-2 bg-muted/50 border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring text-foreground min-h-[150px] resize-y"
-                            placeholder="Post content..."
-                        />
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-2">
-                        <Button type="button" variant="ghost" onClick={onClose} disabled={isLoading}>
-                            Cancel
-                        </Button>
-                        <Button type="submit" disabled={isLoading} className="bg-turf-green-500 text-white hover:bg-turf-green-600 transition-colors">
-                            {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                            Save Changes
-                        </Button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                <DialogFooter className="gap-2">
+                    <Button type="button" variant="ghost" onClick={onClose} disabled={isLoading}>Cancel</Button>
+                    <div className="flex-1" />
+                    <Button
+                        onClick={handleSubmit as any}
+                        disabled={isLoading}
+                        className={`gap-2 bg-turf-green-500 hover:bg-turf-green-600`}
+                    >
+                        {isLoading ? (
+                            <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Saving...
+                            </>
+                        ) : (
+                            <>
+                                <Send className="w-4 h-4" />
+                                Save Changes
+                            </>
+                        )}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 };

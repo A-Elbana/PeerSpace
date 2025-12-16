@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { MessageSquare, Clock, User, ArrowBigUp, ArrowBigDown, Megaphone, MoreHorizontal, PenSquare, Trash2, Download, FileIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useResolvedFileUrl } from '../../hooks/useResolvedFileUrl';
 import { MarkdownPreview, MarkdownEditor } from '../MarkdownEditor';
+import { PostModal } from './PostModal';
 import api, { voteApi, postApi } from '../../services/api';
 import { toast } from 'sonner';
 
@@ -89,12 +90,6 @@ export default function PostCard({ post, currentUser, isInstructorOfCommunity, o
   const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
   const [showImageModal, setShowImageModal] = useState<boolean>(false);
   const [isEditOpen, setIsEditOpen] = useState<boolean>(false);
-  const [editTitle, setEditTitle] = useState<string>(post.title);
-  const [editBody, setEditBody] = useState<string>(post.body ?? '');
-  const [isSavingEdit, setIsSavingEdit] = useState<boolean>(false);
-  const [removedAttachmentIds, setRemovedAttachmentIds] = useState<Set<string>>(new Set());
-  const [newFiles, setNewFiles] = useState<File[]>([]);
-  const [isUploadingNew, setIsUploadingNew] = useState<boolean>(false);
 
   const canModify = currentUser && (
     currentUser.id === post.User.id ||
@@ -465,188 +460,18 @@ export default function PostCard({ post, currentUser, isInstructorOfCommunity, o
             )}
           </div>
 
-          {isEditOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => !isSavingEdit && setIsEditOpen(false)}>
-              <div className="bg-card w-full max-w-2xl rounded-xl shadow-2xl border border-border overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-between p-4 border-b border-border">
-                  <h3 className="font-semibold text-lg">Edit Post</h3>
-                  <button className="p-2 hover:bg-muted rounded-lg transition-colors" onClick={() => setIsEditOpen(false)} disabled={isSavingEdit}>
-                    <X size={18} />
-                  </button>
-                </div>
-                <div className="p-4 space-y-3">
-                  <input
-                    type="text"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    className="w-full px-3 py-2 bg-muted/50 border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                    placeholder="Title"
-                  />
-                  <div className="border border-input rounded-lg overflow-hidden min-h-[200px]">
-                    <MarkdownEditor
-                      value={editBody}
-                      onChange={setEditBody}
-                      placeholder="Write your post..."
-                      className="min-h-[200px]"
-                    />
-                  </div>
-
-                  {/* Attachments Editor */}
-                  <div className="space-y-2">
-                    <div className="text-sm font-medium">Attachments</div>
-                    {/* Existing attachments with remove toggles */}
-                    {(post.PostFileAttachment || []).length > 0 ? (
-                      <div className="space-y-2">
-                        {(post.PostFileAttachment || []).map((att) => {
-                          const fid = att.fid;
-                          const file = att.File;
-                          const name = getFileName(file);
-                          const isRemoved = removedAttachmentIds.has(fid);
-                          return (
-                            <div key={fid} className={`flex items-center gap-3 p-2 rounded-lg border ${isRemoved ? 'border-red-300 bg-red-50 dark:bg-red-900/10' : 'border-border bg-muted/30'}`}>
-                              <input
-                                type="checkbox"
-                                checked={isRemoved}
-                                onChange={(e) => {
-                                  setRemovedAttachmentIds(prev => {
-                                    const next = new Set(prev);
-                                    if (e.target.checked) next.add(fid);
-                                    else next.delete(fid);
-                                    return next;
-                                  });
-                                }}
-                                className="shrink-0"
-                                aria-label={`Remove ${name}`}
-                              />
-                              <a href={file?.secure_url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium truncate hover:text-frosted-blue-600">
-                                {name}
-                              </a>
-                              {file?.size && (
-                                <span className="text-xs text-muted-foreground">{formatFileSize(file.size)}</span>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="text-xs text-muted-foreground">No attachments</div>
-                    )}
-
-                    {/* Add new files */}
-                    <div className="flex items-center gap-2">
-                      <label className="px-3 py-1.5 rounded-md bg-muted hover:bg-muted/80 text-sm cursor-pointer">
-                        <input
-                          type="file"
-                          multiple
-                          className="hidden"
-                          onChange={(e) => {
-                            const files = Array.from(e.target.files || []);
-                            setNewFiles(prev => [...prev, ...files]);
-                          }}
-                        />
-                        Add files
-                      </label>
-                      {newFiles.length > 0 && (
-                        <span className="text-xs text-muted-foreground">{newFiles.length} selected</span>
-                      )}
-                    </div>
-                    {newFiles.length > 0 && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {newFiles.map((f, idx) => (
-                          <div key={idx} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-muted/30">
-                            <span className="text-sm truncate flex-1">{f.name}</span>
-                            <button
-                              className="text-xs px-2 py-1 rounded bg-muted hover:bg-muted/80"
-                              onClick={() => setNewFiles(prev => prev.filter((_, i) => i !== idx))}
-                            >Remove</button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="p-4 border-t border-border flex items-center justify-end gap-2">
-                  <button className="px-4 py-2 rounded-lg bg-muted text-foreground text-sm" onClick={() => setIsEditOpen(false)} disabled={isSavingEdit}>Cancel</button>
-                  <button
-                    className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50"
-                    disabled={isSavingEdit || isUploadingNew || !editTitle.trim()}
-                    onClick={async () => {
-                      setIsSavingEdit(true);
-                      try {
-                        // Upload new files first (if any)
-                        let newFileIds: string[] = [];
-                        if (newFiles.length > 0) {
-                          setIsUploadingNew(true);
-                          const uploadedIds: string[] = [];
-                          for (const file of newFiles) {
-                            // 1) sign
-                            const signRes = await api.post('/uploads/sign', {
-                              context: 'POST',
-                              context_id: String(post.id),
-                              is_private: false,
-                              resource_type: 'auto',
-                            });
-                            const { timestamp, signature, folder, cloudName, apiKey } = signRes.data;
-                            // 2) cloudinary upload
-                            const fd = new FormData();
-                            fd.append('file', file);
-                            fd.append('timestamp', String(timestamp));
-                            fd.append('signature', signature);
-                            fd.append('api_key', apiKey);
-                            fd.append('folder', folder);
-                            const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
-                            const upRes = await fetch(uploadUrl, { method: 'POST', body: fd });
-                            if (!upRes.ok) throw new Error('Upload failed');
-                            const cData = await upRes.json();
-                            // 3) create file record
-                            const fileRes = await api.post('/files', {
-                              public_id: cData.public_id,
-                              secure_url: cData.secure_url,
-                              resource_type: cData.resource_type,
-                              format: cData.format,
-                              context: 'POST',
-                              context_id: String(post.id),
-                              is_private: false,
-                            });
-                            uploadedIds.push(fileRes.data.data.id);
-                          }
-                          newFileIds = uploadedIds;
-                          setIsUploadingNew(false);
-                        }
-
-                        // Keep existing attachments except those marked removed
-                        const existingKeepIds = (post.PostFileAttachment || [])
-                          .filter(att => !removedAttachmentIds.has(att.fid))
-                          .map(att => att.fid);
-
-                        const updated = await postApi.update(post.id, {
-                          title: editTitle.trim(),
-                          body: editBody,
-                          file_ids: [...existingKeepIds, ...newFileIds],
-                        });
-                        // Optimistically update visible post content
-                        post.title = updated.title ?? editTitle.trim();
-                        post.body = updated.body ?? editBody;
-                        // Update attachments locally
-                        const keepSet = new Set(existingKeepIds);
-                        const kept = (post.PostFileAttachment || []).filter(att => keepSet.has(att.fid));
-                        const added = newFileIds.map(id => ({ fid: id } as any));
-                        post.PostFileAttachment = [...kept, ...added];
-                        toast.success('Post updated');
-                        setIsEditOpen(false);
-                        setRemovedAttachmentIds(new Set());
-                        setNewFiles([]);
-                      } catch (err: any) {
-                        toast.error(err?.response?.data?.message || 'Failed to update post');
-                      } finally {
-                        setIsSavingEdit(false);
-                      }
-                    }}
-                  >Save</button>
-                </div>
-              </div>
-            </div>
-          )}
+              <PostModal
+                isOpen={isEditOpen}
+                onClose={() => setIsEditOpen(false)}
+                post={post as any}
+                onSuccess={(updated) => {
+                  post.title = (updated.title as any) ?? post.title;
+                  post.body = (updated.body as any) ?? post.body;
+                  setIsEditOpen(false);
+                  toast.success('Post updated');
+                  onEdit?.(updated as any);
+                }}
+              />
         </div>
       </div>
     </div>

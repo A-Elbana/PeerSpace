@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Sidebar } from '../../components/dashboard';
-import { useSidebar } from '../../contexts/SidebarContext';
+import { Sidebar } from '../components/dashboard';
+import { useSidebar } from '../contexts/SidebarContext';
 import { Loader2, MessageSquare, Home, FileText, ChevronRight } from 'lucide-react';
-import PostCard from '../../components/posts/PostCard';
-import { Button } from '../../components/ui/button';
-import CommentItem from '../../components/common/CommentItem';
+import PostCard from '../components/posts/PostCard';
+import { Button } from '../components/ui/button';
+import CommentItem from '../components/common/CommentItem';
 import { toast } from 'sonner';
-import api, * as apiServices from '../../services/api';
-import type { PostResponse, CommunityResponse } from '../../services/api';
+import api, * as apiServices from '../services/api';
+import type { PostResponse, CommunityResponse } from '../services/api';
 
 const { postApi, communityApi, commentApi, fileApi } = apiServices;
 
@@ -37,7 +37,7 @@ const PostPreview: React.FC = () => {
   const [post, setPost] = useState<PostResponse | null>(null);
   const [community, setCommunity] = useState<CommunityResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<{ id: number; role?: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: number; role: string } | null>(null);
   const [instructors, setInstructors] = useState<Array<{ id: number }>>([]);
 
   // Helper to normalize API responses that may be wrapped: { success, data } or { data: { data: ... } }
@@ -53,6 +53,8 @@ const PostPreview: React.FC = () => {
   // Comments UI state
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
+  const [replySubmittingId, setReplySubmittingId] = useState<number | null>(null);
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [replyText, setReplyText] = useState(''); // kept for backward-compat but replies use local state now
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
@@ -147,7 +149,7 @@ const PostPreview: React.FC = () => {
           const me = await api.get('/auth/me');
           const meRaw = normalizeApi(me) ?? (me && (me.data ?? me));
           const meData = meRaw?.data ?? meRaw;
-          if (meData) setCurrentUser({ id: meData.id, role: (meData.role || '').toLowerCase() });
+          if (meData) setCurrentUser({ id: meData.id, role: (meData.role ?? 'user').toLowerCase() });
         } catch (e) {
           // ignore - permissions will be restricted if not available
         }
@@ -420,18 +422,45 @@ const PostPreview: React.FC = () => {
   };
 
   const handleAddComment = async () => {
-    const created = await createCommentAndInsert(newComment);
-    if (created) setNewComment('');
+    if (!newComment.trim()) return;
+    setCommentSubmitting(true);
+    try {
+      const created = await createCommentAndInsert(newComment);
+      if (created) {
+        setNewComment('');
+        toast.success('Comment posted');
+      } else {
+        toast.error('Failed to post comment');
+      }
+    } catch (err) {
+      console.error('Failed to post comment', err);
+      toast.error('Failed to post comment');
+    } finally {
+      setCommentSubmitting(false);
+    }
   };
 
   const handleAddReply = async (parentId: number, content?: string) => {
     const body = content !== undefined ? content : replyText;
-    const created = await createCommentAndInsert(body, parentId);
-    if (created) {
-      if (content === undefined) setReplyText('');
-      setReplyingTo(null);
+    if (!body || !body.trim()) return null;
+    setReplySubmittingId(parentId);
+    try {
+      const created = await createCommentAndInsert(body, parentId);
+      if (created) {
+        if (content === undefined) setReplyText('');
+        setReplyingTo(null);
+        toast.success('Reply posted');
+      } else {
+        toast.error('Failed to post reply');
+      }
+      return created;
+    } catch (err) {
+      console.error('Failed to post reply', err);
+      toast.error('Failed to post reply');
+      return null;
+    } finally {
+      setReplySubmittingId(null);
     }
-    return created;
   };
 
 
@@ -468,20 +497,35 @@ const PostPreview: React.FC = () => {
 
             <div className="mb-6">
               {post ? (
-                <PostCard post={post as any} clickable={false} />
+                <PostCard
+                  post={post as any}
+                  clickable={false}
+                  currentUser={currentUser}
+                />
               ) : (
                 <div className="bg-card border rounded-lg p-6">Loading post...</div>
               )}
             </div>
 
             <div className="bg-card border rounded-lg p-6">
-              <h3 className="font-semibold mb-3 text-foreground">Discussion</h3>
               <div className="mb-4">
-                <textarea value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Write a comment..." className="w-full px-3 py-2 border rounded" rows={3} />
-                <div className="flex justify-end mt-2"><Button onClick={handleAddComment} disabled={!newComment.trim()}><MessageSquare className="w-4 h-4 mr-2" />Comment</Button></div>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-semibold text-foreground">Discussion</h2>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">Join the conversation — replies are threaded.</p>
               </div>
 
-              <div className="space-y-4">
+              <div className="mb-4">
+                <textarea value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Write a comment..." className="w-full px-3 py-2 border rounded" rows={3} />
+                <div className="flex justify-end mt-2">
+                  <Button onClick={handleAddComment} disabled={!newComment.trim() || commentSubmitting}>
+                    {commentSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <MessageSquare className="w-4 h-4 mr-2" />}
+                    {commentSubmitting ? 'Posting...' : 'Comment'}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-4 overflow-x-auto max-w-full">
                 {comments.map(c => (
                   <CommentItem
                     key={c.id}

@@ -300,22 +300,42 @@ const PostManagementModal: React.FC<PostManagementModalProps> = ({
                 <Tag className="w-4 h-4" />
                 Tags
               </Label>
-              <div className="flex gap-2">
-                <Input
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
-                  placeholder="Add a tag..."
-                  className="flex-1"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleAddTag}
-                  disabled={!newTag.trim()}
-                >
-                  Add
-                </Button>
+              <div>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {(editedPost.tags || []).map((tag) => (
+                    <Badge
+                      key={tag}
+                      variant="secondary"
+                      className="gap-1 cursor-pointer hover:bg-destructive/10"
+                      onClick={() => handleRemoveTag(tag)}
+                    >
+                      {tag}
+                      <X className="w-3 h-3" />
+                    </Badge>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === ' ' || e.key === 'Spacebar' || e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddTag();
+                      }
+                    }}
+                    placeholder="Press space to add a tag"
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleAddTag}
+                    disabled={!newTag.trim()}
+                  >
+                    Add
+                  </Button>
+                </div>
               </div>
               {editedPost.tags && editedPost.tags.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">

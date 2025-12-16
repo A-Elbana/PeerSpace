@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowBigUp, ArrowBigDown, User } from 'lucide-react';
+import { ArrowBigUp, ArrowBigDown, User, ChevronDown } from 'lucide-react';
 import { Button } from '../ui/button';
 
 export interface Comment {
@@ -70,6 +70,32 @@ export const CommentItem: React.FC<Props> = ({
     if (editingCommentId === comment.id) setEditValue(comment.content);
   }, [editingCommentId, comment.id, comment.content]);
 
+  const canEdit = Boolean(currentUser && (currentUser.id === comment.User.id || ((currentUser.role || '').toLowerCase() === 'admin')));
+
+const urlRegex = /(https?:\/\/[^\s)\]>\]]+|www\.[^\n\s)\]>\]]+)/gi;
+
+  const renderContentWithLinks = (text: string) => {
+    if (!text) return null;
+    const nodes: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+    // eslint-disable-next-line no-cond-assign
+    while ((match = urlRegex.exec(text)) !== null) {
+      const idx = match.index;
+      if (idx > lastIndex) nodes.push(text.slice(lastIndex, idx));
+      const url = match[0];
+      const href = url.startsWith('http') ? url : `https://${url}`;
+      nodes.push(
+        <a key={`${idx}-${url}`} href={href} target="_blank" rel="noopener noreferrer" className="text-frosted-blue-500 hover:underline">
+          {url}
+        </a>
+      );
+      lastIndex = idx + url.length;
+    }
+    if (lastIndex < text.length) nodes.push(text.slice(lastIndex));
+    return nodes;
+  };
+
   return (
     <div style={{ marginLeft: depth * 10 }}>
       <div className="flex gap-3 items-start">
@@ -87,7 +113,7 @@ export const CommentItem: React.FC<Props> = ({
           )}
         </div>
 
-        <div className="flex-1">
+        <div className="flex-1 max-w-[50ch] min-w-[50ch]">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-sm font-medium text-foreground">{comment.User.fname} {comment.User.lname}</span>
             <span className="text-xs text-muted-foreground">{formatDate(comment.created_at)}</span>
@@ -103,11 +129,13 @@ export const CommentItem: React.FC<Props> = ({
             </div>
           ) : (
             <>
-              <p className="text-sm text-foreground">{comment.content}</p>
+              <p className="text-sm text-foreground whitespace-pre-wrap break-words">{renderContentWithLinks(comment.content)}</p>
 
-              <div className="mt-2 flex items-center gap-3 text-xs">
+                <div className="mt-2 flex items-center gap-3 text-xs">
                 <button onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)} className="text-muted-foreground hover:text-foreground">Reply</button>
-                <button onClick={() => { setEditingCommentId(comment.id); }} className="text-muted-foreground hover:text-foreground">Edit</button>
+                {canEdit && (
+                  <button onClick={() => { setEditingCommentId(comment.id); }} className="text-muted-foreground hover:text-foreground">Edit</button>
+                )}
                 {(() => {
                   const canDelete = currentUser && (currentUser.id === comment.User.id || (currentUser.role || '').toLowerCase() === 'admin' || isInstructor);
                   if (!canDelete) return null;
@@ -136,7 +164,10 @@ export const CommentItem: React.FC<Props> = ({
               <div className="flex items-center">
                 <div className="flex-1 border-t border-muted-foreground" />
                 <div className="px-2 -mt-2">
-                  <button className="text-xs text-muted-foreground bg-background px-2 rounded" onClick={() => toggleExpand(comment.id)}>Show more</button>
+                  <button className="text-xs text-muted-foreground bg-background px-2 rounded cursor-pointer flex items-center gap-1" onClick={() => toggleExpand(comment.id)}>
+                    <ChevronDown className="w-3 h-3" />
+                    Show replies
+                  </button>
                 </div>
                 <div className="flex-1 border-t border-muted-foreground" />
               </div>
@@ -168,7 +199,10 @@ export const CommentItem: React.FC<Props> = ({
                       <div className="flex items-center">
                         <div className="flex-1 border-t border-muted-foreground" />
                         <div className="px-2 -mt-2">
-                          <button className="text-xs text-muted-foreground bg-background px-2 rounded" onClick={() => toggleExpand(r.id)}>Show more</button>
+                          <button className="text-xs text-muted-foreground bg-background px-2 rounded flex items-center gap-1" onClick={() => toggleExpand(r.id)}>
+                            <ChevronDown className="w-3 h-3" />
+                            Show replies
+                          </button>
                         </div>
                         <div className="flex-1 border-t border-muted-foreground" />
                       </div>

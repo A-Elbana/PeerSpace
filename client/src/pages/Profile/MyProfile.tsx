@@ -196,7 +196,11 @@ const MyProfile: React.FC = () => {
                 ) : (
                   <div className="flex flex-col gap-4">
                     {myPosts.map(p => (
-                      <PostCard key={p.id} post={p as any} />
+                      <PostCard
+                        key={p.id}
+                        post={p as any}
+                        currentUser={user ? { id: user.id, role: user.role } : null}
+                      />
                     ))}
 
                     {hasMorePosts && (
