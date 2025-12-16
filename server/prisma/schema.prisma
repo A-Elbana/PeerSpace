@@ -40,6 +40,7 @@ enum NotificationType {
   SUBMISSION_GRADED
   REPLY
   SYSTEM
+  TASK_INVITE
 }
 
 model ActivityLog {
