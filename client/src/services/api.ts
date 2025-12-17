@@ -192,6 +192,7 @@ export interface PostResponse {
   _count?: {
     Comment: number;
   };
+  PostTag: { tag: string }[];
 }
 
 export interface PostsListResponse {
@@ -365,6 +366,7 @@ export const postApi = {
     body?: string;
     cid: string;
     file_ids?: string[];
+    tags?: string[];
   }): Promise<PostResponse> => {
     const response = await api.post("/posts", data);
     return response.data;
@@ -446,6 +448,7 @@ export const postApi = {
       type?: string;
       is_resolved?: boolean;
       file_ids?: string[];
+      tags?: string[];
     }
   ): Promise<PostResponse> => {
     const response = await api.put(`/posts/${id}`, data);

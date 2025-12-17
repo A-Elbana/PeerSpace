@@ -98,6 +98,13 @@ const ProfileView: React.FC<ProfileProps> = ({ onLogout }) => {
     fetchUserData();
   }, []);
 
+  // If the viewed profile is the current user, redirect to canonical /profile route
+  useEffect(() => {
+    if (viewedUser && user && viewedUser.id === user.id) {
+      navigate('/profile');
+    }
+  }, [viewedUser, user, navigate]);
+
   useEffect(() => {
     const fetchCommunities = async () => {
       // If viewing self, fetch My Communities & Posts like before
@@ -117,12 +124,6 @@ const ProfileView: React.FC<ProfileProps> = ({ onLogout }) => {
         } finally {
           setCommunitiesLoading(false);
         }
-      } else if (activeTab !== 'Community') {
-        // Reset communities state when leaving the tab
-        setCommunities([]);
-        setCommunitiesPage(1);
-        setHasMoreCommunities(true);
-        setLoadingMoreCommunities(false);
       }
 
       // Fetch user's posts when Posts tab active (only for self for now)
@@ -387,98 +388,8 @@ const ProfileView: React.FC<ProfileProps> = ({ onLogout }) => {
             <div className="flex-1">
               <UserProfileHeader viewedUser={viewedUser} viewedAvatarUrl={viewedAvatarUrl} />
 
-              {/* If viewing self show full tabs, otherwise show mutual previews */}
-              {viewedUser && user && viewedUser.id === user.id ? (
-                <>
-                  <div className="flex gap-6 border-b border-border mb-6">
-                    {tabs.map(tab => (
-                      <button
-                        key={tab}
-                        className={`px-4 py-2 text-base font-medium rounded-t-lg focus:outline-none transition-colors duration-150 ${activeTab === tab
-                          ? 'bg-muted text-foreground border border-border border-b-0 -mb-px'
-                          : 'text-muted-foreground hover:text-foreground'
-                          }`}
-                        onClick={() => setActiveTab(tab)}
-                      >
-                        {tab}
-                      </button>
-                    ))}
-                  </div>
-
-                  {activeTab === 'Overview' && (
-                    <div className="bg-muted/50 rounded-xl border border-border p-6 flex items-center gap-4 mb-6">
-                      <span className="text-xl text-muted-foreground flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12H9m12 0A9 9 0 11 3 12a9 9 0 0118 0z" />
-                        </svg>
-                        Showing all content
-                      </span>
-                    </div>
-                  )}
-
-                  {activeTab === 'Posts' && (
-                    <div className="space-y-4 mb-6">
-                      {postsLoading ? (
-                        <div className="flex items-center justify-center py-8">
-                          <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                          <span>Loading posts...</span>
-                        </div>
-                      ) : myPosts.length === 0 ? (
-                        <div className="bg-muted/50 rounded-xl border border-border p-6 flex items-center gap-4">
-                          <span className="text-xl text-muted-foreground flex items-center gap-2">
-                            No posts to show.
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-4">
-                          {myPosts.map((p) => (
-                            <div
-                              key={p.id}
-                              onClick={() => navigate(`/community/${p.cid}/post/${p.id}`)}
-                              className="bg-card rounded-lg border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer p-4 w-full"
-                            >
-                              <h3 className="font-semibold text-lg text-foreground mb-2">{p.title}</h3>
-                              <p className="text-muted-foreground text-sm mb-3">{p.body ?? ''}</p>
-                              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                <span>{p._count?.Comment || 0} comments</span>
-                                <span>{p.post_date ? new Date(p.post_date).toLocaleDateString() : ''}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {activeTab === 'Community' && (
-                    <div className="space-y-4">
-                      {communitiesLoading ? (
-                        <div className="flex items-center justify-center py-8">
-                          <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                          <span>Loading communities...</span>
-                        </div>
-                      ) : communities.length === 0 ? (
-                        <div className="bg-muted/50 rounded-xl border border-border p-6 flex items-center gap-4 mb-6">
-                          <span className="text-xl text-muted-foreground flex items-center gap-2">
-                            No communities to show.
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {communities.map((community) => (
-                            <CommunityCard
-                              key={community.id}
-                              community={community}
-                              onClick={() => navigate(`/community/${community.id}`)}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </>
-              ) : (
-                // Viewing another user: show mutual recent activity and mutual communities (lazy placeholders)
+              {/* Viewing another user: show mutual recent activity and mutual communities (lazy placeholders) */}
+              {viewedUser && user && viewedUser.id !== user.id && (
                 <div className="flex gap-6">
                   <div className="flex-1 mb-6">
                     <h3 className="text-lg font-semibold mb-3">Recent activity in mutual communities</h3>
@@ -492,7 +403,6 @@ const ProfileView: React.FC<ProfileProps> = ({ onLogout }) => {
                               key={p.id}
                               post={p as any}
                               currentUser={user ? { id: user.id, role: user.role } : null}
-                              isInstructorOfCommunity={false}
                             />
                           ))}
                         </div>

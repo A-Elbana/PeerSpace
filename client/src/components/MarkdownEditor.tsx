@@ -82,6 +82,7 @@ const MenuButton: React.FC<MenuButtonProps> = ({
 }) => (
     <button
         onClick={onClick}
+        tabIndex={-1}
         disabled={disabled}
         title={title}
         className={cn(

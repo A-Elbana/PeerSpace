@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Image as ImageIcon, X, Send, ChevronDown, Search, FileIcon } from 'lucide-react';
 import api, { communityApi, postApi } from '../../services/api';
 import { useResolvedFileUrl } from '../../hooks/useResolvedFileUrl';
+import TagChip from '../common/TagChip';
 import { MarkdownEditor } from '../MarkdownEditor';
 import { toast } from 'sonner';
 
@@ -169,13 +170,21 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
       }
 
       // Step 2: Create the post with file_ids so backend can attach them
+      const selectedTags = tagsArr.map(t => t.trim()).filter(Boolean);
+      const hasAnnouncementTag = selectedTags.some(t => t.toLowerCase() === 'announcement');
+      // If 'announcement' is used as a tag, treat post type as announcement and remove it from tags
+      const payloadTags = selectedTags.filter(t => t.toLowerCase() !== 'announcement');
+      const payloadType = hasAnnouncementTag ? 'announcement' : 'discussion';
+
       const created = await postApi.create({
         title: title.trim(),
         body: body.trim() || undefined,
-        type: tagsArr.length ? tagsArr.join(',') : 'discussion',
+        type: payloadType,
         cid: (communityId || defaultCommunityId) as string,
         file_ids: fileIds.length ? fileIds : undefined,
-      });
+        // send tags array so server can persist PostTag relations
+        tags: payloadTags.length ? payloadTags : undefined,
+      } as any);
 
       // Reset form
       setTitle('');
@@ -356,12 +365,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
           <div>
             <div className="flex flex-wrap gap-2 mb-2">
               {tagsArr.map((t) => (
-                <span key={t} className="inline-flex items-center gap-2 px-2 py-1 rounded-full bg-muted/30 text-sm">
-                  <span className="capitalize">{t}</span>
-                  <button type="button" onClick={() => setTagsArr(prev => prev.filter(x => x !== t))} className="p-0.5 rounded-full hover:bg-muted">
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
+                <TagChip key={t} label={t} removable onRemove={() => setTagsArr(prev => prev.filter(x => x !== t))} size="sm" />
               ))}
             </div>
             <input

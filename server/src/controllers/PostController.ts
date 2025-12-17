@@ -155,11 +155,7 @@ export const getPostById = async (req: PostRequest, res: Response) => {
             },
           },
         },
-        PostTag: {
-          select: {
-            tag: true,
-          },
-        },
+        PostTag: { select: { tag: true } },
         _count: {
           select: { Comment: true },
         },
@@ -295,11 +291,7 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
             },
           },
         },
-        PostTag: {
-          select: {
-            tag: true,
-          },
-        },
+        PostTag: { select: { tag: true } },
         _count: {
           select: { Comment: true },
         },
@@ -664,16 +656,12 @@ export const getAllPosts = async (req: Request, res: Response) => {
     });
 
     // Format posts with tags
-    const formattedPosts = posts.map((post) => {
-      const tags = post.PostTag.map((pt) => pt.tag);
-      const { PostTag, ...postData } = post;
-      return { ...postData, tags };
-    });
+    
 
     const total = await prisma.post.count({ where: whereClause });
 
     res.status(200).json({
-      data: formattedPosts,
+      data: posts,
       meta: {
         total,
         page,
@@ -757,11 +745,7 @@ export const getAllMyPosts = async (req: Request, res: Response) => {
               },
             },
           },
-          PostTag: {
-            select: {
-              tag: true,
-            },
-          },
+          PostTag: { select: { tag: true } },
           _count: {
             select: {
               Comment: true,
