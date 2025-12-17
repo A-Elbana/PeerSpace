@@ -94,7 +94,7 @@ export const CommentItem: React.FC<Props> = ({
         setApprovedAtInst(data?.approved_at_inst ? new Date(data.approved_at_inst).toISOString() : null);
         setApprovedAtOp(data?.approved_at_op ? new Date(data.approved_at_op).toISOString() : null);
       } catch (err) {
-        // ignore network errors; we keep optimistic local state
+        console.log(err);
       }
     };
     void load();
