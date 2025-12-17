@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, GraduationCap, User, ChevronLeft, ChevronRight } from 'lucide-react';
-import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import ClassmateCard from './ClassmateCard';
 import { useResolvedFileUrl } from '../../../hooks/useResolvedFileUrl';
 import { Button } from '../../../components/ui/button';
@@ -17,7 +17,6 @@ interface Member {
 interface MembersPanelProps {
   communityId: string;
   currentUserId: number;
-  isCurrentUserInstructor?: boolean;
 }
 
 const INSTRUCTORS_PER_PAGE = 2;
@@ -26,9 +25,8 @@ const STUDENTS_PER_PAGE = 5;
 const MembersPanel: React.FC<MembersPanelProps> = ({
   communityId,
   currentUserId,
-  isCurrentUserInstructor = false,
 }) => {
-  const [invitingMemberId, setInvitingMemberId] = useState<number | null>(null);
+  const navigate = useNavigate();
   const [instructorPage, setInstructorPage] = useState(1);
   const [studentPage, setStudentPage] = useState(1);
   
@@ -62,17 +60,8 @@ const MembersPanel: React.FC<MembersPanelProps> = ({
     );
   };
 
-  const handleInviteToTeam = async (memberId: number) => {
-    setInvitingMemberId(memberId);
-    try {
-      // TODO: Implement actual team invite API call
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API call
-      toast.success('Team invitation sent!');
-    } catch {
-      toast.error('Failed to send invitation');
-    } finally {
-      setInvitingMemberId(null);
-    }
+  const handleViewProfile = (memberId: number) => {
+    navigate(`/profile/${memberId}`);
   };
 
   // Fetch instructors when page changes
@@ -243,9 +232,7 @@ const MembersPanel: React.FC<MembersPanelProps> = ({
                     key={student.id}
                     member={student}
                     currentUserId={currentUserId}
-                    onInvite={handleInviteToTeam}
-                    isInviting={invitingMemberId === student.id}
-                    hideInviteButton={isCurrentUserInstructor}
+                    onViewProfile={handleViewProfile}
                   />
                 ))
               )}

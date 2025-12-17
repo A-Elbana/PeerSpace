@@ -327,9 +327,8 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
     // Map posts with their vote data
     const postsWithVotes = posts.map(post => {
       const votes = votesByPost.get(post.id)!;
-      const { PostTag, ...postData } = post;
       return {
-        ...postData,
+        ...post,
         votes: {
           upvotes: votes.upvotes,
           downvotes: votes.downvotes,

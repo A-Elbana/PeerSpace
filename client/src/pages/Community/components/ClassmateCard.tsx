@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, UserPlus, Loader2 } from 'lucide-react';
+import { User, Eye } from 'lucide-react';
 import { useResolvedFileUrl } from '../../../hooks/useResolvedFileUrl';
 
 interface Member {
@@ -13,17 +13,13 @@ interface Member {
 interface ClassmateCardProps {
   member: Member;
   currentUserId: number;
-  onInvite: (memberId: number) => void;
-  isInviting: boolean;
-  hideInviteButton?: boolean;
+  onViewProfile: (memberId: number) => void;
 }
 
 const ClassmateCard: React.FC<ClassmateCardProps> = ({
   member,
   currentUserId,
-  onInvite,
-  isInviting,
-  hideInviteButton = false,
+  onViewProfile,
 }) => {
   const isCurrentUser = member.id === currentUserId;
   const avatarUrl = useResolvedFileUrl(member.avatar_file_id);
@@ -53,21 +49,14 @@ const ClassmateCard: React.FC<ClassmateCardProps> = ({
         </span>
       </div>
 
-      {/* Invite Button - only show for other users and if not hidden */}
-      {!isCurrentUser && !hideInviteButton && (
-        <button
-          onClick={() => onInvite(member.id)}
-          disabled={isInviting}
-          className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-primary bg-primary/10 rounded hover:bg-primary/20 transition-colors disabled:opacity-50"
-        >
-          {isInviting ? (
-            <Loader2 className="w-3 h-3 animate-spin" />
-          ) : (
-            <UserPlus className="w-3 h-3" />
-          )}
-          Invite
-        </button>
-      )}
+      {/* View Profile Button - show for all users */}
+      <button
+        onClick={() => onViewProfile(member.id)}
+        className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-primary bg-primary/10 rounded hover:bg-primary/20 transition-colors"
+      >
+        <Eye className="w-3 h-3" />
+        View
+      </button>
     </div>
   );
 };
