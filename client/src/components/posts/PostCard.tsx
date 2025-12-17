@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { MessageSquare, Clock, User, ArrowBigUp, ArrowBigDown, Megaphone, MoreHorizontal, PenSquare, Trash2, Download, FileIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useResolvedFileUrl } from '../../hooks/useResolvedFileUrl';
 import { MarkdownPreview, MarkdownEditor } from '../MarkdownEditor';
-import { PostModal } from './PostModal';
-import api, { voteApi, postApi } from '../../services/api';
+import { PostModal } from './EditPostModal';
+import PostImageModal from './PostImageModal';
+import api, { voteApi, postApi, communityApi } from '../../services/api';
+import TagChip from '../common/TagChip';
 import { toast } from 'sonner';
 
 interface PostAuthor {
@@ -41,15 +43,13 @@ export interface PostShape {
   cid?: string;
   _count?: { Comment: number };
   PostFileAttachment?: PostFileAttachment[];
+  PostTag: { tag: string }[];
 }
 
 interface PostCardProps {
   post: PostShape;
   communityName?: string;
-  onNavigate?: (communityId: string) => void | Promise<void>;
   currentUser?: { id: number; role: string } | null;
-  isInstructorOfCommunity?: boolean;
-  onEdit?: (post: PostShape) => void;
   onDelete?: (postId: number) => void;
   clickable?: boolean;
 }
@@ -69,33 +69,39 @@ const formatDate = (dateString: string) => {
   return date.toLocaleDateString();
 };
 
-const getTypeColor = (type: string) => {
-  const colors: Record<string, string> = {
-    announcement: 'bg-red-500/10 text-red-500',
-    math: 'bg-tech-blue-500/10 text-tech-blue-600',
-    scientific: 'bg-turf-green-500/10 text-turf-green-600',
-    puzzles: 'bg-royal-gold-500/10 text-royal-gold-600',
-    discussion: 'bg-gray-500/10 text-gray-500',
-  };
-  return colors[type.toLowerCase()] || colors.discussion;
-};
 
-export default function PostCard({ post, currentUser, isInstructorOfCommunity, onEdit, onDelete, clickable = true }: PostCardProps) {
+export default function PostCard({ post, currentUser, onDelete, clickable = true }: PostCardProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const authorAvatarUrl = useResolvedFileUrl(post.User.avatar_file_id);
   const navigate = useNavigate();
-  const tags = post.type?.split(',').map((t: string) => t.trim().toLowerCase()) || [];
-  const isAnnouncement = tags.includes('announcement');
+
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
   const [showImageModal, setShowImageModal] = useState<boolean>(false);
-  const [navigateOnCloseImage, setNavigateOnCloseImage] = useState<boolean>(false);
   const [isEditOpen, setIsEditOpen] = useState<boolean>(false);
+  const [communityName, setCommunityName] = useState<string>('');
 
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        if (!post.cid || !currentUser) return;
+        
+        const commNameRes = await communityApi.getById(post.cid);
+        if (!mounted) return;
+        
+        
+        setCommunityName(commNameRes.data.name);
+      } catch (err) {
+        console.log(err)  
+      }
+    })();
+    return () => { mounted = false; };
+  }, [post.cid, currentUser]);
   const canModify = currentUser && (
     currentUser.id === post.User.id ||
     currentUser.role === 'admin' ||
-    (currentUser.role === 'instructor' && isInstructorOfCommunity)
+    (currentUser.role === 'instructor')
   );
 
   // Get attachments - handle both old and new format
@@ -228,9 +234,16 @@ export default function PostCard({ post, currentUser, isInstructorOfCommunity, o
   };
 
   return (
-    <div onClick={clickable ? goToPreview : undefined} className={`bg-card border rounded-xl overflow-visible ${clickable ? 'hover:border-frosted-blue-500/50 hover:shadow-md cursor-pointer' : ''} transition-all duration-200 ${isAnnouncement ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-border'}`}>
+    <div
+      onClick={(e: React.MouseEvent<HTMLDivElement>) => {
+        if (!clickable) return;
+        if (isEditOpen || showImageModal) return;
+        goToPreview();
+      }}
+      className={`bg-card border rounded-xl overflow-visible ${clickable ? 'hover:border-frosted-blue-500/50 hover:shadow-md cursor-pointer' : ''} transition-all duration-200 ${post.type.toLowerCase() == "announcement"  ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-border'}`}
+    >
       <div className="flex">
-        {isAnnouncement ? (
+        {post.type.toLowerCase() == "announcement" ? (
           <div className="w-12 bg-linear-to-b from-yellow-500/20 to-orange-500/20 flex flex-col items-center justify-center py-3 border-r border-yellow-500/30">
             <div className="w-8 h-8 rounded-full bg-linear-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg shadow-yellow-500/30">
               <Megaphone size={16} className="text-white" />
@@ -267,12 +280,17 @@ export default function PostCard({ post, currentUser, isInstructorOfCommunity, o
                 </div>
               )}
               <div>
-                <button
-                  onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.User.id}`); }}
-                  className="text-sm font-medium text-foreground hover:text-frosted-blue-600 hover:underline cursor-pointer transition-colors"
-                >
-                  {post.User.fname} {post.User.lname}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.User.id}`); }}
+                    className="text-sm font-medium text-foreground hover:text-frosted-blue-600 hover:underline cursor-pointer transition-colors"
+                  >
+                    {post.User.fname} {post.User.lname}
+                  </button>
+                  {post.cid && (
+                    <span className="text-sm text-muted-foreground">· {communityName}</span>
+                  )}
+                </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Clock className="w-3 h-3" />
                   <span>{formatDate(post.post_date)}</span>
@@ -282,8 +300,8 @@ export default function PostCard({ post, currentUser, isInstructorOfCommunity, o
 
             <div className="flex items-center gap-2">
               <div className="flex flex-wrap gap-1">
-                {tags.map((tag: string, index: number) => (
-                  <span key={index} className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${getTypeColor(tag)}`}>{tag}</span>
+                {post.PostTag?.map((tagObj) => (
+                  <TagChip key={tagObj.tag} label={tagObj.tag} size="sm" />
                 ))}
               </div>
 
@@ -303,8 +321,7 @@ export default function PostCard({ post, currentUser, isInstructorOfCommunity, o
                         onClick={(e) => {
                           e.stopPropagation();
                           setIsMenuOpen(false);
-                          if (onEdit) onEdit(post);
-                          else setIsEditOpen(true);
+                          setIsEditOpen(true);
                         }}
                         className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 text-foreground transition-colors"
                       >
@@ -327,7 +344,7 @@ export default function PostCard({ post, currentUser, isInstructorOfCommunity, o
             </div>
           </div>
 
-          <h3 className={`font-semibold mb-2 text-base ${isAnnouncement ? 'text-yellow-600 dark:text-yellow-400' : 'text-foreground'}`}>{post.title}</h3>
+          <h3 className={`font-semibold mb-2 text-base ${post.type.toLowerCase() == "announcement" ? 'text-yellow-600 dark:text-yellow-400' : 'text-foreground'}`}>{post.title}</h3>
           {post.body && <MarkdownPreview content={post.body} className="text-sm mb-3" />}
 
           {/* Image Gallery */}
@@ -336,7 +353,7 @@ export default function PostCard({ post, currentUser, isInstructorOfCommunity, o
               {/* Smart responsive grid for multiple images */}
               {images.length === 1 ? (
                 <div className="mb-3 rounded-lg overflow-hidden bg-muted/30 border border-border cursor-pointer group"
-                  onClick={(e: any) => { e.stopPropagation(); setShowImageModal(true); setNavigateOnCloseImage(Boolean(clickable)); }}>
+                  onClick={(e: any) => { e.stopPropagation(); setShowImageModal(true); }}>
                   <div className="relative bg-black/5 aspect-video flex items-center justify-center">
                     <img
                       src={images[0].File?.secure_url}
@@ -349,7 +366,7 @@ export default function PostCard({ post, currentUser, isInstructorOfCommunity, o
               ) : (
                 <div className="mb-3 rounded-lg overflow-hidden bg-muted/30 border border-border">
                   <div className="relative bg-black/5 aspect-video flex items-center justify-center cursor-pointer group overflow-hidden"
-                    onClick={(e: any) => { e.stopPropagation(); setShowImageModal(true); setNavigateOnCloseImage(Boolean(clickable)); }}>
+                    onClick={(e: any) => { e.stopPropagation(); setShowImageModal(true); }}>
                     <img
                       src={images[currentImageIndex].File?.secure_url}
                       alt={getFileName(images[currentImageIndex].File)}
@@ -378,45 +395,12 @@ export default function PostCard({ post, currentUser, isInstructorOfCommunity, o
               )}
 
               {/* Image Modal */}
-              {showImageModal && (
-                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => { setShowImageModal(false); if (navigateOnCloseImage) goToPreview(); }}>
-                  <div className="relative max-w-4xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={() => setShowImageModal(false)}
-                      className="absolute -top-10 right-0 p-2 text-white hover:bg-white/10 rounded-full"
-                    >
-                      <X size={24} />
-                    </button>
-                    <div className="relative flex-1 flex items-center justify-center">
-                      <img
-                        src={images[currentImageIndex].File?.secure_url}
-                        alt={getFileName(images[currentImageIndex].File)}
-                        className="max-w-full max-h-full object-contain"
-                      />
-                    </div>
-                    {images.length > 1 && (
-                      <>
-                        <button onClick={(e: any) => { e.stopPropagation(); goToPrevImage(); }} className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 text-white hover:bg-white/20">
-                          <ChevronLeft size={24} />
-                        </button>
-                        <button onClick={(e: any) => { e.stopPropagation(); goToNextImage(); }} className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 text-white hover:bg-white/20">
-                          <ChevronRight size={24} />
-                        </button>
-                        <div className="flex justify-center gap-1 mt-4 pb-4">
-                          {images.map((_, idx) => (
-                            <button
-                              key={idx}
-                              onClick={(e: any) => { e.stopPropagation(); setCurrentImageIndex(idx); }}
-                              className={`w-2 h-2 rounded-full transition-all ${idx === currentImageIndex ? 'bg-white w-6' : 'bg-white/50 hover:bg-white/70'
-                                }`}
-                            />
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
+              <PostImageModal
+                images={images}
+                initialIndex={currentImageIndex}
+                isOpen={showImageModal}
+                onClose={() => setShowImageModal(false)}
+              />
             </>
           )}
 
@@ -466,12 +450,10 @@ export default function PostCard({ post, currentUser, isInstructorOfCommunity, o
             isOpen={isEditOpen}
             onClose={() => setIsEditOpen(false)}
             post={post as any}
-            onSuccess={(updated) => {
-              post.title = (updated.title as any) ?? post.title;
-              post.body = (updated.body as any) ?? post.body;
+            onSuccess={async (updated: PostShape)  =>  {
               setIsEditOpen(false);
-              toast.success('Post updated');
-              onEdit?.(updated as any);
+              post.title = (updated.title as any) ?? post.title;
+              post.body = updated.body;
             }}
           />
         </div>

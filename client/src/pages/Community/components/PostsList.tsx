@@ -6,8 +6,7 @@ interface PostsListProps {
   posts: PostShape[];
   isLoading: boolean;
   currentUser?: { id: number; role: string } | null;
-  isInstructorOfCommunity?: boolean;
-  onEditPost?: (post: PostShape) => void;
+  communityName?: string;
   onDeletePost?: (postId: number) => void;
 }
 
@@ -15,8 +14,7 @@ const PostsList: React.FC<PostsListProps> = ({
   posts,
   isLoading,
   currentUser,
-  isInstructorOfCommunity,
-  onEditPost,
+  communityName,
   onDeletePost,
 }) => {
   if (isLoading) {
@@ -56,8 +54,7 @@ const PostsList: React.FC<PostsListProps> = ({
           key={post.id}
           post={post}
           currentUser={currentUser}
-          isInstructorOfCommunity={isInstructorOfCommunity}
-          onEdit={onEditPost}
+          communityName={communityName}
           onDelete={onDeletePost}
         />
       ))}

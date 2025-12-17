@@ -192,6 +192,7 @@ export interface PostResponse {
   _count?: {
     Comment: number;
   };
+  PostTag: { tag: string }[];
 }
 
 export interface PostsListResponse {

@@ -25,7 +25,7 @@ import api, { communityApi, postApi, assignmentApi, submissionApi, type Communit
 import PostCard from '../components/posts/PostCard';
 import { removeTokens } from '../utils/auth';
 import { MarkdownEditor } from '../components/MarkdownEditor';
-import { PostModal } from '../components/posts';
+
 import { ConfirmationModal } from '../components/ui/ConfirmationModal';
 
 // Available post tags
@@ -126,9 +126,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
     const [isLoadingPublic, setIsLoadingPublic] = useState(false);
     const [isLoadingPrivate, setIsLoadingPrivate] = useState(false);
 
-    // Edit/Delete State
-    const [editingPost, setEditingPost] = useState<PostResponse | null>(null);
-    const [showEditModal, setShowEditModal] = useState(false);
+    // Delete State
     const [deletePostId, setDeletePostId] = useState<number | null>(null);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -500,18 +498,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
         }
     };
 
-    const handleEditPost = (post: PostResponse) => {
-        setEditingPost(post);
-        setShowEditModal(true);
-    };
-
-    const handleEditSuccess = (updatedPost: PostResponse) => {
-        setPosts(prev => prev.map(p => p.id === updatedPost.id ? updatedPost : p));
-        setDisplayedPosts(prev => prev.map(p => p.id === updatedPost.id ? updatedPost : p));
-        setShowEditModal(false);
-        setEditingPost(null);
-        toast.success('Post updated successfully');
-    };
+    // Edit logic removed from Explore page; edits handled in dedicated views/components
 
     const handleJoinCommunity = async (communityId: string) => {
         if (user?.role !== 'student') {
@@ -833,9 +820,8 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                                     key={post.id}
                                                     post={post}
                                                     communityName={getCommunityName(post.cid)}
-                                                    onNavigate={(id: string) => navigate(`/community/${id}`)}
                                                     currentUser={user}
-                                                    onEdit={() => handleEditPost(post)}
+
                                                     onDelete={() => handleDeletePost(post.id)}
                                                 />
                                             ))}
@@ -1071,16 +1057,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                 </main>
             </div>
 
-            {
-                editingPost && (
-                    <PostModal
-                        isOpen={showEditModal}
-                        onClose={() => setShowEditModal(false)}
-                        onSuccess={handleEditSuccess}
-                        post={editingPost as PostResponse}
-                    />
-                )
-            }
+            {/* Edit modal removed from Explore; edits are handled elsewhere */}
 
             <ConfirmationModal
                 isOpen={showDeleteModal}

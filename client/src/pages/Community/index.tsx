@@ -301,7 +301,7 @@ const Community: React.FC = () => {
                 posts={posts}
                 isLoading={isLoadingPosts}
                 currentUser={user}
-                isInstructorOfCommunity={isInstructorOfCommunity}
+                communityName={community?.name}
                 onDeletePost={handleDeletePost}
               />
             </div>
