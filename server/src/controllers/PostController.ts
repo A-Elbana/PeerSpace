@@ -923,3 +923,132 @@ export const getPostsFromMyCommunities = async (req: Request, res: Response) => 
     res.status(500).json({ message: "Failed to fetch posts from enrolled communities" });
   }
 };
+
+/**
+ * Get posts created by a target user in communities common between the authenticated user and the target user
+ * - Requesting user id comes from token
+ * - Target user id comes from route param `:uid`
+ * - If the target user is an ADMIN (admins cannot create posts), return 400
+ */
+export const getCommonPostsOfUser = async (req: Request, res: Response) => {
+  const requestingUserId = (req as any).userId;
+  const pageParam = parseInt(req.query.page as string);
+  const limitParam = parseInt(req.query.limit as string);
+  const page = !isNaN(pageParam) && pageParam > 0 ? pageParam : 1;
+  const limit = !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
+  const skip = (page - 1) * limit;
+
+  const targetParam = req.params.uid || req.query.uid;
+  if (!targetParam) {
+    return res.status(400).json({ message: "Target user ID is required" });
+  }
+
+  const targetUserId = parseInt(String(targetParam));
+  if (isNaN(targetUserId)) {
+    return res.status(400).json({ message: "Invalid target user ID" });
+  }
+
+  try {
+    // Fetch target user's role
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { role: true },
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({ message: "Target user not found" });
+    }
+
+    // Admins cannot create posts; ignore / reject
+    if (targetUser.role === "ADMIN") {
+      return res
+        .status(400)
+        .json({ message: "Admins don't have posts" });
+    }
+
+  
+    // Helper to get communities a user is associated with (enrollment or manages)
+    const getUserCommunityIds = async (uid: number) => {
+      const enrollments = await prisma.enrollment.findMany({
+        where: { sid: uid },
+        select: { cid: true },
+      });
+      const manages = await prisma.manages.findMany({
+        where: { iid: uid },
+        select: { cid: true },
+      });
+      const ids = new Set<string>([
+        ...enrollments.map((e) => e.cid),
+        ...manages.map((m) => m.cid),
+      ]);
+      return Array.from(ids);
+    };
+
+    const [reqUserCommunityIds, targetUserCommunityIds] = await Promise.all([
+      getUserCommunityIds(requestingUserId),
+      getUserCommunityIds(targetUserId),
+    ]);
+
+    // Intersection
+    const sharedSet = new Set(reqUserCommunityIds.filter((c) => targetUserCommunityIds.includes(c)));
+    const sharedCommunityIds = Array.from(sharedSet);
+
+    if (sharedCommunityIds.length === 0) {
+      return res.status(200).json({ message: "No common communities found", data: [], meta: { total: 0, page, limit, totalPages: 0 } });
+    }
+
+    // Count total posts
+    const total = await prisma.post.count({
+      where: { cid: { in: sharedCommunityIds }, owner_uid: targetUserId },
+    });
+
+    const posts = await prisma.post.findMany({
+      where: { cid: { in: sharedCommunityIds }, owner_uid: targetUserId },
+      skip,
+      take: limit,
+      orderBy: { post_date: "desc" },
+      include: {
+        User: { select: { id: true, fname: true, lname: true, avatar_file_id: true } },
+        Community: { select: { id: true, name: true } },
+        PostFileAttachment: { include: { File: { select: { id: true, public_id: true, secure_url: true, resource_type: true, format: true, is_private: true } } } },
+        PostTag: { select: { tag: true } },
+        _count: { select: { Comment: true } },
+      },
+    });
+
+    const postIds = posts.map((p) => p.id);
+    const allVotes = postIds.length > 0 ? await prisma.voted.findMany({ where: { pid: { in: postIds } }, select: { pid: true, voteType: true, sid: true } }) : [];
+
+    const votesByPost = new Map<number, { upvotes: number; downvotes: number; userVote: boolean | null }>();
+    postIds.forEach((pid) => votesByPost.set(pid, { upvotes: 0, downvotes: 0, userVote: null }));
+
+    allVotes.forEach((vote) => {
+      const pv = votesByPost.get(vote.pid)!;
+      if (vote.voteType) pv.upvotes++;
+      else pv.downvotes++;
+      if (requestingUserId && vote.sid === requestingUserId) pv.userVote = vote.voteType;
+    });
+
+    const postsWithVotes = posts.map((post) => {
+      const votes = votesByPost.get(post.id)!;
+      return {
+        ...post,
+        votes: {
+          upvotes: votes.upvotes,
+          downvotes: votes.downvotes,
+          score: votes.upvotes - votes.downvotes,
+          userVote: votes.userVote,
+        },
+      };
+    });
+
+    res.status(200).json({
+      message: "Common posts retrieved successfully",
+      data: postsWithVotes,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit), sharedCommunityCount: sharedCommunityIds.length },
+    });
+  } catch (error) {
+    console.error("Get Common Posts Error:", error);
+    res.status(500).json({ message: "Failed to fetch common posts" });
+  }
+};
