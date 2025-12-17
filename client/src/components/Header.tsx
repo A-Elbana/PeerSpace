@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, LogOut, Home, Compass, Search, X, Menu, Plus, MessageSquare, TrendingUp, Users } from 'lucide-react';
+import { Bell, LogOut, Search, X, Menu, MessageSquare, TrendingUp, Users } from 'lucide-react';
 import NotificationContext from '../contexts/NotificationContext';
 import { useResolvedFileUrl } from '../hooks/useResolvedFileUrl';
 import { useSidebar } from '../contexts/SidebarContext';
@@ -128,24 +128,6 @@ const Header: React.FC<HeaderProps> = ({
                                 PeerSpace
                             </span>
                         </button>
-
-                        {/* Desktop Navigation */}
-                        <nav className="hidden md:flex items-center gap-1">
-                            <button 
-                                onClick={() => navigate('/dashboard')}
-                                className="px-3 py-1.5 rounded-full text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
-                            >
-                                <Home className="w-4 h-4" />
-                                <span>Home</span>
-                            </button>
-                            <button 
-                                onClick={() => navigate('/explore')}
-                                className="px-3 py-1.5 rounded-full text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
-                            >
-                                <Compass className="w-4 h-4" />
-                                <span>Explore</span>
-                            </button>
-                        </nav>
                     </div>
 
                     {/* Center Section - Search */}
@@ -256,23 +238,6 @@ const Header: React.FC<HeaderProps> = ({
 
                     {/* Right Section - Actions & Profile */}
                     <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                        {/* Create Post Button - Hidden on mobile */}
-                        <button 
-                            onClick={() => navigate('/create-post')}
-                            className="hidden lg:flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-frosted-blue-500 to-turf-green-500 text-white text-sm font-medium hover:opacity-90 transition-opacity"
-                        >
-                            <Plus className="w-4 h-4" />
-                            <span>Create</span>
-                        </button>
-
-                        {/* Mobile Create Button */}
-                        <button 
-                            onClick={() => navigate('/create-post')}
-                            className="lg:hidden p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                        >
-                            <Plus className="w-5 h-5" />
-                        </button>
-
                         {/* Notifications */}
                         <button
                             onClick={() => navigate('/notifications')}
@@ -359,28 +324,6 @@ const Header: React.FC<HeaderProps> = ({
                 {/* Mobile Menu Overlay */}
                 {showMobileMenu && (
                     <div className="md:hidden border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 rounded-b-2xl">
-                    <nav className="px-4 py-3 space-y-1">
-                        <button
-                            onClick={() => {
-                                navigate('/dashboard');
-                                setShowMobileMenu(false);
-                            }}
-                            className="w-full px-4 py-3 rounded-lg text-left hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-3"
-                        >
-                            <Home className="w-5 h-5" />
-                            <span className="font-medium">Home</span>
-                        </button>
-                        <button
-                            onClick={() => {
-                                navigate('/explore');
-                                setShowMobileMenu(false);
-                            }}
-                            className="w-full px-4 py-3 rounded-lg text-left hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-3"
-                        >
-                            <Compass className="w-5 h-5" />
-                            <span className="font-medium">Explore</span>
-                        </button>
-                    </nav>
                     </div>
                 )}
             </div>
