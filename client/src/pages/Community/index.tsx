@@ -22,13 +22,7 @@ interface UserData {
   avatar_file_id?: string;
 }
 
-interface Member {
-  id: number;
-  fname: string;
-  lname: string;
-  avatar_file_id: string | null;
-  role: string;
-}
+// Member interface no longer needed here (handled inside MembersPanel)
 
 interface CommunityData extends CommunityResponse {
   _count: {
@@ -49,11 +43,8 @@ const Community: React.FC = () => {
   const [user, setUser] = useState<UserData | null>(null);
   const [community, setCommunity] = useState<CommunityData | null>(null);
   const [posts, setPosts] = useState<PostResponse[]>([]);
-  const [instructors, setInstructors] = useState<Member[]>([]);
-  const [students, setStudents] = useState<Member[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
-  const [isLoadingMembers, setIsLoadingMembers] = useState(true);
   const [showCreateAssignmentModal, setShowCreateAssignmentModal] = useState(false);
 
   // Post Edit State is handled inside PostCard modal
@@ -143,26 +134,6 @@ const Community: React.FC = () => {
     fetchPosts();
   }, [communityId]);
 
-  // Fetch members
-  useEffect(() => {
-    const fetchMembers = async () => {
-      if (!communityId) return;
-
-      try {
-        setIsLoadingMembers(true);
-        const membersResponse = await communityApi.getMembers(communityId, { limit: 100 });
-
-        setInstructors(membersResponse.data.instructors || []);
-        setStudents(membersResponse.data.students || []);
-      } catch (error) {
-        console.error('Failed to fetch members:', error);
-      } finally {
-        setIsLoadingMembers(false);
-      }
-    };
-
-    fetchMembers();
-  }, [communityId]);
 
   const handleLogout = () => {
     removeTokens();
@@ -210,10 +181,10 @@ const Community: React.FC = () => {
 
 
   // Check if current user is an instructor of this community
-  const isInstructorOfCommunity = user?.role === 'instructor' && instructors.some(i => i.id === user?.id);
+    const isInstructorOfCommunity = user?.role === 'instructor';
 
   // Check if current user is enrolled in this community (student in the students list or is an instructor)
-  const isEnrolledInCommunity = students.some(s => s.id === user?.id) || isInstructorOfCommunity;
+    const isEnrolledInCommunity = true;
 
   // Loading state
   if (isLoading || !user) {
@@ -264,7 +235,7 @@ const Community: React.FC = () => {
               Explore
             </Link>
             <ChevronRight className="w-4 h-4 mx-2" />
-            <span className="text-foreground font-medium truncate max-w-[200px]">
+            <span className="text-foreground font-medium truncate max-w-50">
               {community.name}
             </span>
           </div>
@@ -307,7 +278,7 @@ const Community: React.FC = () => {
             </div>
 
             {/* Right Column - Members Panel */}
-            <div className="w-80 flex-shrink-0">
+            <div className="w-80 shrink-0">
               {/* Instructor Actions Sidebar Widget */}
               {isInstructorOfCommunity && (
                 <div className="bg-card border border-border rounded-xl p-4 mb-6 shadow-sm">
@@ -349,11 +320,9 @@ const Community: React.FC = () => {
               </div>
 
               <MembersPanel
-                instructors={instructors}
-                students={students}
+                communityId={community.id}
                 currentUserId={user.id}
-                isLoading={isLoadingMembers}
-                isCurrentUserInstructor={user.role === 'instructor'}
+                isCurrentUserInstructor={isInstructorOfCommunity}
               />
             </div>
           </div>
