@@ -25,10 +25,6 @@ interface ProfileProps {
   onLogout: () => void;
 }
 
-interface CommunityCardProps {
-  community: CommunityResponse;
-  onClick: () => void;
-}
 import CommunityCard from '../../components/common/CommunityCard';
 
 const ProfileView: React.FC<ProfileProps> = ({ onLogout }) => {
@@ -62,7 +58,6 @@ const ProfileView: React.FC<ProfileProps> = ({ onLogout }) => {
   const [loadingMoreMutualPosts, setLoadingMoreMutualPosts] = useState(false);
   const [mutualCommunityIds, setMutualCommunityIds] = useState<string[]>([]);
 
-  const avatarUrl = useResolvedFileUrl(user?.avatar_file_id);
   const viewedAvatarUrl = useResolvedFileUrl(viewedUser?.avatar_file_id);
 
   const tabs = [
