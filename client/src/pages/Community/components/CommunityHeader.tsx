@@ -15,6 +15,7 @@ interface CommunityHeaderProps {
   isInstructor?: boolean;
   isEnrolled?: boolean;
   onEnroll?: () => void;
+  onLeave?: () => void;
 }
 
 const CommunityHeader: React.FC<CommunityHeaderProps> = ({
@@ -28,9 +29,11 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
   isInstructor = false,
   isEnrolled = false,
   onEnroll,
+  onLeave,
 }) => {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const [resolvedBannerUrl, setResolvedBannerUrl] = useState<string | null>(bannerUrl ?? null);
   const [session, setSession] = useState<any | null>(null);
   const [showSessionHover, setShowSessionHover] = useState(false);
@@ -71,6 +74,11 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
   const [isDeletingSession, setIsDeletingSession] = useState(false);
 
   const sessionIsLive = !!(session && session.start_time && new Date(session.start_time).getTime() <= Date.now());
+  const normalizedSessionUrl = session?.meet_url
+    ? (session.meet_url.startsWith('http://') || session.meet_url.startsWith('https://')
+        ? session.meet_url
+        : `https://${session.meet_url}`)
+    : null;
 
   // Hover handlers keep the hover card visible when hovering either the badge or the card
   const handleHoverEnter = () => {
@@ -174,6 +182,17 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
     }
   };
 
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopiedLink(true);
+      toast.success('Community link copied');
+      setTimeout(() => setCopiedLink(false), 1800);
+    } catch {
+      toast.error('Failed to copy link');
+    }
+  };
+
   const openSessionModal = () => {
     setSessionForm({
       title: session?.title ?? '',
@@ -244,98 +263,142 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
 
   return (
     <>
-      <div className="bg-background border border-border rounded-lg mb-6">
-        {/* Banner Image */}
-        {resolvedBannerUrl && (
-          <div className="relative w-full h-48 bg-gradient-to-br from-blue-500/10 to-purple-500/10">
+      <div className="relative overflow-hidden border border-border rounded-2xl mb-6 bg-card shadow-lg shadow-primary/5">
+        <div className="absolute inset-0">
+          {resolvedBannerUrl ? (
             <img
               src={resolvedBannerUrl}
               alt={`${name} banner`}
               className="w-full h-full object-cover"
               onError={(e) => {
-                // Hide image on error and show gradient background
                 e.currentTarget.style.display = 'none';
               }}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-          </div>
-        )}
+          ) : (
+            <div className="w-full h-full bg-linear-to-br from-primary/25 via-teal-400/15 to-indigo-500/20" />
+          )}
+          <div className="absolute inset-0 bg-linear-to-r from-background/90 via-background/75 to-background/60 backdrop-blur-md" />
+          <div className="absolute inset-y-0 right-0 w-1/3 bg-linear-to-l from-primary/20 to-transparent" />
+        </div>
 
-        {/* Content Section */}
-        <div className="p-6">
-          {/* Community Name and Type Badge */}
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-foreground">{name}</h1>
-              <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${type === 'PUBLIC'
-                ? 'bg-turf-green-500/10 text-turf-green-600'
-                : 'bg-royal-gold-500/10 text-royal-gold-600'
-                }`}>
-                {type === 'PUBLIC' ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
-                {type}
-              </span>
+        <div className="relative p-6 md:p-7 lg:p-8 flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+            <div className="flex items-start gap-4">
+              <div className="h-14 w-14 rounded-xl bg-primary/15 border border-primary/20 text-primary font-semibold text-xl flex items-center justify-center shadow-sm shadow-primary/10">
+                {name?.charAt(0)?.toUpperCase()}
+              </div>
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h1 className="text-2xl font-bold text-foreground leading-tight">{name}</h1>
+                  <span className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${type === 'PUBLIC'
+                    ? 'bg-turf-green-500/15 text-turf-green-700 border-turf-green-500/30'
+                    : 'bg-royal-gold-500/15 text-royal-gold-700 border-royal-gold-500/30'
+                    }`}>
+                    {type === 'PUBLIC' ? <Globe className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                    {type}
+                  </span>
 
-              {/* Separate small session badge (near but not part of the type badge) */}
-              {session && (isEnrolled || isInstructor) && (
-                <div className="ml-3 relative inline-block" onMouseEnter={handleHoverEnter} onMouseLeave={handleHoverLeave}>
-                  <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-card text-xs font-medium text-foreground`}>
-                    <div className={`session-dot ${sessionIsLive ? 'live' : 'scheduled'}`}>
-                      <span className="outer" aria-hidden />
-                      <span className="glow" aria-hidden />
-                      <span className="core" aria-hidden />
-                    </div>
-                    <span className="whitespace-nowrap">{sessionIsLive ? 'A session is live' : 'A live session is scheduled'}</span>
-                  </div>
-
-                  {/* Hover card anchored to this badge and above all UI */}
-                  <div
-                    onMouseEnter={handleHoverEnter}
-                    onMouseLeave={handleHoverLeave}
-                    className={`absolute left-0 top-full mt-2 w-80 bg-card border border-border rounded-lg p-3 shadow-lg z-[9999] transition-opacity transition-transform duration-300 ease-in-out ${showSessionHover ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 -translate-y-2 pointer-events-none'}`}>
-                  
-                      <div className="text-sm text-muted-foreground mb-1">{sessionIsLive ? 'A session is live' : 'A live session is scheduled'}</div>
-                      <div className="text-base font-semibold text-foreground mb-1">{session.title ?? 'Untitled session'}</div>
-                      {session?.start_time && (
-                        <div className="text-xs text-muted-foreground mb-3">{new Date(session.start_time).toLocaleString()}</div>
-                      )}
-
-                      <div className="flex items-center gap-2 mb-2">
-                        {
-                          (() => {
-                            const raw = session?.meet_url ?? '';
-                            const normalized = raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
-                            return (
-                              <a href={normalized} target="_blank" rel="noopener noreferrer" className="flex-1 inline-flex items-center justify-center px-3 py-1.5 bg-primary/30 text-foreground rounded-md text-sm hover:bg-primary/20">
-                                <Link className="w-4 h-4 mr-2" />Go To Link
-                              </a>
-                            );
-                          })()
-                        }
+                  {session && (isEnrolled || isInstructor) && (
+                    <div
+                      className="relative inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-background/80 text-xs font-medium text-foreground shadow-sm"
+                      onMouseEnter={handleHoverEnter}
+                      onMouseLeave={handleHoverLeave}
+                    >
+                      <div className={`session-dot ${sessionIsLive ? 'live' : 'scheduled'}`}>
+                        <span className="outer" aria-hidden />
+                        <span className="glow" aria-hidden />
+                        <span className="core" aria-hidden />
                       </div>
+                      <span className="whitespace-nowrap">{sessionIsLive ? 'Session live' : 'Session scheduled'}</span>
 
-                      {isInstructor && (
-                        <div className="flex items-center gap-2">
-                          <input type="datetime-local" value={localStartTime ?? ''} onChange={(e) => setLocalStartTime(e.target.value)} className="flex-1 bg-transparent border border-border rounded px-2 py-1 text-sm text-foreground" />
-                          <button onClick={handleSaveStartTime} disabled={isUpdatingSession} className="px-3 py-1 bg-tech-blue-500 text-white rounded text-sm disabled:opacity-60">Save</button>
-                        </div>
-                      )}
+                      <div
+                        onMouseEnter={handleHoverEnter}
+                        onMouseLeave={handleHoverLeave}
+                        className={`absolute left-0 top-full mt-2 w-80 bg-card border border-border rounded-lg p-3 shadow-lg z-50 transition-all duration-300 ease-in-out ${showSessionHover ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 -translate-y-2 pointer-events-none'}`}
+                      >
+                        <div className="text-sm text-muted-foreground mb-1">{sessionIsLive ? 'A session is live' : 'A live session is scheduled'}</div>
+                        <div className="text-base font-semibold text-foreground mb-1">{session.title ?? 'Untitled session'}</div>
+                        {session?.start_time && (
+                          <div className="text-xs text-muted-foreground mb-3">{new Date(session.start_time).toLocaleString()}</div>
+                        )}
+
+                        {normalizedSessionUrl && (
+                          <div className="flex items-center gap-2 mb-3">
+                            <a
+                              href={normalizedSessionUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 inline-flex items-center justify-center px-3 py-1.5 bg-primary/30 text-foreground rounded-md text-sm hover:bg-primary/20"
+                            >
+                              <Link className="w-4 h-4 mr-2" />Go To Link
+                            </a>
+                          </div>
+                        )}
+
+                        {isInstructor && (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="datetime-local"
+                              value={localStartTime ?? ''}
+                              onChange={(e) => setLocalStartTime(e.target.value)}
+                              className="flex-1 bg-transparent border border-border rounded px-2 py-1 text-sm text-foreground"
+                            />
+                            <button
+                              onClick={handleSaveStartTime}
+                              disabled={isUpdatingSession}
+                              className="px-3 py-1 bg-tech-blue-500 text-white rounded text-sm disabled:opacity-60"
+                            >
+                              Save
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
+                  )}
                 </div>
-              )}
+
+                {description && (
+                  <p className="text-muted-foreground max-w-3xl leading-relaxed">
+                    {description}
+                  </p>
+                )}
+
+                <div className="flex flex-wrap gap-3">
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-background/80 border border-border/70 backdrop-blur-sm text-sm font-medium text-foreground">
+                    <Users className="w-4 h-4 text-muted-foreground" />
+                    <span>{memberCount} members</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-background/80 border border-border/70 backdrop-blur-sm text-sm font-medium text-foreground">
+                    <FileText className="w-4 h-4 text-muted-foreground" />
+                    <span>{postCount} posts</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-background/80 border border-border/70 backdrop-blur-sm text-sm font-medium text-foreground">
+                    <span className="inline-flex h-2.5 w-2.5 rounded-full bg-primary/70" />
+                    <span>{type === 'PUBLIC' ? 'Open to everyone' : 'Members only'}</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              {/* Join Button for public non-enrolled users */}
-              {!isEnrolled && !isInstructor && type === 'PUBLIC' && onEnroll && (
+            <div className="flex flex-wrap gap-2 md:justify-end">
+              {!isEnrolled && !isInstructor && onEnroll && (
                 <button
                   onClick={onEnroll}
                   className="flex items-center gap-2 px-4 py-2 bg-tech-blue-500 hover:bg-tech-blue-600 text-white text-sm font-medium rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-tech-blue-500/30"
                 >
-                  Join Community
+                  Join community
                 </button>
               )}
 
-              {/* Invite Button for Instructors */}
+              {isEnrolled && !isInstructor && onLeave && (
+                <button
+                  onClick={onLeave}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-500/90 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-all duration-300"
+                >
+                  Leave community
+                </button>
+              )}
+
               {isInstructor && (
                 <button
                   onClick={() => setShowInviteModal(true)}
@@ -345,7 +408,15 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
                   Share Community ID
                 </button>
               )}
-              {/* Add/Edit Live Session button for instructors */}
+
+              <button
+                onClick={handleCopyLink}
+                className="flex items-center gap-2 px-4 py-2 bg-background/60 hover:bg-background text-foreground border border-border rounded-lg text-sm font-medium transition-all duration-200"
+              >
+                {copiedLink ? <Check className="w-4 h-4 text-turf-green-600" /> : <Link className="w-4 h-4" />}
+                {copiedLink ? 'Link copied' : 'Copy link'}
+              </button>
+
               {isInstructor && (
                 <button
                   onClick={openSessionModal}
@@ -354,28 +425,46 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
                   {session ? 'Edit Live Session' : 'Add Live Session'}
                 </button>
               )}
- 
             </div>
           </div>
 
-          {/* Description */}
-          {description && (
-            <p className="text-muted-foreground mb-4">
-              {description}
-            </p>
+          {session && (isEnrolled || isInstructor) && (
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-background/80 border border-border rounded-xl px-4 py-3 shadow-inner shadow-border/30 backdrop-blur-sm">
+              <div className="flex items-start gap-3">
+                <div className={`session-dot ${sessionIsLive ? 'live' : 'scheduled'} mt-0.5`}>
+                  <span className="outer" aria-hidden />
+                  <span className="glow" aria-hidden />
+                  <span className="core" aria-hidden />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-foreground">{session.title ?? 'Untitled session'}</div>
+                  <div className="text-xs text-muted-foreground">{session.start_time ? new Date(session.start_time).toLocaleString() : 'Start time pending'}</div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                {normalizedSessionUrl && (
+                  <a
+                    href={normalizedSessionUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/15 text-primary hover:bg-primary/20 text-sm font-semibold"
+                  >
+                    <Link className="w-4 h-4" />
+                    Join session
+                  </a>
+                )}
+                {isInstructor && (
+                  <button
+                    onClick={openSessionModal}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm text-foreground hover:bg-background"
+                  >
+                    Manage
+                  </button>
+                )}
+              </div>
+            </div>
           )}
-
-          {/* Stats */}
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              <span>{memberCount} members</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              <span>{postCount} posts</span>
-            </div>
-          </div>
         </div>
       </div>
 

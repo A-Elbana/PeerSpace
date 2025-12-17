@@ -43,6 +43,7 @@ const Community: React.FC = () => {
   const [posts, setPosts] = useState<PostResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
+  const [isEnrolledInCommunity, setIsEnrolledInCommunity] = useState(false);
   const [postsPage, setPostsPage] = useState(1);
   const [hasMorePosts, setHasMorePosts] = useState(true);
   const [loadingMorePosts, setLoadingMorePosts] = useState(false);
@@ -103,6 +104,10 @@ const Community: React.FC = () => {
         // Fetch community details
         const communityResponse = await communityApi.getById(communityId);
         setCommunity(communityResponse.data);
+
+        // Some APIs return membership status; default to true if unknown so existing behavior is preserved
+        const membershipFlag = (communityResponse.data as any).isEnrolled ?? (communityResponse.data as any).is_member ?? true;
+        setIsEnrolledInCommunity(Boolean(membershipFlag));
 
       } catch (error: unknown) {
         console.error('Failed to fetch community:', error);
@@ -253,9 +258,6 @@ const Community: React.FC = () => {
 
   // Check if current user is an instructor (simplified - actual check happens on server)
   const isInstructorOfCommunity = user?.role === 'instructor';
-  
-  // Assume enrolled if community data loaded successfully
-  const isEnrolledInCommunity = true;
 
   // Loading state
   if (isLoading || !user) {
@@ -279,10 +281,44 @@ const Community: React.FC = () => {
     try {
       await communityApi.enroll(communityId);
       toast.success('Successfully joined community!');
-      // Reload to refresh state (simple approach) or update local state
-      window.location.reload();
+      setIsEnrolledInCommunity(true);
+      setCommunity(prev =>
+        prev
+          ? {
+              ...prev,
+              _count: {
+                ...prev._count,
+                Enrollment: (prev._count?.Enrollment ?? 0) + 1,
+                Post: prev._count?.Post ?? 0,
+              },
+            }
+          : prev
+      );
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to join community');
+    }
+  };
+
+  const handleLeave = async () => {
+    if (!communityId) return;
+    try {
+      await communityApi.leave(communityId);
+      toast.success('You left this community');
+      setIsEnrolledInCommunity(false);
+      setCommunity(prev =>
+        prev
+          ? {
+              ...prev,
+              _count: {
+                ...prev._count,
+                Enrollment: Math.max(0, (prev._count?.Enrollment ?? 0) - 1),
+                Post: prev._count?.Post ?? 0,
+              },
+            }
+          : prev
+      );
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to leave community');
     }
   };
 
@@ -322,6 +358,7 @@ const Community: React.FC = () => {
             isInstructor={isInstructorOfCommunity}
             isEnrolled={isEnrolledInCommunity}
             onEnroll={handleEnroll}
+            onLeave={handleLeave}
           />
 
           {/* Two Column Layout */}
