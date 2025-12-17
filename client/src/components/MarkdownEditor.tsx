@@ -49,7 +49,7 @@ function annotateLinks() {
                 if (!a.getAttribute('title')) a.setAttribute('title', href);
             }
         } catch (e) {
-            // ignore
+            console.log(e);
         }
     });
 }

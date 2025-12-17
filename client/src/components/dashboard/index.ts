@@ -11,7 +11,6 @@ export { default as CreateCommunityModal } from './CreateCommunityModal';
 // Instructor-specific components
 export { default as ManageCourses } from './ManageCourses';
 export { default as PendingSubmissions } from './PendingSubmissions';
-export { default as StudentQuestions } from './StudentQuestions';
 
 // Type exports
 export type { Course } from './MyCourses';
@@ -19,6 +18,5 @@ export type { TodoItem } from './TodoList';
 export type { ActivityItem } from './RecentCourseActivity';
 export type { ManagedCourse } from './ManageCourses';
 export type { Submission } from './PendingSubmissions';
-export type { StudentQuestion } from './StudentQuestions';
 export type { Notification } from './NotificationDropdown';
 export type { CreateCommunityData } from './CreateCommunityModal';

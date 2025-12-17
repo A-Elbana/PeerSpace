@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MessageSquare, Clock, User, ArrowBigUp, ArrowBigDown, Megaphone, MoreHorizontal, PenSquare, Trash2, Download, FileIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import TickButton from './TickButton';
 import { useResolvedFileUrl } from '../../hooks/useResolvedFileUrl';
 import { MarkdownPreview, MarkdownEditor } from '../MarkdownEditor';
 import { PostModal } from './EditPostModal';
@@ -80,6 +81,11 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
   const [showImageModal, setShowImageModal] = useState<boolean>(false);
   const [isEditOpen, setIsEditOpen] = useState<boolean>(false);
   const [communityName, setCommunityName] = useState<string>('');
+  const [isResolvedState, setIsResolvedState] = useState<boolean | null>(post.is_resolved ?? null);
+
+  useEffect(() => {
+    setIsResolvedState(post.is_resolved ?? null);
+  }, [post.is_resolved]);
 
   useEffect(() => {
     let mounted = true;
@@ -103,6 +109,7 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
     currentUser.role === 'admin' ||
     (currentUser.role === 'instructor')
   );
+  const isAuthor = Boolean(currentUser && currentUser.id === post.User.id);
 
   // Get attachments - handle both old and new format
   const attachments = (post.PostFileAttachment || []).filter(a => a.File?.secure_url);
@@ -175,7 +182,7 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
         };
         setUserVote(normalize(raw));
       } catch (err) {
-        // ignore (public endpoint may fail for guests)
+        console.log(err);
       }
     })();
     return () => { mounted = false; };
@@ -243,8 +250,19 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
         if (isEditOpen || showImageModal) return;
         goToPreview();
       }}
-      className={`bg-card border rounded-xl overflow-visible ${clickable ? 'hover:border-frosted-blue-500/50 hover:shadow-md cursor-pointer' : ''} transition-all duration-200 ${post.type.toLowerCase() == "announcement"  ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-border'}`}
+      className={`relative bg-card border rounded-xl overflow-visible ${clickable ? 'hover:border-frosted-blue-500/50 hover:shadow-md cursor-pointer' : ''} transition-all duration-200 ${post.type.toLowerCase() == "announcement"  ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-border'}`}
     >
+      {/* Right-middle positioned tick */}
+      {isResolvedState !== null && (isAuthor || isResolvedState) && (
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 z-10">
+          <TickButton
+            postId={post.id}
+            isResolved={isResolvedState}
+            isAuthor={isAuthor}
+            onToggled={(val) => { setIsResolvedState(val); (post as any).is_resolved = val; }}
+          />
+        </div>
+      )}
       <div className="flex">
         {post.type.toLowerCase() == "announcement" ? (
           <div className="w-12 bg-linear-to-b from-yellow-500/20 to-orange-500/20 flex flex-col items-center justify-center py-3 border-r border-yellow-500/30">

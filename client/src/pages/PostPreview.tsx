@@ -118,7 +118,7 @@ const PostPreview: React.FC<{}> = () => {
               const fileObj = normalizeApi(f) ?? (f && (f.data ?? f));
               const avatarUrl = fileObj?.secure_url ?? fileObj?.secureUrl ?? fileObj?.url ?? null;
               if (avatarUrl) idToUrl[String(aid)] = avatarUrl;
-            } catch (e) { /* ignore */ }
+            } catch (e) { console.log(e); }
           }));
           mapped.forEach(m => {
             const aid = (m.User as any)?.avatar_file_id;
@@ -163,6 +163,7 @@ const PostPreview: React.FC<{}> = () => {
           console.log('fetched post raw:', p);
         } catch (e) {
           pRes = null;
+          console.log(e);
         }
 
         // determine community id: prefer route param, otherwise derive from post (cid)
@@ -182,7 +183,7 @@ const PostPreview: React.FC<{}> = () => {
               setCommunity(normalized as any);
             }
           } catch (e) {
-            // ignore
+           console.log(e);
           }
           
         }
@@ -217,7 +218,7 @@ const PostPreview: React.FC<{}> = () => {
                     const fileObj = normalizeApi(f) ?? (f && (f.data ?? f));
                     const avatarUrl = fileObj?.secure_url ?? fileObj?.secureUrl ?? fileObj?.url ?? null;
                     if (avatarUrl) idToUrl[String(aid)] = avatarUrl;
-                  } catch (e) { /* ignore individual avatar fetch errors */ }
+                  } catch (e) { console.log(e); }
                 }));
                 mapped.forEach(m => {
                   const aid = (m.User as any)?.avatar_file_id;
@@ -322,7 +323,7 @@ const PostPreview: React.FC<{}> = () => {
           if (avatarUrl) mapped.avatarUrl = avatarUrl;
         }
       } catch (e) {
-        // ignore
+        console.log(e);
       }
 
       setComments(prev => updateCommentInTree(prev, commentId, () => mapped));
@@ -367,7 +368,7 @@ const PostPreview: React.FC<{}> = () => {
           if (avatarUrl) mapped.avatarUrl = avatarUrl;
         }
       } catch (e) {
-        /* ignore avatar fetch errors */
+        console.log(e);
       }
       if (!parentId) setComments(prev => [...prev, mapped]);
       else setComments(prev => addReplyToTree(prev, parentId, mapped));

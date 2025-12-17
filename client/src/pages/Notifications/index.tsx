@@ -6,7 +6,8 @@ import { useSidebar } from '../../contexts/SidebarContext';
 import { Button } from '../../components/ui/button';
 import { removeTokens } from '../../utils/auth';
 import { useNotifications } from '../../contexts/NotificationContext';
-import { notificationsApi } from '../../services/api';
+import api, { notificationsApi } from '../../services/api';
+import { toast } from 'sonner';
 
 export interface Notification {
   id: string;
@@ -14,7 +15,8 @@ export interface Notification {
   message: string;
   time: string;
   read: boolean;
-  type: 'assignment' | 'grade' | 'course' | 'announcement' | 'general';
+  type?: 'assignment' | 'grade' | 'course' | 'announcement' | 'general' | 'TASK_INVITE' | string | null;
+  resourceId?: number | string | null;
 }
 
 const NotificationsPage = () => {
@@ -22,16 +24,12 @@ const NotificationsPage = () => {
   const { sidebarWidth } = useSidebar();
   const { notifications, unreadCount, fetchNotifications, markAllRead } = useNotifications();
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [actioning, setActioning] = useState<string | null>(null);
 
   const handleLogout = () => {
     removeTokens();
     navigate('/login');
   };
-
-  useEffect(() => {
-    // ensure fresh data when page mounts
-    fetchNotifications();
-  }, []);
 
   const handleMarkAsRead = (id: string) => {
     // mark via API then refresh
@@ -61,6 +59,38 @@ const NotificationsPage = () => {
 
   const getNotificationType = (notification: typeof notifications[0]): Notification['type'] => {
     return (notification as any).type || 'general';
+  };
+
+  const handleTaskInviteAction = async (
+    notification: Notification,
+    action: 'accept' | 'decline'
+  ) => {
+    const taskId = Number(notification.resourceId);
+    if (!taskId || Number.isNaN(taskId)) {
+      toast.error('Missing task info for this invite');
+      return;
+    }
+
+    const key = `${notification.id}-${action}`;
+    setActioning(key);
+    try {
+      if (action === 'accept') {
+        await api.patch('/task-assignees/accept', { taskId });
+        toast.success('Invitation accepted');
+      } else {
+        await api.patch('/task-assignees/decline', { taskId });
+        toast.success('Invitation declined');
+      }
+      await notificationsApi
+        .markAsRead(Number(notification.id))
+        .catch(() => {});
+      await fetchNotifications();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Failed to process invite';
+      toast.error(msg);
+    } finally {
+      setActioning(null);
+    }
   };
 
   const getTypeColor = (type: Notification['type']) => {
@@ -204,6 +234,26 @@ const NotificationsPage = () => {
                           <p className="text-sm text-muted-foreground mt-1">
                             {notification.message}
                           </p>
+                          {getNotificationType(notification)?.toString().toUpperCase() === 'TASK_INVITE' && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                className="bg-turf-green-500 hover:bg-turf-green-600 text-white"
+                                onClick={() => handleTaskInviteAction(notification, 'accept')}
+                                disabled={actioning === `${notification.id}-accept`}
+                              >
+                                Accept invite
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleTaskInviteAction(notification, 'decline')}
+                                disabled={actioning === `${notification.id}-decline`}
+                              >
+                                Decline
+                              </Button>
+                            </div>
+                          )}
                           <p className="text-xs text-muted-foreground/70 mt-2">
                             {notification.time}
                           </p>

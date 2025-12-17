@@ -357,6 +357,22 @@ export const badgeApi = {
       meta: PaginationMeta;
     };
   },
+  getByUserId: async (
+    uid: number,
+    params?: { page?: number; limit?: number }
+  ) => {
+    const cleanParams: Record<string, number> = {};
+    if (params) {
+      if (params.page) cleanParams.page = params.page;
+      if (params.limit) cleanParams.limit = params.limit;
+    }
+    const response = await api.get(`/badges/user/${uid}`, { params: cleanParams });
+    return response.data as {
+      message?: string;
+      data: { Badge: BadgeResponse }[];
+      meta: PaginationMeta;
+    };
+  },
 };
 // Post API calls (for all post types including announcements)
 export const postApi = {

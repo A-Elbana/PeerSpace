@@ -253,7 +253,7 @@ router.get("/me", authenticateToken, getMyBadges);
  *       500:
  *         description: Server error
  */
-router.get("/user/:userId", authenticateToken, authorizeRole(["ADMIN", "INSTRUCTOR"]), getBadgesByUserId);
+router.get("/user/:userId", authenticateToken, getBadgesByUserId);
 
 /**
  * @swagger

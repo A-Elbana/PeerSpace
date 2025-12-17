@@ -284,10 +284,10 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
                   <p className="text-sm text-muted-foreground">Enter the community ID shared by your instructor</p>
                 </div>
               </div>
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-3">
                 <Input
                   type="text"
-                  placeholder="Enter community ID (e.g., xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)"
+                  placeholder="Enter community ID"
                   value={communityCode}
                   onChange={(e) => setCommunityCode(e.target.value)}
                   className="flex-1"

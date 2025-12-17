@@ -16,6 +16,8 @@ export interface Notification {
   message: string;
   time: string;
   read: boolean;
+  type?: string | null;
+  resourceId?: number | string | null;
 }
 
 interface NotificationDropdownProps {

@@ -27,15 +27,8 @@ export const loadPost = async (
 ) => {
   const postId = parseInt(req.params.id || req.params.postId || "");
 
-  console.log(
-    "[loadPost] Attempting to load post with ID:",
-    req.params.id,
-    "parsed:",
-    postId
-  );
 
   if (isNaN(postId)) {
-    console.log("[loadPost] Invalid post ID");
     return res.status(400).json({ message: "Invalid post ID" });
   }
 

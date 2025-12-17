@@ -5,7 +5,6 @@ import api, { communityApi, postApi, type CommunityResponse, type PostResponse }
 import { useResolvedFileUrl } from '../../hooks/useResolvedFileUrl';
 import { Loader2 } from 'lucide-react';
 import PostCard from '../../components/posts/PostCard';
-import CommunityCard from '../../components/common/CommunityCard';
 import CommunityList from '../../components/profile/CommunityList';
 import UserProfileHeader from '../../components/profile/UserProfileHeader';
 
@@ -29,21 +28,13 @@ const MyProfile: React.FC<MyProfileProps> = ({ onLogout }) => {
   const [viewedUser, setViewedUser] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('Overview');
   const [myPosts, setMyPosts] = useState<PostResponse[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsPage, setPostsPage] = useState(1);
   const [hasMorePosts, setHasMorePosts] = useState(true);
   const [loadingMorePosts, setLoadingMorePosts] = useState(false);
-  const [communities, setCommunities] = useState<CommunityResponse[]>([]);
-  const [communitiesLoading, setCommunitiesLoading] = useState(false);
-  const [communitiesPage, setCommunitiesPage] = useState(1);
-  const [hasMoreCommunities, setHasMoreCommunities] = useState(true);
-  const [loadingMoreCommunities, setLoadingMoreCommunities] = useState(false);
-  const avatarUrl = useResolvedFileUrl(user?.avatar_file_id);
   const viewedAvatarUrl = useResolvedFileUrl(viewedUser?.avatar_file_id);
   const userId = new URLSearchParams(window.location.search).get('userId');
-  const tabs = ['Overview', 'Posts', 'Community'];
 
   const internalLogout = () => {
     localStorage.removeItem('token');
@@ -92,24 +83,6 @@ const MyProfile: React.FC<MyProfileProps> = ({ onLogout }) => {
     fetchPosts();
   }, [user]);
 
-  // Load communities when the authenticated user is known
-  useEffect(() => {
-    const fetchCommunities = async () => {
-      if (!user) return;
-      try {
-        setCommunitiesLoading(true);
-        setCommunitiesPage(1);
-        const resp = await communityApi.getMyCommunities({ page: 1, limit: 9 });
-        setCommunities(resp.data as CommunityResponse[]);
-        setHasMoreCommunities(resp.data.length === 9);
-      } catch (err) {
-        console.error('Failed to fetch my communities:', err);
-      } finally {
-        setCommunitiesLoading(false);
-      }
-    };
-    fetchCommunities();
-  }, [user]);
 
   const loadMorePosts = useCallback(async (): Promise<void> => {
     if (!hasMorePosts || loadingMorePosts) return;

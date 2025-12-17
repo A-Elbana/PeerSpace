@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { Sidebar } from '../../components/dashboard';
 import BadgeCard from '../../components/badge/BadgeCard';
 import { badgeApi, type BadgeResponse } from '../../services/api';
@@ -9,8 +10,9 @@ interface ProfileProps {
 }
 
 const BadgesPage: React.FC<ProfileProps> = ({ onLogout }) => {
+  const { userId } = useParams() as { userId?: string };
   const [allBadges, setAllBadges] = useState<BadgeResponse[]>([]);
-  const [myBadges, setMyBadges] = useState<BadgeResponse[]>([]);
+  const [userBadges, setUserBadges] = useState<BadgeResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,13 +21,19 @@ const BadgesPage: React.FC<ProfileProps> = ({ onLogout }) => {
       try {
         setLoading(true);
         setError(null);
-        const [allResp, mineResp] = await Promise.all([
-          badgeApi.getAll({ page: 1, limit: 50 }),
-          badgeApi.getMine({ page: 1, limit: 50 }),
-        ]);
+        const allResp = await badgeApi.getAll({ page: 1, limit: 50 });
         setAllBadges(allResp.data ?? []);
-        const earned = mineResp.data?.map(entry => entry.Badge) ?? [];
-        setMyBadges(earned);
+
+        if (userId) {
+          const uid = Number(userId);
+          const resp = await badgeApi.getByUserId(uid, { page: 1, limit: 50 });
+          const earned = resp.data?.map((entry: any) => entry.Badge) ?? [];
+          setUserBadges(earned);
+        } else {
+          const mineResp = await badgeApi.getMine({ page: 1, limit: 50 });
+          const earned = mineResp.data?.map((entry: any) => entry.Badge) ?? [];
+          setUserBadges(earned);
+        }
       } catch (err) {
         console.error('Failed to load badges', err);
         setError('Could not load badges right now.');
@@ -35,7 +43,7 @@ const BadgesPage: React.FC<ProfileProps> = ({ onLogout }) => {
     };
 
     fetchData();
-  }, []);
+  }, [userId]);
 
   return (
     <div className="flex min-h-screen bg-background text-foreground font-sans">
@@ -57,13 +65,13 @@ const BadgesPage: React.FC<ProfileProps> = ({ onLogout }) => {
             <section>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-xl font-semibold">My Badges</h2>
-                <span className="text-xs text-muted-foreground">{myBadges.length} unlocked</span>
+                <span className="text-xs text-muted-foreground">{userBadges.length} unlocked</span>
               </div>
-              {myBadges.length === 0 ? (
+              {userBadges.length === 0 ? (
                 <div className="text-sm text-muted-foreground">No badges yet. Participate to earn your first badge.</div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {myBadges.map((badge) => (
+                  {userBadges.map((badge) => (
                     <BadgeCard
                       key={badge.id}
                       title={badge.name}
@@ -91,7 +99,7 @@ const BadgesPage: React.FC<ProfileProps> = ({ onLogout }) => {
                       title={badge.name}
                       description={badge.description || 'Earn this badge by completing goals.'}
                       imageUrl={badge.icon_url}
-                      earned={myBadges.some(b => b.id === badge.id)}
+                      earned={userBadges.some(b => b.id === badge.id)}
                     />
                   ))}
                 </div>

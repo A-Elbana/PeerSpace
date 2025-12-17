@@ -200,7 +200,7 @@ function App() {
             }
           />
           <Route
-            path="/badges"
+            path="/profile/:userId/badges"
             element={
               <ProtectedRoute>
                 <BadgesPage onLogout={redirectToLogout} />

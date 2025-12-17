@@ -11,6 +11,8 @@ export interface ClientNotification {
   message: string;
   time: string;
   read: boolean;
+  type?: string | null;
+  resourceId?: number | string | null;
 }
 
 interface NotificationContextValue {
@@ -30,13 +32,16 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const fetchNotifications = async () => {
     try {
       const res = await notificationsApi.getNotifications({ page: 1, pageSize: 50 });
-      if (res && res.data) {
-        const mapped = res.data.map((r: any) => ({
+      const rows = res?.data ?? res?.data?.data;
+      if (res && rows) {
+        const mapped = rows.map((r: any) => ({
           id: String(r.id),
           title: r.message?.split('\n')[0] || String(r.type || 'Notification'),
           message: r.message || '',
           time: r.createdAt ? new Date(r.createdAt).toLocaleString() : '',
           read: !!r.isRead,
+          type: r.type ?? null,
+          resourceId: r.resourceId ?? null,
         }));
         setNotifications(mapped);
         const count = (res.unreadCount ?? mapped.filter((m: any) => !m.read).length) as number;

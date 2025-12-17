@@ -8,7 +8,6 @@ import {
   MetricCard,
   ManageCourses,
   PendingSubmissions,
-  StudentQuestions,
   CreateCommunityModal,
 } from '../../components/dashboard';
 import { Button } from '../../components/ui/button';
@@ -17,7 +16,7 @@ import api, { communityApi, assignmentApi, submissionApi, type CommunityResponse
 // Types
 import type { ManagedCourse } from '../../components/dashboard/ManageCourses';
 import type { Submission } from '../../components/dashboard/PendingSubmissions';
-import type { StudentQuestion } from '../../components/dashboard/StudentQuestions';
+
 import type { CreateCommunityData } from '../../components/dashboard/CreateCommunityModal';
 
 interface InstructorDashboardProps {
@@ -43,7 +42,6 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
   const [isLoading, setIsLoading] = useState(true);
   const [courses, setCourses] = useState<ManagedCourse[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [questions, setQuestions] = useState<StudentQuestion[]>([]);
 
   // Create Community Modal State
   const [isCreateCommunityOpen, setIsCreateCommunityOpen] = useState(false);
@@ -106,8 +104,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
       const allPendingSubmissions = (await Promise.all(submissionPromises)).flat();
       setSubmissions(allPendingSubmissions);
 
-      // Questions remain empty for now
-      setQuestions([]);
+     
 
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
@@ -202,7 +199,6 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
   // Calculate metrics
   const totalStudents = courses.reduce((sum, c) => sum + c.studentCount, 0);
   const totalPendingSubmissions = submissions.filter(s => s.status === 'pending' || s.status === 'late').length;
-  const totalUnansweredQuestions = questions.filter(q => !q.isAnswered).length;
 
   if (isLoading) {
     return (
@@ -250,13 +246,6 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
             subtitle={`${totalPendingSubmissions} submissions waiting to be graded.`}
             badge={totalPendingSubmissions > 0 ? { text: `${totalPendingSubmissions} pending`, color: 'bg-royal-gold-500 text-white' } : undefined}
           />
-          <MetricCard
-            icon={MessageCircle}
-            iconBgColor="bg-frosted-blue-100"
-            title="Student Questions"
-            subtitle={`${totalUnansweredQuestions} questions need your response.`}
-            badge={totalUnansweredQuestions > 0 ? { text: `${totalUnansweredQuestions} new`, color: 'bg-frosted-blue-500 text-white' } : undefined}
-          />
         </div>
 
         {/* Courses Management */}
@@ -278,13 +267,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
             showViewAll
             onViewAll={() => navigate('/submissions')}
           />
-          <StudentQuestions
-            title="Student Questions"
-            questions={questions}
-            onAnswerQuestion={handleAnswerQuestion}
-            showViewAll
-            onViewAll={() => navigate('/questions')}
-          />
+
         </div>
       </main>
 
