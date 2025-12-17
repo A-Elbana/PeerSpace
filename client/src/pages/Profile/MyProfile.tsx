@@ -6,6 +6,7 @@ import { useResolvedFileUrl } from '../../hooks/useResolvedFileUrl';
 import { Loader2 } from 'lucide-react';
 import PostCard from '../../components/posts/PostCard';
 import CommunityCard from '../../components/common/CommunityCard';
+import CommunityList from '../../components/profile/CommunityList';
 import UserProfileHeader from '../../components/profile/UserProfileHeader';
 
 interface UserData {
@@ -78,7 +79,7 @@ const MyProfile: React.FC<MyProfileProps> = ({ onLogout }) => {
       try {
         setPostsLoading(true);
         setPostsPage(1);
-        const resp = await postApi.getMyPosts({ page: 1, limit: 12 });
+        const resp = await postApi.getMyPosts({ page: 1, limit: 4 });
         const posts = resp?.data ?? [];
         setMyPosts(posts as PostResponse[]);
         setHasMorePosts((resp?.meta?.page ?? 1) < (resp?.meta?.totalPages ?? 1));
@@ -115,7 +116,7 @@ const MyProfile: React.FC<MyProfileProps> = ({ onLogout }) => {
     try {
       setLoadingMorePosts(true);
       const nextPage = postsPage + 1;
-      const resp = await postApi.getMyPosts({ page: nextPage, limit: 12 });
+      const resp = await postApi.getMyPosts({ page: nextPage, limit: 4 });
       const posts = resp?.data ?? [];
       if (posts.length > 0) {
         setMyPosts(prev => [...prev, ...posts]);
@@ -131,25 +132,43 @@ const MyProfile: React.FC<MyProfileProps> = ({ onLogout }) => {
     }
   }, [hasMorePosts, loadingMorePosts, postsPage]);
 
-  const loadMoreCommunities = useCallback(async (): Promise<void> => {
-    if (!hasMoreCommunities || loadingMoreCommunities) return;
-    try {
-      setLoadingMoreCommunities(true);
-      const nextPage = communitiesPage + 1;
-      const response = await communityApi.getMyCommunities({ page: nextPage, limit: 9 });
-      if (response.data.length > 0) {
-        setCommunities(prev => [...prev, ...response.data]);
-        setCommunitiesPage(nextPage);
-        setHasMoreCommunities(response.data.length === 9);
-      } else {
-        setHasMoreCommunities(false);
-      }
-    } catch (err) {
-      console.error('Failed to load more communities:', err);
-    } finally {
-      setLoadingMoreCommunities(false);
+
+  // Window scroll lazy-load for posts (debounced) — copied from ProfileView
+  const postsScrollListenerAttached = useRef(false);
+  const postsDebounceRef = useRef<number | null>(null);
+  const postsScrollThreshold = 300;
+
+  const handleWindowPostsScroll = useCallback(() => {
+    if (loadingMorePosts || !hasMorePosts) return;
+    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - postsScrollThreshold) {
+      void loadMorePosts();
     }
-  }, [hasMoreCommunities, loadingMoreCommunities, communitiesPage]);
+  }, [loadingMorePosts, hasMorePosts, loadMorePosts, postsPage]);
+
+  const debouncedHandleWindowPostsScroll = useCallback(() => {
+    if (postsDebounceRef.current) window.clearTimeout(postsDebounceRef.current);
+    postsDebounceRef.current = window.setTimeout(() => {
+      handleWindowPostsScroll();
+    }, 500);
+  }, [handleWindowPostsScroll]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!postsScrollListenerAttached.current) {
+      window.addEventListener('scroll', debouncedHandleWindowPostsScroll);
+      postsScrollListenerAttached.current = true;
+    }
+    return () => {
+      if (postsScrollListenerAttached.current) {
+        window.removeEventListener('scroll', debouncedHandleWindowPostsScroll);
+        postsScrollListenerAttached.current = false;
+      }
+      if (postsDebounceRef.current) {
+        window.clearTimeout(postsDebounceRef.current);
+        postsDebounceRef.current = null;
+      }
+    };
+  }, [user, debouncedHandleWindowPostsScroll]);
 
   if (isLoading) {
     return (
@@ -208,42 +227,26 @@ const MyProfile: React.FC<MyProfileProps> = ({ onLogout }) => {
                       />
                     ))}
 
-                    {hasMorePosts && (
-                      <div className="flex items-center justify-center">
-                        <button onClick={() => void loadMorePosts()} className="px-4 py-2 bg-primary text-primary-foreground rounded">Load more posts</button>
-                      </div>
-                    )}
+                    <div className="flex items-center justify-center">
+                      {loadingMorePosts ? (
+                        <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading...</div>
+                      ) : !hasMorePosts ? (
+                        <div className="text-xs text-muted-foreground">No more posts</div>
+                      ) : null}
+                    </div>
                   </div>
                 )}
               </div>
             </div>
 
             <div className="w-80">
-              <div className="bg-card rounded-xl border border-border p-4">
-                <h3 className="text-lg font-semibold mb-3">My Communities</h3>
-                {communitiesLoading && communities.length === 0 ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                    <span>Loading communities...</span>
-                  </div>
-                ) : communities.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">No communities yet.</div>
-                ) : (
-                  <div className="space-y-2">
-                    {communities.map(c => (
-                      <CommunityCard key={c.id} community={c} onClick={() => navigate(`/community/${c.id}`)} />
-                    ))}
-
-                    <div className="flex items-center justify-center pt-3">
-                      {hasMoreCommunities ? (
-                        <button onClick={() => void loadMoreCommunities()} className="px-3 py-1 bg-primary text-primary-foreground rounded">Load more</button>
-                      ) : (
-                        <div className="text-xs text-muted-foreground">No more communities</div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <CommunityList
+                title="My Communities"
+                pageSize={7}
+                containerHeight={360}
+                fetcher={(p, limit) => communityApi.getMyCommunities({ page: p, limit })}
+                onCommunityClick={(id) => navigate(`/community/${id}`)}
+              />
             </div>
           </div>
         </div>

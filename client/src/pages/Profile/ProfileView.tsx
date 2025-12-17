@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Sidebar } from '../../components/dashboard';
-import api, { communityApi, postApi, type CommunityResponse, type PostResponse } from '../../services/api';
+import api, { communityApi, postApi, type PostResponse } from '../../services/api';
 import { useResolvedFileUrl } from '../../hooks/useResolvedFileUrl';
 import { Loader2, ArrowRight } from 'lucide-react';
 import PostCard from '../../components/posts/PostCard';
@@ -24,8 +24,7 @@ interface UserData {
 interface ProfileProps {
   onLogout: () => void;
 }
-
-import CommunityCard from '../../components/common/CommunityCard';
+import CommunityList from '../../components/profile/CommunityList';
 
 const ProfileView: React.FC<ProfileProps> = ({ onLogout }) => {
   const navigate = useNavigate();
@@ -34,23 +33,7 @@ const ProfileView: React.FC<ProfileProps> = ({ onLogout }) => {
   const [viewedUser, setViewedUser] = useState<UserData | null>(null); // profile being viewed
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('Overview');
-  const [communities, setCommunities] = useState<CommunityResponse[]>([]);
-  const [communitiesLoading, setCommunitiesLoading] = useState(false);
-  const [communitiesPage, setCommunitiesPage] = useState(1);
-  const [hasMoreCommunities, setHasMoreCommunities] = useState(true);
-  const [loadingMoreCommunities, setLoadingMoreCommunities] = useState(false);
-  // Posts (my posts)
-  const [myPosts, setMyPosts] = useState<PostResponse[]>([]);
-  const [postsLoading, setPostsLoading] = useState(false);
-  const [postsPage, setPostsPage] = useState(1);
-  const [hasMorePosts, setHasMorePosts] = useState(true);
-  const [loadingMorePosts, setLoadingMorePosts] = useState(false);
-  // mutual (when viewing another user)
-  const [mutualCommunities, setMutualCommunities] = useState<CommunityResponse[]>([]);
-  const [mutualCommunitiesPage, setMutualCommunitiesPage] = useState(1);
-  const [hasMoreMutualCommunities, setHasMoreMutualCommunities] = useState(true);
-  const [loadingMoreMutualCommunities, setLoadingMoreMutualCommunities] = useState(false);
+
 
   const [mutualPosts, setMutualPosts] = useState<PostResponse[]>([]);
   const [mutualPostsPage, setMutualPostsPage] = useState(1);
@@ -59,12 +42,6 @@ const ProfileView: React.FC<ProfileProps> = ({ onLogout }) => {
   const [mutualCommunityIds, setMutualCommunityIds] = useState<string[]>([]);
 
   const viewedAvatarUrl = useResolvedFileUrl(viewedUser?.avatar_file_id);
-
-  const tabs = [
-    'Overview',
-    'Posts',
-    'Community',
-  ];
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -105,73 +82,7 @@ const ProfileView: React.FC<ProfileProps> = ({ onLogout }) => {
     }
   }, [viewedUser, user, navigate]);
 
-  useEffect(() => {
-    const fetchCommunities = async () => {
-      // If viewing self, fetch My Communities & Posts like before
-      if (!viewedUser) return;
 
-      if (!userId && activeTab === 'Community' && user) {
-        try {
-          setCommunitiesLoading(true);
-          setCommunitiesPage(1);
-          setCommunities([]);
-          setHasMoreCommunities(true);
-          const response = await communityApi.getMyCommunities({ page: 1, limit: 9 });
-          setCommunities(response.data);
-          setHasMoreCommunities(response.data.length === 9);
-        } catch (err) {
-          console.error('Failed to fetch communities:', err);
-        } finally {
-          setCommunitiesLoading(false);
-        }
-      }
-
-      // Fetch user's posts when Posts tab active (only for self for now)
-      if (!userId && activeTab === 'Posts' && user) {
-        try {
-          setPostsLoading(true);
-          setPostsPage(1);
-          setMyPosts([]);
-          setHasMorePosts(true);
-          const resp = await postApi.getMyPosts({ page: 1, limit: 9 });
-          const posts = resp?.data ?? [];
-          setMyPosts(posts as PostResponse[]);
-          setHasMorePosts((resp?.meta?.page ?? 1) < (resp?.meta?.totalPages ?? 1));
-        } catch (err) {
-          console.error('Failed to fetch my posts:', err);
-        } finally {
-          setPostsLoading(false);
-        }
-      } else if (activeTab !== 'Posts') {
-        // Reset posts when leaving tab
-        setMyPosts([]);
-        setPostsPage(1);
-        setHasMorePosts(true);
-        setLoadingMorePosts(false);
-      }
-    };
-
-    fetchCommunities();
-  }, [activeTab, user, viewedUser, userId]);
-
-  // Fetch mutual communities (paginated) when viewing another user
-  const fetchMutualCommunities = useCallback(async (page = 1, limit = 4) => {
-    if (!userId) return;
-    try {
-      setLoadingMoreMutualCommunities(true);
-      const uid = Number(userId);
-      const resp = await communityApi.getCommonCommunities(uid, { page, limit });
-      const items = resp?.data ?? [];
-      if (page === 1) setMutualCommunities(items);
-      else setMutualCommunities(prev => [...prev, ...items]);
-      setHasMoreMutualCommunities(resp?.meta ? resp.meta.page < resp.meta.totalPages : items.length === limit);
-      setMutualCommunitiesPage(page);
-    } catch (err) {
-      console.error('Failed to fetch mutual communities:', err);
-    } finally {
-      setLoadingMoreMutualCommunities(false);
-    }
-  }, [userId]);
 
   // Fetch and cache all mutual community IDs once, then fetch posts by those IDs.
   const fetchAllMutualCommunityIds = useCallback(async (): Promise<string[]> => {
@@ -225,28 +136,11 @@ const ProfileView: React.FC<ProfileProps> = ({ onLogout }) => {
   }, [userId, mutualCommunityIds, fetchAllMutualCommunityIds]);
 
   // Refs for scroll handling
-  const mutualCommunitiesScrollRef = useRef<HTMLDivElement | null>(null);
   const mutualPostsScrollListenerAttached = useRef(false);
   const mutualCommunitiesDebounceRef = useRef<number | null>(null);
   const mutualPostsDebounceRef = useRef<number | null>(null);
   const mutualPostsScrollListenerRef = useRef<() => void | null>(null);
   const mutualPostsScrollThreshold = 300; // px from bottom
-
-  // Use scroll handlers instead of IntersectionObserver to simplify lazy-loading
-  const handleCommunitiesScroll = useCallback(() => {
-    const el = mutualCommunitiesScrollRef.current;
-    if (!el || loadingMoreMutualCommunities || !hasMoreMutualCommunities) return;
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
-      fetchMutualCommunities(mutualCommunitiesPage + 1);
-    }
-  }, [fetchMutualCommunities, mutualCommunitiesPage, hasMoreMutualCommunities, loadingMoreMutualCommunities]);
-
-  const debouncedHandleCommunitiesScroll = useCallback(() => {
-    if (mutualCommunitiesDebounceRef.current) window.clearTimeout(mutualCommunitiesDebounceRef.current);
-    mutualCommunitiesDebounceRef.current = window.setTimeout(() => {
-      handleCommunitiesScroll();
-    }, 500);
-  }, [handleCommunitiesScroll]);
 
   const handleWindowPostsScroll = useCallback(() => {
     if (loadingMoreMutualPosts || !hasMoreMutualPosts) return;
@@ -291,63 +185,15 @@ const ProfileView: React.FC<ProfileProps> = ({ onLogout }) => {
   // When viewing another user, immediately load the first page of mutual communities and posts.
   useEffect(() => {
     if (!userId) return;
-    // reset mutual state and load page 1
-    setMutualCommunities([]);
-    setMutualCommunitiesPage(1);
-    setHasMoreMutualCommunities(true);
+
     setMutualPosts([]);
     setMutualPostsPage(1);
     setHasMoreMutualPosts(true);
     // fetch initial pages
-    fetchMutualCommunities(1);
     fetchMutualPosts(1, 4);
-  }, [userId, fetchMutualCommunities, fetchMutualPosts]);
+  }, [userId, fetchMutualPosts]);
 
-  const loadMoreCommunities = useCallback(async () => {
-    if (!hasMoreCommunities || loadingMoreCommunities) return;
 
-    try {
-      setLoadingMoreCommunities(true);
-      const nextPage = communitiesPage + 1;
-      const response = await communityApi.getMyCommunities({ page: nextPage, limit: 9 });
-
-      if (response.data.length > 0) {
-        setCommunities(prev => [...prev, ...response.data]);
-        setCommunitiesPage(nextPage);
-        setHasMoreCommunities(response.data.length === 9);
-      } else {
-        setHasMoreCommunities(false);
-      }
-    } catch (err) {
-      console.error('Failed to load more communities:', err);
-    } finally {
-      setLoadingMoreCommunities(false);
-    }
-  }, [hasMoreCommunities, loadingMoreCommunities, communitiesPage]);
-
-  // Intersection Observer for lazy loading
-  const observerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMoreCommunities && !loadingMoreCommunities) {
-          loadMoreCommunities();
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    if (observerRef.current) {
-      observer.observe(observerRef.current);
-    }
-
-    return () => {
-      if (observerRef.current) {
-        observer.unobserve(observerRef.current);
-      }
-    };
-  }, [hasMoreCommunities, loadingMoreCommunities, loadMoreCommunities]);
 
   if (isLoading) {
     return (
@@ -418,31 +264,13 @@ const ProfileView: React.FC<ProfileProps> = ({ onLogout }) => {
                   </div>
 
                   <div className="w-80 mb-6">
-                    <div ref={mutualCommunitiesScrollRef} onScroll={debouncedHandleCommunitiesScroll} className="h-96 overflow-auto rounded border border-border bg-card p-3">
-                      <h3 className="text-lg font-semibold mb-3">Mutual communities</h3>
-                      <div className="space-y-3">
-                        {mutualCommunities.length === 0 && !loadingMoreMutualCommunities ? (
-                          <div className="text-sm text-muted-foreground">No mutual communities yet.</div>
-                        ) : (
-                          <div className="space-y-2">
-                            {mutualCommunities.map(c => (
-                              <CommunityCard
-                                key={c.id}
-                                community={c}
-                                onClick={() => navigate(`/community/${c.id}`)}
-                              />
-                            ))}
-                          </div>
-                        )}
-                        <div className="flex items-center justify-center py-3">
-                          {loadingMoreMutualCommunities ? (
-                            <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading...</div>
-                          ) : !hasMoreMutualCommunities ? (
-                            <div className="text-xs text-muted-foreground">No more communities</div>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
+                    <CommunityList
+                      title="Mutual communities"
+                      pageSize={7}
+                      containerHeight={360}
+                      fetcher={(p, limit) => communityApi.getCommonCommunities(Number(userId), { page: p, limit })}
+                      onCommunityClick={(id) => navigate(`/community/${id}`)}
+                    />
                   </div>
                 </div>
               )}

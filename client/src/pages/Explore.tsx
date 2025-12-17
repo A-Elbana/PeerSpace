@@ -548,6 +548,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
     // Render the page
     return (
         <>
+        <div className='bg-background'>
             <Header
                 user={user}
                 onLogout={onLogout}
@@ -1069,6 +1070,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                 isDestructive
                 isLoading={isDeleting}
             />
+            </div>
         </>
     );
 };
