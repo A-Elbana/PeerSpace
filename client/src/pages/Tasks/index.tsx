@@ -46,7 +46,7 @@ interface Assignee {
     id: number;
     fname: string;
     lname: string;
-    avatar_url?: string;
+    isAccepted: boolean;
 }
 
 interface TasksProps {
@@ -138,17 +138,11 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
             let assignees: Assignee[] = [];
             if (Array.isArray(t.TaskAssignees) && t.TaskAssignees.length > 0) {
                 assignees = t.TaskAssignees.map((a: any) => ({
-                    id: a.user_id ?? a.uid ?? a.User?.id ?? 0,
-                    fname: a.User?.fname ?? a.fname ?? 'Unknown',
-                    lname: a.User?.lname ?? a.lname ?? '',
-                    avatar_url: a.User?.avatar_file_id ?? null,
+                    id: a.Student.User?.id ?? 0,
+                    fname: a.Student.User?.fname ??'a',
+                    lname: a.Student.User.lname ?? 'a',
+                    isAccepted: a.isAccepted
                 }));
-            } else if (t.Student) {
-                if (Array.isArray(t.Student)) {
-                    assignees = t.Student.map((s: any) => ({ id: s.User?.id ?? 0, fname: s.User?.fname ?? 'Unknown', lname: s.User?.lname ?? '', avatar_url: s.User?.avatar_file_id ?? null }));
-                } else if (t.Student.User) {
-                    assignees = [{ id: t.Student.User.id, fname: t.Student.User.fname, lname: t.Student.User.lname, avatar_url: t.Student.User.avatar_file_id ?? null }];
-                }
             }
 
             let assignmentRelation = '';

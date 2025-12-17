@@ -1,11 +1,12 @@
 import React from 'react';
 import { Calendar, Flag, Link, Loader2, CheckCircle, Circle, Trash2 } from 'lucide-react';
+import { useResolvedFileUrl } from '../../hooks/useResolvedFileUrl';
 
 interface Assignee {
   id: number;
   fname: string;
   lname: string;
-  avatar_url?: string | null;
+  isAccepted: boolean;
 }
 
 export interface Task {
@@ -57,7 +58,29 @@ const getAvatarColor = (index: number) => {
   return colors[index % colors.length];
 };
 
+const AssigneeAvatar: React.FC<{ assignee: Assignee; index: number }> = ({ assignee, index }) => {
+
+  
+  const initials = getInitials(assignee.fname, assignee.lname);
+
+  
+  return (
+    <div className="relative">
+      <div
+        className={`w-8 h-8 rounded-full ${getAvatarColor(index)} flex items-center justify-center text-white text-xs font-bold border-2 shadow-sm ${!assignee.isAccepted ? 'border-yellow-400' : 'border-background'}`}
+        title={`${assignee.fname} ${assignee.lname}`}
+      >
+        {initials}
+      </div>
+      {!assignee.isAccepted && (
+        <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full border border-background shadow-sm" />
+      )}
+    </div>
+  );
+};
+
 export const TaskTable: React.FC<Props> = ({ taskList, title, isFetching = false, updatingTaskIds = [], onRowClick, onToggleComplete, onDelete }) => {
+    console.log(taskList);
   return (
     <div className="mb-8">
       <h2 className="text-xl font-semibold mb-4 text-foreground flex items-center gap-2">
@@ -101,13 +124,7 @@ export const TaskTable: React.FC<Props> = ({ taskList, title, isFetching = false
                     {task.assignees.length > 0 ? (
                       <>
                         {task.assignees.slice(0, 4).map((assignee, index) => (
-                          <div
-                            key={assignee.id}
-                            className={`w-8 h-8 rounded-full ${getAvatarColor(index)} flex items-center justify-center text-white text-xs font-bold border-2 border-background shadow-sm`}
-                            title={`${assignee.fname} ${assignee.lname}`}
-                          >
-                            {getInitials(assignee.fname, assignee.lname)}
-                          </div>
+                          <AssigneeAvatar key={assignee.id} assignee={assignee} index={index} />
                         ))}
                         {task.assignees.length > 4 && (
                           <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-xs font-bold border-2 border-background shadow-sm">+{task.assignees.length - 4}</div>

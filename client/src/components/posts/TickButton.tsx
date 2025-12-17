@@ -42,7 +42,7 @@ const TickButton: React.FC<TickButtonProps> = ({ postId, isResolved, isAuthor, o
         disabled={loading}
         aria-pressed={!!isResolved}
         title={isResolved ? 'Mark as open' : 'Mark as resolved'}
-        className={`${baseClasses} ${isResolved ? 'bg-turf-green-100' : 'bg-white/5'} p-2 shadow-md hover:shadow-lg focus:outline-none`}
+        className={`${baseClasses} ${isResolved ? 'bg-turf-green-200/40' : 'bg-white/5'} p-2 shadow-md hover:shadow-lg focus:outline-none cursor-pointer`}
       >
         {loading ? (
           <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />

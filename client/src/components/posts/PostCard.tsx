@@ -250,7 +250,7 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
         if (isEditOpen || showImageModal) return;
         goToPreview();
       }}
-      className={`relative ${isResolvedState ? 'bg-turf-green-50 dark:bg-turf-green-950/20' : 'bg-card'} border rounded-xl overflow-visible ${clickable ? 'hover:border-frosted-blue-500/50 hover:shadow-md cursor-pointer' : ''} transition-all duration-200 ${post.type.toLowerCase() == "announcement"  ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-border'}`}
+      className={`relative ${isResolvedState ? 'bg-turf-green-100/50 dark:bg-turf-green-600/70' : 'bg-card'} border rounded-xl overflow-visible ${clickable ? 'hover:border-frosted-blue-500/50 hover:shadow-md cursor-pointer' : ''} transition-all duration-200 ${post.type.toLowerCase() == "announcement"  ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-border'}`}
     >
       <div className="flex">
         {post.type.toLowerCase() == "announcement" ? (

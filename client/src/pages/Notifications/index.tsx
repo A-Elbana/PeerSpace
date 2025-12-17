@@ -84,6 +84,7 @@ const NotificationsPage = () => {
       await notificationsApi
         .markAsRead(Number(notification.id))
         .catch(() => {});
+      
       await fetchNotifications();
     } catch (err: any) {
       const msg = err?.response?.data?.message || 'Failed to process invite';
