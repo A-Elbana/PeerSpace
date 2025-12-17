@@ -75,9 +75,6 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
   const authorAvatarUrl = useResolvedFileUrl(post.User.avatar_file_id);
   const navigate = useNavigate();
 
-
-  const tags = post.PostTag;
-  const isAnnouncement = post.type.toLowerCase() == "announcement";
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
   const [showImageModal, setShowImageModal] = useState<boolean>(false);
@@ -243,10 +240,10 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
         if (isEditOpen || showImageModal) return;
         goToPreview();
       }}
-      className={`bg-card border rounded-xl overflow-visible ${clickable ? 'hover:border-frosted-blue-500/50 hover:shadow-md cursor-pointer' : ''} transition-all duration-200 ${isAnnouncement ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-border'}`}
+      className={`bg-card border rounded-xl overflow-visible ${clickable ? 'hover:border-frosted-blue-500/50 hover:shadow-md cursor-pointer' : ''} transition-all duration-200 ${post.type.toLowerCase() == "announcement"  ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-border'}`}
     >
       <div className="flex">
-        {isAnnouncement ? (
+        {post.type.toLowerCase() == "announcement" ? (
           <div className="w-12 bg-linear-to-b from-yellow-500/20 to-orange-500/20 flex flex-col items-center justify-center py-3 border-r border-yellow-500/30">
             <div className="w-8 h-8 rounded-full bg-linear-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg shadow-yellow-500/30">
               <Megaphone size={16} className="text-white" />
@@ -303,8 +300,8 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
 
             <div className="flex items-center gap-2">
               <div className="flex flex-wrap gap-1">
-                {tags.map((tagObj, index) => (
-                  <TagChip key={index} label={tagObj.tag} size="sm" />
+                {post.PostTag?.map((tagObj) => (
+                  <TagChip key={tagObj.tag} label={tagObj.tag} size="sm" />
                 ))}
               </div>
 
@@ -347,7 +344,7 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
             </div>
           </div>
 
-          <h3 className={`font-semibold mb-2 text-base ${isAnnouncement ? 'text-yellow-600 dark:text-yellow-400' : 'text-foreground'}`}>{post.title}</h3>
+          <h3 className={`font-semibold mb-2 text-base ${post.type.toLowerCase() == "announcement" ? 'text-yellow-600 dark:text-yellow-400' : 'text-foreground'}`}>{post.title}</h3>
           {post.body && <MarkdownPreview content={post.body} className="text-sm mb-3" />}
 
           {/* Image Gallery */}
@@ -453,9 +450,10 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
             isOpen={isEditOpen}
             onClose={() => setIsEditOpen(false)}
             post={post as any}
-            onSuccess={(updated: PostShape) => {
+            onSuccess={async (updated: PostShape)  =>  {
               setIsEditOpen(false);
               post.title = (updated.title as any) ?? post.title;
+              post.body = updated.body;
             }}
           />
         </div>

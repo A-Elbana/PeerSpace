@@ -190,12 +190,9 @@ export const getPostById = async (req: PostRequest, res: Response) => {
       }
     }
 
-    // Return post with PostFileAttachment included
-    const tags = post.PostTag.map((pt) => pt.tag);
-    const { PostTag, ...postData } = post;
+    // Return post with PostFileAttachment and PostTag included
     res.status(200).json({
-      ...postData,
-      tags,
+      ...post,
       votes: {
         upvotes,
         downvotes,
@@ -330,11 +327,9 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
     // Map posts with their vote data
     const postsWithVotes = posts.map(post => {
       const votes = votesByPost.get(post.id)!;
-      const tags = post.PostTag.map((pt) => pt.tag);
       const { PostTag, ...postData } = post;
       return {
         ...postData,
-        tags,
         votes: {
           upvotes: votes.upvotes,
           downvotes: votes.downvotes,
@@ -757,15 +752,10 @@ export const getAllMyPosts = async (req: Request, res: Response) => {
       prisma.post.count({ where: { owner_uid: userId } }),
     ]);
 
-    const formattedPosts = posts.map((post) => {
-      const tags = post.PostTag.map((pt) => pt.tag);
-      const { PostTag, ...postData } = post;
-      return { ...postData, tags };
-    });
 
     res.status(200).json({
       message: "My posts retrieved successfully",
-      data: formattedPosts,
+      data: posts,
       meta: {
         total,
         page,

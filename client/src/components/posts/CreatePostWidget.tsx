@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Image as ImageIcon, X, Send, ChevronDown, Search, FileIcon } from 'lucide-react';
 import api, { communityApi, postApi } from '../../services/api';
 import { useResolvedFileUrl } from '../../hooks/useResolvedFileUrl';
-import TagChip from '../common/TagChip';
 import { MarkdownEditor } from '../MarkdownEditor';
 import { toast } from 'sonner';
+import TagChip from '../common/TagChip';
 
 type CommunityOption = { id: string; name: string; memberCount?: number; postCount?: number; isEnrolled?: boolean };
 
@@ -363,11 +363,16 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
           />
 
           <div>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {tagsArr.map((t) => (
-                <TagChip key={t} label={t} removable onRemove={() => setTagsArr(prev => prev.filter(x => x !== t))} size="sm" />
-              ))}
-            </div>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {tagsArr.map((t) => (
+                  <TagChip
+                    key={t}
+                    label={t}
+                    removable
+                    onRemove={() => setTagsArr(prev => prev.filter(x => x !== t))}
+                  />
+                ))}
+              </div>
             <input
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
