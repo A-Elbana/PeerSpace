@@ -195,3 +195,113 @@ export const getPostsTimeSeries = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Failed to fetch posts time series" });
   }
 };
+
+/**
+ * Get activity logs with filters and pagination
+ * Admin only - returns activity logs with support for filtering and sorting
+ */
+export const getActivityLogs = async (req: Request, res: Response) => {
+  try {
+    // Pagination
+    const pageParam = parseInt(req.query.page as string);
+    const limitParam = parseInt(req.query.limit as string);
+    const page = !isNaN(pageParam) && pageParam > 0 ? pageParam : 1;
+    const limit = !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 100) : 20;
+    const skip = (page - 1) * limit;
+
+    // Filters
+    const userId = req.query.userId ? parseInt(req.query.userId as string) : undefined;
+    const communityId = req.query.communityId as string | undefined;
+    const actionType = req.query.actionType ? parseInt(req.query.actionType as string) : undefined;
+    const startDate = req.query.startDate as string | undefined;
+    const endDate = req.query.endDate as string | undefined;
+
+    // Sorting
+    const sortOrder = (req.query.sortOrder as string)?.toLowerCase() === 'asc' ? 'asc' : 'desc';
+
+    // Build where clause
+    const whereClause: any = {};
+
+    if (userId !== undefined && !isNaN(userId)) {
+      whereClause.associated_uid = userId;
+    }
+
+    if (communityId) {
+      whereClause.associated_cid = communityId;
+    }
+
+    if (actionType !== undefined && !isNaN(actionType)) {
+      whereClause.action_type = actionType;
+    }
+
+    // Date range filter
+    if (startDate || endDate) {
+      whereClause.date = {};
+      
+      if (startDate) {
+        const start = new Date(startDate);
+        if (!isNaN(start.getTime())) {
+          whereClause.date.gte = start;
+        }
+      }
+
+      if (endDate) {
+        const end = new Date(endDate);
+        if (!isNaN(end.getTime())) {
+          // Set to end of day
+          end.setHours(23, 59, 59, 999);
+          whereClause.date.lte = end;
+        }
+      }
+    }
+
+    const [logs, total] = await Promise.all([
+      prisma.activityLog.findMany({
+        where: whereClause,
+        skip,
+        take: limit,
+        orderBy: { date: sortOrder },
+        include: {
+          User: {
+            select: {
+              id: true,
+              fname: true,
+              lname: true,
+              email: true,
+            },
+          },
+          Community: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+            },
+          },
+        },
+      }),
+      prisma.activityLog.count({ where: whereClause }),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: logs,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        filters: {
+          userId,
+          communityId,
+          actionType,
+          startDate,
+          endDate,
+          sortOrder,
+        },
+      },
+    });
+  } catch (error: any) {
+    console.error("Get Activity Logs Error:", error);
+    res.status(500).json({ message: "Failed to fetch activity logs" });
+  }
+};
