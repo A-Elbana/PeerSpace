@@ -279,13 +279,13 @@ export const getMyTasks = async (req: Request, res: Response) => {
           TaskTag: true,
           TaskAssignees: {
             include: {
-              Student: {
-                include: {
-                  User: {
-                    select: { id: true, fname: true, lname: true },
-                  },
-                },
-              },
+                    Student: {
+                      include: {
+                        User: {
+                          select: { id: true, fname: true, lname: true },
+                        },
+                      },
+                    },
             },
           },
           _count: {

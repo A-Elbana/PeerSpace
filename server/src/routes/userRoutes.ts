@@ -112,9 +112,55 @@ router.get("/:id", authenticateToken, getUserById);
  *               currentPassword:
  *                 type: string
  *                 description: Current password (required when changing password)
+ *               title:
+ *                 type: string
+ *                 description: Instructor title (optional) - applied only if target user is an INSTRUCTOR
+ *               area_of_expertise:
+ *                 type: string
+ *                 description: Instructor area of expertise (optional)
+ *               google_scholar_link:
+ *                 type: string
+ *                 description: Instructor Google Scholar profile URL (optional)
  *     responses:
  *       200:
  *         description: User updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     email:
+ *                       type: string
+ *                     fname:
+ *                       type: string
+ *                     lname:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *                     avatar_file_id:
+ *                       type: string
+ *                       nullable: true
+ *                     activated:
+ *                       type: boolean
+ *                     Instructor:
+ *                       type: object
+ *                       nullable: true
+ *                       properties:
+ *                         uid:
+ *                           type: integer
+ *                         title:
+ *                           type: string
+ *                         area_of_expertise:
+ *                           type: string
+ *                         google_scholar_link:
+ *                           type: string
  *       400:
  *         description: Validation failed
  *       401:

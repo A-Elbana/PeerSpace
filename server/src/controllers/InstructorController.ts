@@ -188,7 +188,7 @@ export const getInstructorFeedPosts = async (req: Request, res: Response) => {
         cid: true,
         _count: { select: { Comment: true } },
         User: {
-          select: { id: true, fname: true, lname: true, avatar_file_id: true },
+          select: { id: true, fname: true, lname: true, avatar_file_id: true, Instructor: true },
         },
         PostFileAttachment: {
           select: {

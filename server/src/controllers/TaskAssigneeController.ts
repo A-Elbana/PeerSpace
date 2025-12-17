@@ -521,6 +521,11 @@ export const declineTaskAssignee = async (req: Request, res: Response) => {
       });
     }
 
+    if (taskAssignee.isAccepted === true) {
+      return res.status(400).json({
+        message: "Cannot decline an already accepted task",
+      });
+    }
     // Delete the assignment
     await prisma.taskAssignees.delete({
       where: {

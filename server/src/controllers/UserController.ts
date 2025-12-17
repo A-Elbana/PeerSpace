@@ -15,6 +15,7 @@ const userSelect = {
   role: true,
   avatar_file_id: true,
   activated: true,
+  Instructor: true,
 };
 
 // Helper for sanitization
@@ -136,6 +137,15 @@ export const updateUser = async (req: Request, res: Response) => {
 
   try {
     const updateData: any = {};
+    // Fetch target user's role so we know whether to handle Instructor data
+    const targetUserRecord = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { role: true },
+    });
+
+    if (!targetUserRecord) {
+      return res.status(404).json({ message: "User not found" });
+    }
     if (fname) updateData.fname = sanitizeString(fname);
     if (lname) updateData.lname = sanitizeString(lname);
 
@@ -218,12 +228,38 @@ export const updateUser = async (req: Request, res: Response) => {
     const updatedUser = await prisma.user.update({
       where: { id: targetUserId },
       data: updateData,
+    });
+
+    // If the target user is an instructor and instructor-related fields were provided, upsert the Instructor record
+    const instructorFields: any = {};
+    if (req.body.title !== undefined) instructorFields.title = sanitizeString(String(req.body.title));
+    if (req.body.area_of_expertise !== undefined)
+      instructorFields.area_of_expertise = sanitizeString(String(req.body.area_of_expertise));
+    if (req.body.google_scholar_link !== undefined)
+      instructorFields.google_scholar_link = sanitizeString(String(req.body.google_scholar_link));
+
+    if (targetUserRecord.role === "INSTRUCTOR" && Object.keys(instructorFields).length > 0) {
+      // Upsert instructor record (create if missing, update if exists)
+      try {
+        await prisma.instructor.upsert({
+          where: { uid: targetUserId },
+          create: { uid: targetUserId, ...instructorFields },
+          update: { ...instructorFields },
+        });
+      } catch (err) {
+        console.error("Failed to upsert Instructor record:", err);
+      }
+    }
+
+    // Re-fetch the user to include Instructor relation in the response
+    const refreshedUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
       select: userSelect,
     });
 
     res.status(200).json({
       message: "User updated successfully",
-      user: updatedUser,
+      user: refreshedUser,
     });
   } catch (error: any) {
     console.error("Update User Error:", error);
