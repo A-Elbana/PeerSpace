@@ -65,7 +65,7 @@ const canAccessCommunity = async (
  * req.community is set by requirePostMembership
  */
 export const createPost = async (req: PostRequest, res: Response) => {
-  const { title, type, body, cid, file_ids } = req.body;
+  const { title, type, body, cid, file_ids, tags } = req.body;
   const userId = (req as any).userId;
 
   // Validation already done by middleware, community exists and user is member
@@ -88,6 +88,18 @@ export const createPost = async (req: PostRequest, res: Response) => {
         data: file_ids.map((fid: string) => ({
           pid: post.id,
           fid: String(fid),
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    // Create post tags if tags provided
+    if (tags && Array.isArray(tags) && tags.length > 0) {
+      const uniqueTags = [...new Set(tags.map((t: string) => (t || "").trim().toLowerCase()).filter(Boolean))];
+      await prisma.postTag.createMany({
+        data: uniqueTags.map((tag: string) => ({
+          post_id: post.id,
+          tag,
         })),
         skipDuplicates: true,
       });
@@ -143,6 +155,11 @@ export const getPostById = async (req: PostRequest, res: Response) => {
             },
           },
         },
+        PostTag: {
+          select: {
+            tag: true,
+          },
+        },
         _count: {
           select: { Comment: true },
         },
@@ -178,8 +195,11 @@ export const getPostById = async (req: PostRequest, res: Response) => {
     }
 
     // Return post with PostFileAttachment included
+    const tags = post.PostTag.map((pt) => pt.tag);
+    const { PostTag, ...postData } = post;
     res.status(200).json({
-      ...post,
+      ...postData,
+      tags,
       votes: {
         upvotes,
         downvotes,
@@ -275,6 +295,11 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
             },
           },
         },
+        PostTag: {
+          select: {
+            tag: true,
+          },
+        },
         _count: {
           select: { Comment: true },
         },
@@ -313,8 +338,11 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
     // Map posts with their vote data
     const postsWithVotes = posts.map(post => {
       const votes = votesByPost.get(post.id)!;
+      const tags = post.PostTag.map((pt) => pt.tag);
+      const { PostTag, ...postData } = post;
       return {
-        ...post,
+        ...postData,
+        tags,
         votes: {
           upvotes: votes.upvotes,
           downvotes: votes.downvotes,
@@ -351,7 +379,7 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
  * req.post is set by loadPost, authorization done by authorizePostEdit
  */
 export const updatePost = async (req: PostRequest, res: Response) => {
-  const { title, body, is_resolved, type, file_ids } = req.body;
+  const { title, body, is_resolved, type, file_ids, tags } = req.body;
 
   try {
     const updatedPost = await prisma.post.update({
@@ -377,6 +405,26 @@ export const updatePost = async (req: PostRequest, res: Response) => {
           data: file_ids.map((fid: string) => ({
             pid: req.post.id,
             fid: String(fid),
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
+    // Update post tags if tags provided
+    if (tags !== undefined && Array.isArray(tags)) {
+      // Delete existing tags
+      await prisma.postTag.deleteMany({
+        where: { post_id: req.post.id },
+      });
+
+      // Create new tags
+      if (tags.length > 0) {
+        const uniqueTags = [...new Set(tags.map((t: string) => (t || "").trim().toLowerCase()).filter(Boolean))];
+        await prisma.postTag.createMany({
+          data: uniqueTags.map((tag: string) => ({
+            post_id: req.post.id,
+            tag,
           })),
           skipDuplicates: true,
         });
@@ -709,6 +757,11 @@ export const getAllMyPosts = async (req: Request, res: Response) => {
               },
             },
           },
+          PostTag: {
+            select: {
+              tag: true,
+            },
+          },
           _count: {
             select: {
               Comment: true,
@@ -720,9 +773,15 @@ export const getAllMyPosts = async (req: Request, res: Response) => {
       prisma.post.count({ where: { owner_uid: userId } }),
     ]);
 
+    const formattedPosts = posts.map((post) => {
+      const tags = post.PostTag.map((pt) => pt.tag);
+      const { PostTag, ...postData } = post;
+      return { ...postData, tags };
+    });
+
     res.status(200).json({
       message: "My posts retrieved successfully",
-      data: posts,
+      data: formattedPosts,
       meta: {
         total,
         page,

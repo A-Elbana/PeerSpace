@@ -154,6 +154,11 @@ export const getInstructorFeedPosts = async (req: Request, res: Response) => {
               File: { select: { id: true, public_id: true, secure_url: true, resource_type: true, format: true, is_private: true } },
             },
           },
+          PostTag: {
+            select: {
+              tag: true,
+            },
+          },
         },
       }),
       prisma.post.count({ where }),
@@ -189,8 +194,11 @@ export const getInstructorFeedPosts = async (req: Request, res: Response) => {
 
     const data = posts.map((p) => {
       const v = votesByPost.get(p.id) || { upvotes: 0, downvotes: 0 };
+      const tags = p.PostTag.map((pt) => pt.tag);
+      const { PostTag, ...postData } = p;
       return {
-        ...p,
+        ...postData,
+        tags,
         User: {
           ...p.User,
           avatar_url: p.User.avatar_file_id ? avatarMap.get(p.User.avatar_file_id) : null,
