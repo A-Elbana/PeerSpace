@@ -45,9 +45,9 @@ const TickButton: React.FC<TickButtonProps> = ({ postId, isResolved, isAuthor, o
         className={`${baseClasses} ${isResolved ? 'bg-turf-green-100' : 'bg-white/5'} p-2 shadow-md hover:shadow-lg focus:outline-none`}
       >
         {loading ? (
-          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
         ) : (
-          <CheckCircle className={`w-7 h-7 ${isResolved ? resolvedClasses : unresolvedClasses}`} />
+          <CheckCircle className={`w-6 h-6 ${isResolved ? resolvedClasses : unresolvedClasses}`} />
         )}
       </button>
     );

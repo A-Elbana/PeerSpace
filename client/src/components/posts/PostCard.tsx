@@ -250,19 +250,8 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
         if (isEditOpen || showImageModal) return;
         goToPreview();
       }}
-      className={`relative bg-card border rounded-xl overflow-visible ${clickable ? 'hover:border-frosted-blue-500/50 hover:shadow-md cursor-pointer' : ''} transition-all duration-200 ${post.type.toLowerCase() == "announcement"  ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-border'}`}
+      className={`relative ${isResolvedState ? 'bg-turf-green-50 dark:bg-turf-green-950/20' : 'bg-card'} border rounded-xl overflow-visible ${clickable ? 'hover:border-frosted-blue-500/50 hover:shadow-md cursor-pointer' : ''} transition-all duration-200 ${post.type.toLowerCase() == "announcement"  ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-border'}`}
     >
-      {/* Right-middle positioned tick */}
-      {isResolvedState !== null && (isAuthor || isResolvedState) && (
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 z-10">
-          <TickButton
-            postId={post.id}
-            isResolved={isResolvedState}
-            isAuthor={isAuthor}
-            onToggled={(val) => { setIsResolvedState(val); (post as any).is_resolved = val; }}
-          />
-        </div>
-      )}
       <div className="flex">
         {post.type.toLowerCase() == "announcement" ? (
           <div className="w-12 bg-linear-to-b from-yellow-500/20 to-orange-500/20 flex flex-col items-center justify-center py-3 border-r border-yellow-500/30">
@@ -332,6 +321,17 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
                   <TagChip key={tagObj.tag} label={tagObj.tag} size="sm" />
                 ))}
               </div>
+
+              {isResolvedState !== null && (isAuthor || isResolvedState) && (
+                <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+                  <TickButton
+                    postId={post.id}
+                    isResolved={isResolvedState}
+                    isAuthor={isAuthor}
+                    onToggled={(val) => { setIsResolvedState(val); (post as any).is_resolved = val; }}
+                  />
+                </div>
+              )}
 
               {canModify && (
                 <div className="relative" ref={menuRef}>
