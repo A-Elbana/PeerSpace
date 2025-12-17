@@ -1,15 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Loader2, Plus, PenSquare } from 'lucide-react';
+import { Loader2, Plus, PenSquare, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../../components/ui/button';
 import { Sidebar } from '../../components/dashboard';
-import { CommunityHeader, PostsList, MembersPanel } from './components';
+import { CommunityHeader, MembersPanel } from './components';
 import CreatePostWidget from '../../components/posts/CreatePostWidget';
+import PostCard from '../../components/posts/PostCard';
 import { AssignmentList, AssignmentModal } from '../../components/assignments';
 import api, { communityApi, postApi, type CommunityResponse, type PostResponse } from '../../services/api';
 import { removeTokens } from '../../utils/auth';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
+import { ChevronRight, Home } from 'lucide-react';
+import { PostModal } from '../../components/posts';
+import { Link } from 'react-router-dom';
 
 type UserRole = 'student' | 'instructor' | 'admin';
 
@@ -22,18 +26,12 @@ interface UserData {
   avatar_file_id?: string;
 }
 
-// Member interface no longer needed here (handled inside MembersPanel)
-
 interface CommunityData extends CommunityResponse {
   _count: {
     Enrollment: number;
     Post: number;
   };
 }
-
-import { ChevronRight, Home } from 'lucide-react';
-import { PostModal } from '../../components/posts';
-import { Link } from 'react-router-dom';
 
 const Community: React.FC = () => {
   const { communityId } = useParams<{ communityId: string }>();
@@ -45,6 +43,9 @@ const Community: React.FC = () => {
   const [posts, setPosts] = useState<PostResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
+  const [postsPage, setPostsPage] = useState(1);
+  const [hasMorePosts, setHasMorePosts] = useState(true);
+  const [loadingMorePosts, setLoadingMorePosts] = useState(false);
   const [showCreateAssignmentModal, setShowCreateAssignmentModal] = useState(false);
 
   // Post Edit State is handled inside PostCard modal
@@ -56,6 +57,12 @@ const Community: React.FC = () => {
   const [deletePostId, setDeletePostId] = useState<number | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Refs for scroll handling
+  const postsScrollListenerAttached = useRef(false);
+  const postsDebounceRef = useRef<number | null>(null);
+  const postsScrollListenerRef = useRef<(() => void) | null>(null);
+  const postsScrollThreshold = 300; // px from bottom
 
   // Set page title
   useEffect(() => {
@@ -110,20 +117,22 @@ const Community: React.FC = () => {
     fetchCommunityData();
   }, [communityId, navigate]);
 
-  // Fetch posts
+  // Fetch initial posts (page 1)
   useEffect(() => {
     const fetchPosts = async () => {
       if (!communityId) return;
 
       try {
         setIsLoadingPosts(true);
-        const postsResponse = await postApi.getByCommunity(communityId, { limit: 50 });
-
-        // Sort by date (newest first)
-        const sortedPosts = postsResponse.data.sort(
-          (a, b) => new Date(b.post_date).getTime() - new Date(a.post_date).getTime()
-        );
-        setPosts(sortedPosts);
+        setPosts([]);
+        setPostsPage(1);
+        setHasMorePosts(true);
+        
+        const postsResponse = await postApi.getByCommunity(communityId, { page: 1, limit: 5 });
+        
+        const fetchedPosts = postsResponse.data || [];
+        setPosts(fetchedPosts);
+        setHasMorePosts(postsResponse.meta ? postsResponse.meta.page < postsResponse.meta.totalPages : fetchedPosts.length === 5);
       } catch (error) {
         console.error('Failed to fetch posts:', error);
       } finally {
@@ -134,6 +143,69 @@ const Community: React.FC = () => {
     fetchPosts();
   }, [communityId]);
 
+  // Load more posts (pagination)
+  const loadMorePosts = useCallback(async () => {
+    if (!communityId || loadingMorePosts || !hasMorePosts) return;
+
+    try {
+      setLoadingMorePosts(true);
+      const nextPage = postsPage + 1;
+      const postsResponse = await postApi.getByCommunity(communityId, { page: nextPage, limit: 5 });
+      
+      const fetchedPosts = postsResponse.data || [];
+      if (fetchedPosts.length > 0) {
+        setPosts(prev => {
+          const existing = new Set(prev.map(p => p.id));
+          const filtered = fetchedPosts.filter(p => !existing.has(p.id));
+          return [...prev, ...filtered];
+        });
+        setPostsPage(nextPage);
+        setHasMorePosts(postsResponse.meta ? postsResponse.meta.page < postsResponse.meta.totalPages : fetchedPosts.length === 5);
+      } else {
+        setHasMorePosts(false);
+      }
+    } catch (error) {
+      console.error('Failed to load more posts:', error);
+    } finally {
+      setLoadingMorePosts(false);
+    }
+  }, [communityId, postsPage, hasMorePosts, loadingMorePosts]);
+
+  // Window scroll handler for infinite scroll
+  const handleWindowPostsScroll = useCallback(() => {
+    if (loadingMorePosts || !hasMorePosts) return;
+    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - postsScrollThreshold) {
+      loadMorePosts();
+    }
+  }, [loadMorePosts, hasMorePosts, loadingMorePosts]);
+
+  const debouncedHandleWindowPostsScroll = useCallback(() => {
+    if (postsDebounceRef.current) window.clearTimeout(postsDebounceRef.current);
+    postsDebounceRef.current = window.setTimeout(() => {
+      handleWindowPostsScroll();
+    }, 200);
+  }, [handleWindowPostsScroll]);
+
+  // Attach/detach scroll listener
+  useEffect(() => {
+    if (!postsScrollListenerAttached.current) {
+      postsScrollListenerRef.current = debouncedHandleWindowPostsScroll;
+      window.addEventListener('scroll', debouncedHandleWindowPostsScroll);
+      postsScrollListenerAttached.current = true;
+    }
+
+    return () => {
+      if (postsScrollListenerAttached.current) {
+        const fn = postsScrollListenerRef.current;
+        if (fn) window.removeEventListener('scroll', fn as EventListener);
+        postsScrollListenerAttached.current = false;
+      }
+      if (postsDebounceRef.current) {
+        window.clearTimeout(postsDebounceRef.current);
+        postsDebounceRef.current = null;
+      }
+    };
+  }, [debouncedHandleWindowPostsScroll]);
 
   const handleLogout = () => {
     removeTokens();
@@ -179,12 +251,11 @@ const Community: React.FC = () => {
 
   // PostCard handles edit modal itself; if needed we can listen to callbacks from PostCard in future
 
-
-  // Check if current user is an instructor of this community
-    const isInstructorOfCommunity = user?.role === 'instructor';
-
-  // Check if current user is enrolled in this community (student in the students list or is an instructor)
-    const isEnrolledInCommunity = true;
+  // Check if current user is an instructor (simplified - actual check happens on server)
+  const isInstructorOfCommunity = user?.role === 'instructor';
+  
+  // Assume enrolled if community data loaded successfully
+  const isEnrolledInCommunity = true;
 
   // Loading state
   if (isLoading || !user) {
@@ -257,7 +328,6 @@ const Community: React.FC = () => {
           <div className="flex gap-6">
             {/* Left Column - Create Post & Posts */}
             <div className="flex-1 min-w-0">
-              {/* Assignments Section (Top of Feed) */}
               {/* Create Post - Only show if enrolled */}
               {isEnrolledInCommunity && (
                 <CreatePostWidget
@@ -267,14 +337,59 @@ const Community: React.FC = () => {
                 />
               )}
 
-              {/* Posts List */}
-              <PostsList
-                posts={posts}
-                isLoading={isLoadingPosts}
-                currentUser={user}
-                communityName={community?.name}
-                onDeletePost={handleDeletePost}
-              />
+              {/* Posts List with Lazy Loading */}
+              <div className="space-y-4">
+                <h2 className="text-lg font-semibold text-foreground mb-4">Posts</h2>
+                
+                {isLoadingPosts ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="bg-background border border-border rounded-lg p-4 animate-pulse">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-8 h-8 rounded-full bg-muted" />
+                          <div className="space-y-2">
+                            <div className="h-4 w-24 bg-muted rounded" />
+                            <div className="h-3 w-16 bg-muted rounded" />
+                          </div>
+                        </div>
+                        <div className="h-5 w-3/4 bg-muted rounded mb-2" />
+                        <div className="h-4 w-full bg-muted rounded" />
+                      </div>
+                    ))}
+                  </div>
+                ) : posts.length === 0 ? (
+                  <div className="bg-background border border-border rounded-lg p-8 text-center">
+                    <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                    <p className="text-muted-foreground">No posts yet in this community</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex flex-col gap-4">
+                      {posts.map((post) => (
+                        <PostCard
+                          key={post.id}
+                          post={post as any}
+                          currentUser={user ? { id: user.id, role: user.role } : null}
+                          communityName={community.name}
+                          onDelete={handleDeletePost}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Loading more indicator */}
+                    <div className="flex items-center justify-center py-6">
+                      {loadingMorePosts ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span className="text-sm text-muted-foreground">Loading more posts...</span>
+                        </div>
+                      ) : !hasMorePosts ? (
+                        <div className="text-xs text-muted-foreground">No more posts</div>
+                      ) : null}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Right Column - Members Panel */}
@@ -322,7 +437,6 @@ const Community: React.FC = () => {
               <MembersPanel
                 communityId={community.id}
                 currentUserId={user.id}
-                isCurrentUserInstructor={isInstructorOfCommunity}
               />
             </div>
           </div>
@@ -335,14 +449,8 @@ const Community: React.FC = () => {
         onClose={() => setShowCreateAssignmentModal(false)}
         communityId={community.id}
         onSuccess={() => {
-          // Could trigger a refresh of assignments here
           toast.success('Assignment created successfully!');
-          // For now we might need to rely on the user refreshing or the component re-fetching on mount/update
-          // In a real app we'd trigger a refetch in AssignmentList via a context or lifted state
-          // But AssignmentList fetches on mount/prop change, so maybe we can force it?
-          // Since AssignmentList uses local state, it won't auto-update unless we unmount/remount it or pass a refresh trigger.
-          // For this step, we'll just close the modal.
-          window.location.reload(); // Refresh to show new assignment
+          window.location.reload();
         }}
       />
 
