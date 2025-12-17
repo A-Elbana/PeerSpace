@@ -9,7 +9,6 @@ import {
   shareCommunity,
   getMyCommunities,
   getCommonCommunities,
-  checkUserManagerStatus,
 } from "../controllers/CommunityController";
 import {
   enrollInCommunity,
@@ -172,57 +171,6 @@ router.post(
  */
 router.get("/mine", authenticateToken, getMyCommunities);
 
-/**
- * @swagger
- * /api/communities/{cid}/managers/{uid}/check:
- *   get:
- *     summary: Check if a user manages a community
- *     tags: [Communities]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: cid
- *         required: true
- *         schema:
- *           type: string
-  *           format: uuid
- *         description: Community ID
- *       - in: path
- *         name: uid
- *         required: true
- *         schema:
- *           type: integer
- *         description: User ID to check
- *     responses:
- *       200:
- *         description: Whether the user manages the community
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 isManager:
- *                   type: boolean
- *                 communityId:
- *                   type: string
- *                 userId:
- *                   type: integer
- *       400:
- *         description: Invalid parameters
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
- */
-router.get(
-  "/:cid/managers/:uid/check",
-  authenticateToken,
-  authorizeRole(["ADMIN", "INSTRUCTOR"]),
-  checkUserManagerStatus
-);
 
 /**
  * @swagger

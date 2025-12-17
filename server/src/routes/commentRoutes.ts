@@ -8,6 +8,8 @@ import {
   deleteComment,
   approveByInstructor,
   approveByOriginalPoster,
+  toggleApprovedByInstructor,
+  toggleApprovedByOriginalPoster,
   getUnapprovedComments,
   getCommentCount,
   getAllRepliesOfComment,
@@ -271,6 +273,32 @@ router.patch(
 
 /**
  * @swagger
+ * /api/comments/{id}/toggle-approve-inst:
+ *   patch:
+ *     summary: Toggle instructor approval for a comment
+ *     tags: [Comments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Comment instructor approval toggled
+ */
+router.patch(
+  "/:id/toggle-approve-inst",
+  authenticateToken,
+  loadComment,
+  authorizeInstructorApproval,
+  toggleApprovedByInstructor
+);
+
+/**
+ * @swagger
  * /api/comments/{id}/approve-op:
  *   patch:
  *     summary: Mark comment as helpful by original post owner (question asker's endorsement)
@@ -293,6 +321,32 @@ router.patch(
   loadComment,
   authorizePostOwner,
   approveByOriginalPoster
+);
+
+/**
+ * @swagger
+ * /api/comments/{id}/toggle-approve-op:
+ *   patch:
+ *     summary: Toggle original poster approval for a comment
+ *     tags: [Comments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Comment original-poster approval toggled
+ */
+router.patch(
+  "/:id/toggle-approve-op",
+  authenticateToken,
+  loadComment,
+  authorizePostOwner,
+  toggleApprovedByOriginalPoster
 );
 
 export default router;

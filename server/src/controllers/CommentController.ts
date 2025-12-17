@@ -398,6 +398,102 @@ export const approveByOriginalPoster = async (req: Request, res: Response) => {
   }
 };
 
+// Toggle instructor approval for a comment
+export const toggleApprovedByInstructor = async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const commentId = Number(id);
+  if (Number.isNaN(commentId)) {
+    return res.status(400).json({ message: "Invalid comment id" });
+  }
+
+  try {
+    const existing = await prisma.comment.findUnique({
+      where: { id: commentId },
+      include: { Post: { select: { cid: true } } },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ message: "Comment not found" });
+    }
+
+    const now = new Date();
+    const newValue = !existing.approved_by_inst;
+
+    const comment = await prisma.comment.update({
+      where: { id: commentId },
+      data: newValue
+        ? { approved_by_inst: true, approved_at_inst: now }
+        : { approved_by_inst: false, approved_at_inst: null },
+      include: {
+        User: { select: { id: true, fname: true, lname: true, avatar_file_id: true } },
+        Post: { select: { cid: true } },
+      },
+    });
+
+    // Log the activity
+    await ActivityLogService.logActivity({
+      userId: (req as any).userId,
+      communityId: comment.Post.cid,
+      actionType: newValue ? ActivityActionType.COMMENT_APPROVED : ActivityActionType.COMMENT_REJECTED,
+      description: `${newValue ? "Approved" : "Unapproved"} comment #${commentId} by instructor`,
+    });
+
+    res.status(200).json({ success: true, data: comment });
+  } catch (error) {
+    console.error("Toggle Approve by Instructor Error:", error);
+    res.status(500).json({ message: "Failed to toggle instructor approval" });
+  }
+};
+
+// Toggle original poster approval for a comment
+export const toggleApprovedByOriginalPoster = async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const commentId = Number(id);
+  if (Number.isNaN(commentId)) {
+    return res.status(400).json({ message: "Invalid comment id" });
+  }
+
+  try {
+    const existing = await prisma.comment.findUnique({
+      where: { id: commentId },
+      include: { Post: { select: { cid: true } } },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ message: "Comment not found" });
+    }
+
+    const now = new Date();
+    const newValue = !existing.approved_by_op;
+
+    const comment = await prisma.comment.update({
+      where: { id: commentId },
+      data: newValue
+        ? { approved_by_op: true, approved_at_op: now }
+        : { approved_by_op: false, approved_at_op: null },
+      include: {
+        User: { select: { id: true, fname: true, lname: true, avatar_file_id: true } },
+        Post: { select: { cid: true } },
+      },
+    });
+
+    // Log the activity
+    await ActivityLogService.logActivity({
+      userId: (req as any).userId,
+      communityId: comment.Post.cid,
+      actionType: newValue ? ActivityActionType.COMMENT_APPROVED : ActivityActionType.COMMENT_REJECTED,
+      description: `${newValue ? "Approved" : "Unapproved"} comment #${commentId} by original poster`,
+    });
+
+    res.status(200).json({ success: true, data: comment });
+  } catch (error) {
+    console.error("Toggle Approve by OP Error:", error);
+    res.status(500).json({ message: "Failed to toggle original poster approval" });
+  }
+};
+
 // Get pending comments for moderation (comments awaiting instructor approval)
 export const getUnapprovedComments = async (req: Request, res: Response) => {
   const { pid } = req.query as any;
