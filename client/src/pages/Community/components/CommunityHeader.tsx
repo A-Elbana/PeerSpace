@@ -451,14 +451,6 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
                     Join session
                   </a>
                 )}
-                {isInstructor && (
-                  <button
-                    onClick={openSessionModal}
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm text-foreground hover:bg-background"
-                  >
-                    Manage
-                  </button>
-                )}
               </div>
             </div>
           )}
