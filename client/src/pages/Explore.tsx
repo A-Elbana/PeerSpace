@@ -1006,7 +1006,8 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                     )}
                                 </div>
 
-                                {/* Dynamic Widget based on Role */}
+                                {/* Dynamic Widget based on Role - Hidden for Admins */}
+                                {user?.role !== 'admin' && (
                                 <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
                                     {/* Decorative gradient */}
                                     <div className="absolute bottom-0 left-0 w-full h-1 bg-linear-to-r from-frosted-blue-500 via-turf-green-500 to-royal-gold-500 opacity-50" />
@@ -1052,6 +1053,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                         )}
                                     </div>
                                 </div>
+                                )}
                             </div>
                         </div>
                     </div>

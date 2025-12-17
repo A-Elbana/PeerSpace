@@ -34,18 +34,21 @@ export const mainNavItems: NavItem[] = [
     label: "Assignments",
     icon: ClipboardList,
     path: "/assignments",
+    roleRestriction: ["student", "instructor"],
   },
   {
     id: "submissions",
     label: "My Submissions",
     icon: FileCheck,
     path: "/submissions",
+    roleRestriction: ["student", "instructor"],
   },
   {
     id: "announcements",
     label: "Announcements",
     icon: Megaphone,
     path: "/announcements",
+    roleRestriction: ["student", "instructor"],
   },
   { id: "notes", label: "Notes", icon: Book, path: "/notes" },
   {

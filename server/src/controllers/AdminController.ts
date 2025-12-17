@@ -206,18 +206,24 @@ export const getActivityLogs = async (req: Request, res: Response) => {
     const pageParam = parseInt(req.query.page as string);
     const limitParam = parseInt(req.query.limit as string);
     const page = !isNaN(pageParam) && pageParam > 0 ? pageParam : 1;
-    const limit = !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 100) : 20;
+    const limit =
+      !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 100) : 20;
     const skip = (page - 1) * limit;
 
     // Filters
-    const userId = req.query.userId ? parseInt(req.query.userId as string) : undefined;
+    const userId = req.query.userId
+      ? parseInt(req.query.userId as string)
+      : undefined;
     const communityId = req.query.communityId as string | undefined;
-    const actionType = req.query.actionType ? parseInt(req.query.actionType as string) : undefined;
+    const actionType = req.query.actionType
+      ? parseInt(req.query.actionType as string)
+      : undefined;
     const startDate = req.query.startDate as string | undefined;
     const endDate = req.query.endDate as string | undefined;
 
     // Sorting
-    const sortOrder = (req.query.sortOrder as string)?.toLowerCase() === 'asc' ? 'asc' : 'desc';
+    const sortOrder =
+      (req.query.sortOrder as string)?.toLowerCase() === "asc" ? "asc" : "desc";
 
     // Build where clause
     const whereClause: any = {};
@@ -237,7 +243,7 @@ export const getActivityLogs = async (req: Request, res: Response) => {
     // Date range filter
     if (startDate || endDate) {
       whereClause.date = {};
-      
+
       if (startDate) {
         const start = new Date(startDate);
         if (!isNaN(start.getTime())) {
