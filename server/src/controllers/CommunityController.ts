@@ -60,34 +60,6 @@ const isUserMemberOfCommunity = async (
   return isUserManagerOfCommunity(userId, communityId);
 };
 
-/**
- * Check if a given user manages a given community (by params)
- */
-export const checkUserManagerStatus = async (req: Request, res: Response) => {
-  const communityId = req.params.cid;
-  const userIdParam = parseInt(req.params.uid || "", 10);
-
-  if (!communityId || !isValidUUID(communityId)) {
-    return res.status(400).json({ message: "Invalid community ID" });
-  }
-
-  if (isNaN(userIdParam) || userIdParam <= 0) {
-    return res.status(400).json({ message: "Invalid user ID" });
-  }
-
-  try {
-    const isManager = await isUserManagerOfCommunity(userIdParam, communityId);
-    return res.status(200).json({
-      success: true,
-      isManager,
-      communityId,
-      userId: userIdParam,
-    });
-  } catch (error) {
-    console.error("Check User Manager Status Error:", error);
-    return res.status(500).json({ message: "Failed to check manager status" });
-  }
-};
 
 /**
  * Create a new community
