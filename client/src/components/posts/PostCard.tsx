@@ -1,12 +1,12 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, type FC } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Clock, User, ArrowBigUp, ArrowBigDown, Megaphone, MoreHorizontal, PenSquare, Trash2, Download, FileIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
-import TickButton from './TickButton';
+import { MessageSquare, Clock, User, ArrowBigUp, ArrowBigDown, Megaphone, MoreHorizontal, PenSquare, Trash2, Download, FileIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useResolvedFileUrl } from '../../hooks/useResolvedFileUrl';
-import { MarkdownPreview, MarkdownEditor } from '../MarkdownEditor';
+import { MarkdownPreview } from '../MarkdownEditor';
+import TickButton from './TickButton';
 import { PostModal } from './EditPostModal';
 import PostImageModal from './PostImageModal';
-import api, { voteApi, postApi, communityApi } from '../../services/api';
+import { voteApi, communityApi } from '../../services/api';
 import TagChip from '../common/TagChip';
 import { toast } from 'sonner';
 
@@ -53,6 +53,8 @@ interface PostCardProps {
   currentUser?: { id: number; role: string } | null;
   onDelete?: (postId: number) => void;
   clickable?: boolean;
+  onNavigate?: (cid?: string) => void;
+  onEdit?: (post?: PostShape) => void;
 }
 
 const formatDate = (dateString: string) => {
@@ -71,7 +73,7 @@ const formatDate = (dateString: string) => {
 };
 
 
-export default function PostCard({ post, currentUser, onDelete, clickable = true }: PostCardProps) {
+export default function PostCard({ post, currentUser, onDelete, clickable = true, onNavigate, onEdit }: PostCardProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const authorAvatarUrl = useResolvedFileUrl(post.User.avatar_file_id);
   const navigate = useNavigate();
@@ -84,22 +86,18 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
   const [isResolvedState, setIsResolvedState] = useState<boolean | null>(post.is_resolved ?? null);
 
   useEffect(() => {
-    setIsResolvedState(post.is_resolved ?? null);
-  }, [post.is_resolved]);
-
-  useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         if (!post.cid || !currentUser) return;
-        
+
         const commNameRes = await communityApi.getById(post.cid);
         if (!mounted) return;
-        
-        
+
+
         setCommunityName(commNameRes.data.name);
       } catch (err) {
-        console.log(err)  
+        console.log(err)
       }
     })();
     return () => { mounted = false; };
@@ -109,7 +107,14 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
     currentUser.role === 'admin' ||
     (currentUser.role === 'instructor')
   );
+
   const isAuthor = Boolean(currentUser && currentUser.id === post.User.id);
+
+  useEffect(() => {
+    setIsResolvedState(post.is_resolved ?? null);
+  }, [post.is_resolved]);
+
+  const isPrivilegedViewer = currentUser && (currentUser.role === 'admin' || currentUser.role === 'instructor');
 
   // Get attachments - handle both old and new format
   const attachments = (post.PostFileAttachment || []).filter(a => a.File?.secure_url);
@@ -182,7 +187,7 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
         };
         setUserVote(normalize(raw));
       } catch (err) {
-        console.log(err);
+        // ignore (public endpoint may fail for guests)
       }
     })();
     return () => { mounted = false; };
@@ -198,6 +203,37 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Voting controls as an inner component
+  interface VoteControlsProps {
+    score: number;
+    userVote: boolean | null;
+    onUp: () => Promise<void> | void;
+    onDown: () => Promise<void> | void;
+    readOnly?: boolean;
+  }
+
+  const VoteControls: FC<VoteControlsProps> = ({ score, userVote, onUp, onDown, readOnly = false }) => (
+    <div className="w-12 bg-muted/30 flex flex-col items-center py-3 gap-1">
+      <button
+        onClick={(e) => { e.stopPropagation(); if (!readOnly) void onUp(); }}
+        className={`transition-colors flex items-center justify-center ${userVote === true ? 'bg-turf-green-600 text-white w-8 h-8 rounded-full' : 'text-turf-green-600 hover:text-turf-green-700'} ${readOnly ? 'opacity-60 pointer-events-none' : ''}`}
+        aria-pressed={userVote === true}
+        aria-disabled={readOnly}
+      >
+        <ArrowBigUp size={20} />
+      </button>
+      <span className="text-sm font-bold text-foreground">{score}</span>
+      <button
+        onClick={(e) => { e.stopPropagation(); if (!readOnly) void onDown(); }}
+        className={`transition-colors flex items-center justify-center ${userVote === false ? 'bg-red-600 text-white w-8 h-8 rounded-full' : 'text-red-600 hover:text-red-700'} ${readOnly ? 'opacity-60 pointer-events-none' : ''}`}
+        aria-pressed={userVote === false}
+        aria-disabled={readOnly}
+      >
+        <ArrowBigDown size={20} />
+      </button>
+    </div>
+  );
 
   const handleUp = async () => {
     try {
@@ -245,12 +281,13 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
 
   return (
     <div
-      onClick={(e: React.MouseEvent<HTMLDivElement>) => {
+      onClick={() => {
         if (!clickable) return;
         if (isEditOpen || showImageModal) return;
         goToPreview();
       }}
-      className={`relative ${isResolvedState ? 'bg-turf-green-100/50 dark:bg-turf-green-600/70' : 'bg-card'} border rounded-xl overflow-visible ${clickable ? 'hover:border-frosted-blue-500/50 hover:shadow-md cursor-pointer' : ''} transition-all duration-200 ${post.type.toLowerCase() == "announcement"  ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-border'}`}
+      className={`relative bg-card border rounded-xl overflow-visible ${clickable ? 'hover:border-frosted-blue-500/50 hover:shadow-md cursor-pointer' : ''} transition-all duration-200 ${post.type.toLowerCase() == "announcement" ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-border'}`}
+      className={`relative ${isResolvedState ? 'bg-turf-green-100/50 dark:bg-turf-green-600/70' : 'bg-card'} border rounded-xl overflow-visible ${clickable ? 'hover:border-frosted-blue-500/50 hover:shadow-md cursor-pointer' : ''} transition-all duration-200 ${post.type.toLowerCase() == "announcement" ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-border'}`}
     >
       <div className="flex">
         {post.type.toLowerCase() == "announcement" ? (
@@ -261,28 +298,13 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
           </div>
         ) : (
           <div className="w-12 bg-muted/30 flex flex-col items-center py-3 gap-1">
-            {currentUser?.role !== 'admin' && (
-              <>
-                <button
-                  onClick={(e) => { e.stopPropagation(); void handleUp(); }}
-                  className={`transition-colors flex items-center justify-center ${userVote === true ? 'bg-turf-green-600 text-white w-8 h-8 rounded-full' : 'text-turf-green-600 hover:text-turf-green-700'}`}
-                  aria-pressed={userVote === true}
-                >
-                  <ArrowBigUp size={20} />
-                </button>
-                <span className="text-sm font-bold text-foreground">{score}</span>
-                <button
-                  onClick={(e) => { e.stopPropagation(); void handleDown(); }}
-                  className={`transition-colors flex items-center justify-center ${userVote === false ? 'bg-red-600 text-white w-8 h-8 rounded-full' : 'text-red-600 hover:text-red-700'}`}
-                  aria-pressed={userVote === false}
-                >
-                  <ArrowBigDown size={20} />
-                </button>
-              </>
-            )}
-            {currentUser?.role === 'admin' && (
-              <span className="text-sm font-bold text-foreground">{score}</span>
-            )}
+            <VoteControls
+              score={score}
+              userVote={userVote}
+              onUp={handleUp}
+              onDown={handleDown}
+              readOnly={isPrivilegedViewer || !currentUser}
+            />
           </div>
         )}
 
@@ -349,7 +371,11 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
                         onClick={(e) => {
                           e.stopPropagation();
                           setIsMenuOpen(false);
-                          setIsEditOpen(true);
+                          if (onEdit) {
+                            onEdit(post);
+                          } else {
+                            setIsEditOpen(true);
+                          }
                         }}
                         className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 text-foreground transition-colors"
                       >
@@ -478,7 +504,7 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
             isOpen={isEditOpen}
             onClose={() => setIsEditOpen(false)}
             post={post as any}
-            onSuccess={async (updated: PostShape)  =>  {
+            onSuccess={async (updated: PostShape) => {
               setIsEditOpen(false);
               post.title = (updated.title as any) ?? post.title;
               post.body = updated.body;
