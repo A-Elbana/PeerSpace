@@ -5,12 +5,17 @@ import { isValidUUID } from "../utils/helpers";
 
 const parsePageLimit = (req: Request) => {
   const page = Math.max(1, parseInt((req.query.page as string) || "1"));
-  const limit = Math.min(50, Math.max(1, parseInt((req.query.limit as string) || "10")));
+  const limit = Math.min(
+    50,
+    Math.max(1, parseInt((req.query.limit as string) || "10"))
+  );
   const skip = (page - 1) * limit;
   return { page, limit, skip };
 };
 
-const getManagedCommunityIds = async (instructorId: number): Promise<string[]> => {
+const getManagedCommunityIds = async (
+  instructorId: number
+): Promise<string[]> => {
   const manages = await prisma.manages.findMany({
     where: { iid: instructorId },
     select: { cid: true },
@@ -26,7 +31,13 @@ export const getMyCommunities = async (req: Request, res: Response) => {
   try {
     const managedIds = await getManagedCommunityIds(userId);
     if (managedIds.length === 0) {
-      return res.status(200).json({ success: true, data: [], meta: { total: 0, page, limit, totalPages: 0 } });
+      return res
+        .status(200)
+        .json({
+          success: true,
+          data: [],
+          meta: { total: 0, page, limit, totalPages: 0 },
+        });
     }
 
     const where: any = { id: { in: managedIds } };
@@ -50,14 +61,18 @@ export const getMyCommunities = async (req: Request, res: Response) => {
           description: true,
           type: true,
           banner_file_id: true,
-          _count: { select: { Enrollment: true, Post: true, Assignment: true } },
+          _count: {
+            select: { Enrollment: true, Post: true, Assignment: true },
+          },
         },
       }),
       prisma.community.count({ where }),
     ]);
 
     // Batch resolve banner URLs (only for non-null IDs)
-    const bannerIds = communities.map((c) => c.banner_file_id).filter((id): id is string => !!id);
+    const bannerIds = communities
+      .map((c) => c.banner_file_id)
+      .filter((id): id is string => !!id);
     const fileMap = bannerIds.length
       ? new Map(
           (
@@ -84,10 +99,14 @@ export const getMyCommunities = async (req: Request, res: Response) => {
         const f = fileMap.get(c.banner_file_id);
         if (f) {
           banner_url = f.is_private
-            ? cloudinary.utils.private_download_url(f.public_id, f.resource_type, {
-                expires_at: Math.floor(Date.now() / 1000) + 3600,
-                attachment: false,
-              })
+            ? cloudinary.utils.private_download_url(
+                f.public_id,
+                f.resource_type,
+                {
+                  expires_at: Math.floor(Date.now() / 1000) + 3600,
+                  attachment: false,
+                }
+              )
             : f.secure_url;
         }
       }
@@ -110,59 +129,89 @@ export const getInstructorFeedPosts = async (req: Request, res: Response) => {
   const { page, limit, skip } = parsePageLimit(req);
   const resolvedParam = req.query.resolved as string | undefined;
   const rawCid = req.query.cid as string | string[] | undefined;
+  const sort = ((req.query.sort as string | undefined) || "new").toLowerCase();
 
   let filterCids: string[] | undefined;
   if (rawCid) {
     if (Array.isArray(rawCid)) filterCids = rawCid.map(String);
-    else filterCids = rawCid.split(",").map((s) => s.trim()).filter(Boolean);
+    else
+      filterCids = rawCid
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
   }
 
   try {
     const managedIds = await getManagedCommunityIds(userId);
     if (managedIds.length === 0) {
-      return res.status(200).json({ success: true, data: [], meta: { total: 0, page, limit, totalPages: 0 } });
+      return res
+        .status(200)
+        .json({
+          success: true,
+          data: [],
+          meta: { total: 0, page, limit, totalPages: 0 },
+        });
     }
-    const allowedIds = filterCids ? filterCids.filter((id) => managedIds.includes(id)) : managedIds;
+    const allowedIds = filterCids
+      ? filterCids.filter((id) => managedIds.includes(id))
+      : managedIds;
     if (allowedIds.length === 0) {
-      return res.status(403).json({ message: "No access to requested communities" });
+      return res
+        .status(403)
+        .json({ message: "No access to requested communities" });
     }
 
     const where: any = { cid: { in: allowedIds } };
     if (resolvedParam === "true") where.is_resolved = true;
     if (resolvedParam === "false") where.is_resolved = false;
 
-    const [posts, total] = await Promise.all([
-      prisma.post.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { post_date: "desc" },
-        select: {
-          id: true,
-          title: true,
-          body: true,
-          type: true,
-          post_date: true,
-          is_resolved: true,
-          owner_uid: true,
-          cid: true,
-          _count: { select: { Comment: true } },
-          User: { select: { id: true, fname: true, lname: true, avatar_file_id: true } },
-          PostFileAttachment: {
-            select: {
-              fid: true,
-              File: { select: { id: true, public_id: true, secure_url: true, resource_type: true, format: true, is_private: true } },
-            },
-          },
-          PostTag: {
-            select: {
-              tag: true,
+    const total = await prisma.post.count({ where });
+
+    // For 'top' sorting, we need vote scores; fetch a larger window, sort in-memory, then paginate
+    const fetchSkip = sort === "new" ? skip : 0;
+    const fetchTake =
+      sort === "new" ? limit : Math.min(Math.max(limit * 3, 50), 300);
+
+    const posts = await prisma.post.findMany({
+      where,
+      skip: fetchSkip,
+      take: fetchTake,
+      orderBy: { post_date: "desc" },
+      select: {
+        id: true,
+        title: true,
+        body: true,
+        type: true,
+        post_date: true,
+        is_resolved: true,
+        owner_uid: true,
+        cid: true,
+        _count: { select: { Comment: true } },
+        User: {
+          select: { id: true, fname: true, lname: true, avatar_file_id: true },
+        },
+        PostFileAttachment: {
+          select: {
+            fid: true,
+            File: {
+              select: {
+                id: true,
+                public_id: true,
+                secure_url: true,
+                resource_type: true,
+                format: true,
+                is_private: true,
+              },
             },
           },
         },
-      }),
-      prisma.post.count({ where }),
-    ]);
+        PostTag: {
+          select: {
+            tag: true,
+          },
+        },
+      },
+    });
 
     // Batch fetch votes and avatars
     const postIds = posts.map((p) => p.id);
@@ -175,15 +224,32 @@ export const getInstructorFeedPosts = async (req: Request, res: Response) => {
       }),
       userIds.length
         ? prisma.file.findMany({
-            where: { id: { in: posts.map((p) => p.User.avatar_file_id).filter((id): id is string => !!id) } },
-            select: { id: true, public_id: true, secure_url: true, resource_type: true, is_private: true },
+            where: {
+              id: {
+                in: posts
+                  .map((p) => p.User.avatar_file_id)
+                  .filter((id): id is string => !!id),
+              },
+            },
+            select: {
+              id: true,
+              public_id: true,
+              secure_url: true,
+              resource_type: true,
+              is_private: true,
+            },
           })
         : Promise.resolve([]),
     ]);
 
     // Build vote aggregates
-    const votesByPost = new Map<number, { upvotes: number; downvotes: number }>();
-    postIds.forEach((pid) => votesByPost.set(pid, { upvotes: 0, downvotes: 0 }));
+    const votesByPost = new Map<
+      number,
+      { upvotes: number; downvotes: number }
+    >();
+    postIds.forEach((pid) =>
+      votesByPost.set(pid, { upvotes: 0, downvotes: 0 })
+    );
     votes.forEach((v) => {
       const agg = votesByPost.get(v.pid)!;
       if (v.voteType) agg.upvotes++;
@@ -192,7 +258,7 @@ export const getInstructorFeedPosts = async (req: Request, res: Response) => {
 
     const avatarMap = new Map(avatarFiles.map((f) => [f.id, f] as const));
 
-    const data = posts.map((p) => {
+    let enriched = posts.map((p) => {
       const v = votesByPost.get(p.id) || { upvotes: 0, downvotes: 0 };
       const tags = p.PostTag.map((pt) => pt.tag);
       const { PostTag, ...postData } = p;
@@ -201,13 +267,38 @@ export const getInstructorFeedPosts = async (req: Request, res: Response) => {
         tags,
         User: {
           ...p.User,
-          avatar_url: p.User.avatar_file_id ? avatarMap.get(p.User.avatar_file_id) : null,
+          avatar_url: p.User.avatar_file_id
+            ? avatarMap.get(p.User.avatar_file_id)
+            : null,
         },
-        votes: { upvotes: v.upvotes, downvotes: v.downvotes, score: v.upvotes - v.downvotes },
+        votes: {
+          upvotes: v.upvotes,
+          downvotes: v.downvotes,
+          score: v.upvotes - v.downvotes,
+        },
       };
     });
 
-    return res.status(200).json({ success: true, data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } });
+    if (sort === "top") {
+      enriched = enriched.sort((a, b) => {
+        const scoreDiff = (b as any).votes.score - (a as any).votes.score;
+        if (scoreDiff !== 0) return scoreDiff;
+        return (
+          new Date((b as any).post_date).getTime() -
+          new Date((a as any).post_date).getTime()
+        );
+      });
+      const start = (page - 1) * limit;
+      enriched = enriched.slice(start, start + limit);
+    }
+
+    return res
+      .status(200)
+      .json({
+        success: true,
+        data: enriched,
+        meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      });
   } catch (error) {
     console.error("Instructor getInstructorFeedPosts Error:", error);
     return res.status(500).json({ message: "Failed to fetch posts" });
@@ -230,14 +321,22 @@ export const getManagedSubmissions = async (req: Request, res: Response) => {
   try {
     const managedIds = await getManagedCommunityIds(userId);
     if (managedIds.length === 0) {
-      return res.status(200).json({ success: true, data: [], meta: { total: 0, page, limit, totalPages: 0 } });
+      return res
+        .status(200)
+        .json({
+          success: true,
+          data: [],
+          meta: { total: 0, page, limit, totalPages: 0 },
+        });
     }
 
     const where: any = {};
 
     if (cid) {
-      if (!isValidUUID(cid)) return res.status(400).json({ message: "Invalid community id" });
-      if (!managedIds.includes(cid)) return res.status(403).json({ message: "Not managing this community" });
+      if (!isValidUUID(cid))
+        return res.status(400).json({ message: "Invalid community id" });
+      if (!managedIds.includes(cid))
+        return res.status(403).json({ message: "Not managing this community" });
       where.Assignment = { cid };
     } else {
       where.Assignment = { cid: { in: managedIds } };
@@ -245,10 +344,18 @@ export const getManagedSubmissions = async (req: Request, res: Response) => {
 
     if (aidParam) {
       const aid = Number(aidParam);
-      if (Number.isNaN(aid)) return res.status(400).json({ message: "Invalid assignment id" });
-      const assignment = await prisma.assignment.findUnique({ where: { id: aid }, select: { cid: true } });
-      if (!assignment) return res.status(404).json({ message: "Assignment not found" });
-      if (!managedIds.includes(assignment.cid)) return res.status(403).json({ message: "Not managing assignment's community" });
+      if (Number.isNaN(aid))
+        return res.status(400).json({ message: "Invalid assignment id" });
+      const assignment = await prisma.assignment.findUnique({
+        where: { id: aid },
+        select: { cid: true },
+      });
+      if (!assignment)
+        return res.status(404).json({ message: "Assignment not found" });
+      if (!managedIds.includes(assignment.cid))
+        return res
+          .status(403)
+          .json({ message: "Not managing assignment's community" });
       delete where.Assignment;
       where.aid = aid;
     }
@@ -258,7 +365,8 @@ export const getManagedSubmissions = async (req: Request, res: Response) => {
 
     if (studentIdParam) {
       const sid = Number(studentIdParam);
-      if (Number.isNaN(sid)) return res.status(400).json({ message: "Invalid student id" });
+      if (Number.isNaN(sid))
+        return res.status(400).json({ message: "Invalid student id" });
       where.sid = sid;
     }
 
@@ -275,8 +383,29 @@ export const getManagedSubmissions = async (req: Request, res: Response) => {
           feedback: true,
           aid: true,
           sid: true,
-          Assignment: { select: { id: true, title: true, cid: true, due_date: true, max_points: true } },
-          Student: { select: { uid: true, User: { select: { id: true, fname: true, lname: true, email: true, avatar_file_id: true } } } },
+          Assignment: {
+            select: {
+              id: true,
+              title: true,
+              cid: true,
+              due_date: true,
+              max_points: true,
+            },
+          },
+          Student: {
+            select: {
+              uid: true,
+              User: {
+                select: {
+                  id: true,
+                  fname: true,
+                  lname: true,
+                  email: true,
+                  avatar_file_id: true,
+                },
+              },
+            },
+          },
         },
       }),
       prisma.submission.count({ where }),
@@ -292,7 +421,13 @@ export const getManagedSubmissions = async (req: Request, res: Response) => {
           (
             await prisma.file.findMany({
               where: { id: { in: studentAvatarIds } },
-              select: { id: true, public_id: true, secure_url: true, resource_type: true, is_private: true },
+              select: {
+                id: true,
+                public_id: true,
+                secure_url: true,
+                resource_type: true,
+                is_private: true,
+              },
             })
           ).map((f) => [f.id, f] as const)
         )
@@ -305,14 +440,24 @@ export const getManagedSubmissions = async (req: Request, res: Response) => {
           where: { subid: { in: submissionIds } },
           select: {
             subid: true,
-            File: { select: { id: true, public_id: true, secure_url: true, resource_type: true, format: true, is_private: true } },
+            File: {
+              select: {
+                id: true,
+                public_id: true,
+                secure_url: true,
+                resource_type: true,
+                format: true,
+                is_private: true,
+              },
+            },
           },
         })
       : [];
 
     const attachmentsBySubId = new Map<number, typeof fileAttachments>();
     fileAttachments.forEach((att) => {
-      if (!attachmentsBySubId.has(att.subid!)) attachmentsBySubId.set(att.subid!, []);
+      if (!attachmentsBySubId.has(att.subid!))
+        attachmentsBySubId.set(att.subid!, []);
       attachmentsBySubId.get(att.subid!)!.push(att);
     });
 
@@ -322,13 +467,21 @@ export const getManagedSubmissions = async (req: Request, res: Response) => {
         ...s.Student,
         User: {
           ...s.Student.User,
-          avatar_url: s.Student.User.avatar_file_id ? avatarMap.get(s.Student.User.avatar_file_id) : null,
+          avatar_url: s.Student.User.avatar_file_id
+            ? avatarMap.get(s.Student.User.avatar_file_id)
+            : null,
         },
       },
       SubmissionFileAttachment: attachmentsBySubId.get(s.id) || [],
     }));
 
-    return res.status(200).json({ success: true, data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } });
+    return res
+      .status(200)
+      .json({
+        success: true,
+        data,
+        meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      });
   } catch (error) {
     console.error("Instructor getManagedSubmissions Error:", error);
     return res.status(500).json({ message: "Failed to fetch submissions" });
@@ -346,16 +499,29 @@ export const getInstructorInsights = async (req: Request, res: Response) => {
     }
 
     if (cid) {
-      if (!isValidUUID(cid)) return res.status(400).json({ message: "Invalid community id" });
-      if (!managedIds.includes(cid)) return res.status(403).json({ message: "Not managing this community" });
+      if (!isValidUUID(cid))
+        return res.status(400).json({ message: "Invalid community id" });
+      if (!managedIds.includes(cid))
+        return res.status(403).json({ message: "Not managing this community" });
 
-      const [studentsCount, postsCount, unresolvedPosts, assignmentsCount, submissionsCount, avgGrade, submissionsBySid] = await Promise.all([
+      const [
+        studentsCount,
+        postsCount,
+        unresolvedPosts,
+        assignmentsCount,
+        submissionsCount,
+        avgGrade,
+        submissionsBySid,
+      ] = await Promise.all([
         prisma.enrollment.count({ where: { cid } }),
         prisma.post.count({ where: { cid } }),
         prisma.post.count({ where: { cid, is_resolved: false } }),
         prisma.assignment.count({ where: { cid } }),
         prisma.submission.count({ where: { Assignment: { cid } } }),
-        prisma.submission.aggregate({ _avg: { grade: true }, where: { Assignment: { cid }, grade: { not: null } } }),
+        prisma.submission.aggregate({
+          _avg: { grade: true },
+          where: { Assignment: { cid }, grade: { not: null } },
+        }),
         prisma.submission.findMany({
           where: { Assignment: { cid } },
           select: { sid: true },
@@ -372,7 +538,15 @@ export const getInstructorInsights = async (req: Request, res: Response) => {
         .map((e) => e[0]);
 
       const studentUsers = sortedSids.length
-        ? await prisma.user.findMany({ where: { id: { in: sortedSids } }, select: { id: true, fname: true, lname: true, avatar_file_id: true } })
+        ? await prisma.user.findMany({
+            where: { id: { in: sortedSids } },
+            select: {
+              id: true,
+              fname: true,
+              lname: true,
+              avatar_file_id: true,
+            },
+          })
         : [];
       const studentMap = new Map(studentUsers.map((u) => [u.id, u] as const));
 
@@ -386,7 +560,10 @@ export const getInstructorInsights = async (req: Request, res: Response) => {
           assignmentsCount,
           submissionsCount,
           averageGrade: avgGrade._avg.grade,
-          topStudents: sortedSids.map((sid) => ({ submissions: sidCounts.get(sid) || 0, student: studentMap.get(sid) || { id: sid } })),
+          topStudents: sortedSids.map((sid) => ({
+            submissions: sidCounts.get(sid) || 0,
+            student: studentMap.get(sid) || { id: sid },
+          })),
         },
       });
     }
@@ -408,11 +585,18 @@ export const getInstructorInsights = async (req: Request, res: Response) => {
     ]);
 
     // Build community name map
-    const communityNameMap = new Map(communities.map((c) => [c.id, c.name] as const));
+    const communityNameMap = new Map(
+      communities.map((c) => [c.id, c.name] as const)
+    );
 
     // Build post metrics
-    const postMetrics = new Map<string, { postsCount: number; unresolvedPosts: number }>();
-    managedIds.forEach((id) => postMetrics.set(id, { postsCount: 0, unresolvedPosts: 0 }));
+    const postMetrics = new Map<
+      string,
+      { postsCount: number; unresolvedPosts: number }
+    >();
+    managedIds.forEach((id) =>
+      postMetrics.set(id, { postsCount: 0, unresolvedPosts: 0 })
+    );
     allPosts.forEach((p) => {
       const m = postMetrics.get(p.cid)!;
       m.postsCount++;
@@ -423,7 +607,10 @@ export const getInstructorInsights = async (req: Request, res: Response) => {
     const submissionCounts = new Map<string, number>();
     managedIds.forEach((id) => submissionCounts.set(id, 0));
     submissionByCommunity.forEach((s) => {
-      submissionCounts.set(s.Assignment.cid, (submissionCounts.get(s.Assignment.cid) || 0) + 1);
+      submissionCounts.set(
+        s.Assignment.cid,
+        (submissionCounts.get(s.Assignment.cid) || 0) + 1
+      );
     });
 
     const data = managedIds.map((id) => ({
