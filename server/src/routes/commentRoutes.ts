@@ -6,8 +6,6 @@ import {
   getCommentById,
   updateComment,
   deleteComment,
-  approveByInstructor,
-  approveByOriginalPoster,
   toggleApprovedByInstructor,
   toggleApprovedByOriginalPoster,
   getUnapprovedComments,
@@ -247,32 +245,6 @@ router.delete(
 
 /**
  * @swagger
- * /api/comments/{id}/approve-inst:
- *   patch:
- *     summary: Mark comment as "Correct Answer" by instructor (like Stack Overflow checkmark)
- *     tags: [Comments]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Comment marked as instructor-approved (badge will show on frontend)
- */
-router.patch(
-  "/:id/approve-inst",
-  authenticateToken,
-  loadComment,
-  authorizeInstructorApproval,
-  approveByInstructor
-);
-
-/**
- * @swagger
  * /api/comments/{id}/toggle-approve-inst:
  *   patch:
  *     summary: Toggle instructor approval for a comment
@@ -295,32 +267,6 @@ router.patch(
   loadComment,
   authorizeInstructorApproval,
   toggleApprovedByInstructor
-);
-
-/**
- * @swagger
- * /api/comments/{id}/approve-op:
- *   patch:
- *     summary: Mark comment as helpful by original post owner (question asker's endorsement)
- *     tags: [Comments]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Comment marked as poster-approved (badge will show on frontend)
- */
-router.patch(
-  "/:id/approve-op",
-  authenticateToken,
-  loadComment,
-  authorizePostOwner,
-  approveByOriginalPoster
 );
 
 /**

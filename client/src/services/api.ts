@@ -576,6 +576,11 @@ export const commentApi = {
     return response.data;
   },
 
+  getById: async (id: number) => {
+    const response = await api.get(`/comments/${id}`);
+    return response.data;
+  },
+
   create: async (data: {
     pid: number;
     content: string;
@@ -592,6 +597,14 @@ export const commentApi = {
 
   delete: async (id: number) => {
     const response = await api.delete(`/comments/${id}`);
+    return response.data;
+  },
+  toggleApproveInstructor: async (id: number) => {
+    const response = await api.patch(`/comments/${id}/toggle-approve-inst`);
+    return response.data;
+  },
+  toggleApproveOriginalPoster: async (id: number) => {
+    const response = await api.patch(`/comments/${id}/toggle-approve-op`);
     return response.data;
   },
 };

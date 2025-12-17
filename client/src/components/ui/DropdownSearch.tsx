@@ -42,15 +42,6 @@ const DropdownSearch: React.FC<DropdownSearchProps> = ({ value, options, onChang
     o.label.toLowerCase().includes(query.toLowerCase()) || o.subtitle?.toLowerCase().includes(query.toLowerCase())
   );
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (!onLoadMore || loadingMore || !hasMore) return;
-    const target = e.currentTarget;
-    const remaining = target.scrollHeight - target.scrollTop - target.clientHeight;
-    const t = threshold ?? 48;
-    if (remaining <= t) {
-      onLoadMore();
-    }
-  };
 
   return (
     <div className={`relative ${className}`} ref={ref}>
@@ -86,7 +77,6 @@ const DropdownSearch: React.FC<DropdownSearchProps> = ({ value, options, onChang
             ref={listRef}
             className="overflow-y-auto"
             style={{ maxHeight: maxHeight ? `${maxHeight}px` : undefined }}
-            onScroll={handleScroll}
           >
             <button
               type="button"
