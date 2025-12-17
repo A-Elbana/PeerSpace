@@ -91,9 +91,16 @@ router.get(
  *           type: string
  *           format: uuid
  *         description: Filter by community UUID (single or comma-separated)
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *           enum: ['new', 'top']
+ *           default: 'new'
+ *         description: Sort by newest (post_date desc) or top (vote score desc)
  *     responses:
  *       200:
- *         description: Paginated posts with author, attachments, and vote counts
+ *         description: Paginated posts with author, attachments, tags, and vote counts
  *       401:
  *         description: Unauthorized
  *       403:
