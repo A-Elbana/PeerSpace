@@ -683,6 +683,58 @@ export const adminApi = {
     });
     return response.data;
   },
+
+  getActivityLogs: async (params?: {
+    page?: number;
+    limit?: number;
+    userId?: number;
+    communityId?: string;
+    actionType?: number;
+    startDate?: string;
+    endDate?: string;
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<{
+    success: boolean;
+    data: Array<{
+      id: number;
+      associated_uid?: number;
+      associated_cid?: string;
+      action_type: number;
+      date: string;
+      User?: {
+        id: number;
+        fname: string;
+        lname: string;
+        email: string;
+      };
+      Community?: {
+        id: string;
+        name: string;
+        type: string;
+      };
+    }>;
+    meta: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+      filters: any;
+    };
+  }> => {
+    const cleanParams: any = {};
+    if (params) {
+      if (params.page) cleanParams.page = params.page;
+      if (params.limit) cleanParams.limit = params.limit;
+      if (params.userId) cleanParams.userId = params.userId;
+      if (params.communityId) cleanParams.communityId = params.communityId;
+      if (params.actionType) cleanParams.actionType = params.actionType;
+      if (params.startDate) cleanParams.startDate = params.startDate;
+      if (params.endDate) cleanParams.endDate = params.endDate;
+      if (params.sortOrder) cleanParams.sortOrder = params.sortOrder;
+    }
+    const response = await api.get("/admin/activity-logs", { params: cleanParams });
+    return response.data;
+  },
 };
 
 // User API calls

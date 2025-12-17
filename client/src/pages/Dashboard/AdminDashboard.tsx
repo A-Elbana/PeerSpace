@@ -21,6 +21,7 @@ import { Sidebar } from '../../components/dashboard';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
+import Combobox from '../../components/ui/Combobox';
 import {
     ChartContainer,
     ChartTooltip,
@@ -33,6 +34,14 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu';
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationPrevious,
+    PaginationNext,
+} from '../../components/ui/pagination';
 import UserManagementModal from '../../components/dashboard/UserManagementModal';
 import CommunityManagementModal from '../../components/dashboard/CommunityManagementModal';
 import PostManagementModal from '../../components/dashboard/PostManagementModal';
@@ -89,6 +98,26 @@ interface PostItem {
     post_date: string;
 }
 
+interface ActivityLog {
+    id: number;
+    associated_uid?: number;
+    associated_cid?: string;
+    action_type: number;
+    date: string;
+    description?: string;
+    User?: {
+        id: number;
+        fname: string;
+        lname: string;
+        email: string;
+    };
+    Community?: {
+        id: string;
+        name: string;
+        type: string;
+    };
+}
+
 interface ChartDataPoint {
     date: string;
     count: number;
@@ -112,6 +141,144 @@ const postsChartConfig: ChartConfig = {
             dark: '#10b981',
         },
     },
+};
+
+// Action type mappings based on ActivityLogService enum
+const ACTION_TYPE_GROUPS = [
+    {
+        category: 'Community',
+        actions: [
+            { value: '1', label: 'Community Created' },
+            { value: '2', label: 'Community Updated' },
+            { value: '3', label: 'Community Deleted' },
+            { value: '4', label: 'User Joined Community' },
+            { value: '5', label: 'User Left Community' },
+        ],
+    },
+    {
+        category: 'Posts',
+        actions: [
+            { value: '10', label: 'Post Created' },
+            { value: '11', label: 'Post Updated' },
+            { value: '12', label: 'Post Deleted' },
+            { value: '13', label: 'Post Resolved' },
+        ],
+    },
+    {
+        category: 'Comments',
+        actions: [
+            { value: '20', label: 'Comment Created' },
+            { value: '21', label: 'Comment Updated' },
+            { value: '22', label: 'Comment Deleted' },
+            { value: '23', label: 'Comment Approved' },
+            { value: '24', label: 'Comment Rejected' },
+        ],
+    },
+    {
+        category: 'Assignments',
+        actions: [
+            { value: '30', label: 'Assignment Created' },
+            { value: '31', label: 'Assignment Updated' },
+            { value: '32', label: 'Assignment Deleted' },
+        ],
+    },
+    {
+        category: 'Submissions',
+        actions: [
+            { value: '40', label: 'Submission Created' },
+            { value: '41', label: 'Submission Graded' },
+            { value: '42', label: 'Submission Feedback Given' },
+        ],
+    },
+    {
+        category: 'Tasks',
+        actions: [
+            { value: '50', label: 'Task Created' },
+            { value: '51', label: 'Task Updated' },
+            { value: '52', label: 'Task Deleted' },
+            { value: '53', label: 'Task Assignee Invited' },
+            { value: '54', label: 'Task Assignee Accepted' },
+            { value: '55', label: 'Task Assignee Declined' },
+            { value: '56', label: 'Task Assignee Removed' },
+        ],
+    },
+    {
+        category: 'Users',
+        actions: [
+            { value: '60', label: 'User Role Changed' },
+            { value: '61', label: 'User Activated' },
+            { value: '62', label: 'User Deactivated' },
+            { value: '63', label: 'User Registered' },
+            { value: '64', label: 'User Logged In' },
+            { value: '65', label: 'User Logged Out' },
+        ],
+    },
+    {
+        category: 'Notes',
+        actions: [
+            { value: '70', label: 'Note Created' },
+            { value: '71', label: 'Note Updated' },
+            { value: '72', label: 'Note Deleted' },
+        ],
+    },
+];
+
+// Flatten action types for combobox options
+const ACTION_TYPE_OPTIONS = ACTION_TYPE_GROUPS.flatMap(group =>
+    group.actions.map(action => ({
+        value: action.value,
+        label: action.label,
+        subtitle: group.category,
+    }))
+);
+
+// Helper to get action type label
+const getActionTypeLabel = (actionTypeId: string | number): string => {
+    const option = ACTION_TYPE_OPTIONS.find(opt => opt.value === String(actionTypeId));
+    return option ? `${option.label} (${option.subtitle})` : `Unknown Action (${actionTypeId})`;
+};
+
+// Helper to format description for better readability
+const formatActivityDescription = (description: string | undefined, actionType: number): string => {
+    if (!description) return '';
+    
+    // Remove redundant action phrases that are already shown in the badge
+    const redundantPhrases = [
+        'Created community',
+        'Updated community',
+        'Deleted community',
+        'Created post',
+        'Updated post',
+        'Deleted post',
+        'Resolved post',
+        'Commented on post',
+        'Deleted comment on post',
+        'Created assignment',
+        'Created task',
+        'Graded a submission:',
+        'Created note',
+        'Deleted note',
+        'Changed',
+    ];
+    
+    let cleanDescription = description;
+    
+    // Try to remove redundant prefix
+    for (const phrase of redundantPhrases) {
+        if (cleanDescription.startsWith(phrase)) {
+            cleanDescription = cleanDescription.substring(phrase.length).trim();
+            // Remove leading quotes or special chars
+            cleanDescription = cleanDescription.replace(/^["':]\s*/, '');
+            break;
+        }
+    }
+    
+    // If description is just a quoted name, clean it up
+    if (cleanDescription.match(/^"[^"]+"$/)) {
+        cleanDescription = cleanDescription.replace(/^"|"$/g, '');
+    }
+    
+    return cleanDescription || description;
 };
 
 /**
@@ -148,6 +315,28 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
     const [chartCommunityIdFilter, setChartCommunityIdFilter] = useState('');
     const [chartTagFilter, setChartTagFilter] = useState('');
     const [chartResolvedOnly, setChartResolvedOnly] = useState(false);
+
+    // Activity logs states
+    const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+    const [logsPage, setLogsPage] = useState(1);
+    const [logsTotalPages, setLogsTotalPages] = useState(1);
+    const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+    
+    // Activity logs filter states
+    const [logsUserIdFilter, setLogsUserIdFilter] = useState('');
+    const [logsCommunityIdFilter, setLogsCommunityIdFilter] = useState('');
+    const [logsActionTypeFilter, setLogsActionTypeFilter] = useState('');
+    const [logsStartDateFilter, setLogsStartDateFilter] = useState('');
+    const [logsEndDateFilter, setLogsEndDateFilter] = useState('');
+    const [logsSortOrder, setLogsSortOrder] = useState<'asc' | 'desc'>('desc');
+
+    // Activity logs combobox states
+    const [logsUserOptions, setLogsUserOptions] = useState<Array<{ value: string; label: string; subtitle?: string }>>([]);
+    const [logsCommunityOptions, setLogsCommunityOptions] = useState<Array<{ value: string; label: string; subtitle?: string }>>([]);
+    const [isLoadingUserOptions, setIsLoadingUserOptions] = useState(false);
+    const [isLoadingCommunityOptions, setIsLoadingCommunityOptions] = useState(false);
+    const [logsUserSearchQuery, setLogsUserSearchQuery] = useState('');
+    const [logsCommunitySearchQuery, setLogsCommunitySearchQuery] = useState('');
 
     // Stats
     const [stats, setStats] = useState({
@@ -258,6 +447,81 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
         }
     };
 
+    const fetchActivityLogs = async () => {
+        setIsLoadingLogs(true);
+        try {
+            const response = await adminApi.getActivityLogs({
+                page: logsPage,
+                limit: 20,
+                userId: logsUserIdFilter ? parseInt(logsUserIdFilter) : undefined,
+                communityId: logsCommunityIdFilter || undefined,
+                actionType: logsActionTypeFilter ? parseInt(logsActionTypeFilter) : undefined,
+                startDate: logsStartDateFilter || undefined,
+                endDate: logsEndDateFilter || undefined,
+                sortOrder: logsSortOrder,
+            });
+            setActivityLogs(response.data);
+            setLogsTotalPages(response.meta.totalPages);
+        } catch (error) {
+            console.error('Failed to fetch activity logs:', error);
+            setActivityLogs([]);
+        } finally {
+            setIsLoadingLogs(false);
+        }
+    };
+
+    const fetchLogsUserOptions = async (query: string) => {
+        if (!query.trim()) {
+            setLogsUserOptions([]);
+            return;
+        }
+        
+        setIsLoadingUserOptions(true);
+        try {
+            const response = await userApi.getAll({
+                search: query,
+                limit: 20,
+            });
+            const options = response.data.map((u: UserItem) => ({
+                value: u.id.toString(),
+                label: `${u.fname} ${u.lname}`,
+                subtitle: u.email,
+            }));
+            setLogsUserOptions(options);
+        } catch (error) {
+            console.error('Failed to fetch user options:', error);
+            setLogsUserOptions([]);
+        } finally {
+            setIsLoadingUserOptions(false);
+        }
+    };
+
+    const fetchLogsCommunityOptions = async (query: string) => {
+        if (!query.trim()) {
+            setLogsCommunityOptions([]);
+            return;
+        }
+        
+        setIsLoadingCommunityOptions(true);
+        try {
+            const response = await communityApi.getAll({
+                search: query,
+                limit: 20,
+            });
+            const options = response.data.map((c: CommunityItem) => ({
+                value: c.id,
+                label: c.name,
+                subtitle: c.type,
+            }));
+            setLogsCommunityOptions(options);
+        } catch (error) {
+            console.error('Failed to fetch community options:', error);
+            setLogsCommunityOptions([]);
+        } finally {
+            setIsLoadingCommunityOptions(false);
+        }
+    };
+
     // Fetch initial data
     useEffect(() => {
         const fetchData = async () => {
@@ -305,6 +569,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
         return () => clearTimeout(debounce);
     }, [postSearch, postTagSearch]);
 
+    // Fetch activity logs when filters or pagination changes
+    useEffect(() => {
+        const debounce = setTimeout(fetchActivityLogs, 300);
+        return () => clearTimeout(debounce);
+    }, [logsPage, logsUserIdFilter, logsCommunityIdFilter, logsActionTypeFilter, logsStartDateFilter, logsEndDateFilter, logsSortOrder]);
+
+    // Fetch user options when search query changes
+    useEffect(() => {
+        const debounce = setTimeout(() => fetchLogsUserOptions(logsUserSearchQuery), 300);
+        return () => clearTimeout(debounce);
+    }, [logsUserSearchQuery]);
+
+    // Fetch community options when search query changes
+    useEffect(() => {
+        const debounce = setTimeout(() => fetchLogsCommunityOptions(logsCommunitySearchQuery), 300);
+        return () => clearTimeout(debounce);
+    }, [logsCommunitySearchQuery]);
     
 
     if (isLoading) {
@@ -743,6 +1024,222 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                                 )}
                             </div>
                         </div>
+                    </div>
+
+                    {/* Activity Logs - Full Width */}
+                    <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden mt-6">
+                        <div className="p-4 border-b border-border">
+                            <h2 className="text-lg font-semibold text-foreground mb-4">Activity Logs</h2>
+                            <div className="flex flex-col gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                                    <div>
+                                        <Combobox
+                                            value={logsUserIdFilter}
+                                            options={logsUserOptions}
+                                            onChange={(option) => {
+                                                setLogsUserIdFilter(option?.value || '');
+                                                setLogsPage(1);
+                                            }}
+                                            onSearchChange={setLogsUserSearchQuery}
+                                            placeholder="Select a user..."
+                                            searchPlaceholder="Search by name or email..."
+                                            isLoading={isLoadingUserOptions}
+                                        />
+                                    </div>
+                                    <div>
+                                        <Combobox
+                                            value={logsCommunityIdFilter}
+                                            options={logsCommunityOptions}
+                                            onChange={(option) => {
+                                                setLogsCommunityIdFilter(option?.value || '');
+                                                setLogsPage(1);
+                                            }}
+                                            onSearchChange={setLogsCommunitySearchQuery}
+                                            placeholder="Select a community..."
+                                            searchPlaceholder="Search by community name..."
+                                            isLoading={isLoadingCommunityOptions}
+                                        />
+                                    </div>
+                                    <div>
+                                        <select
+                                            value={logsActionTypeFilter}
+                                            onChange={(e) => {
+                                                setLogsActionTypeFilter(e.target.value);
+                                                setLogsPage(1);
+                                            }}
+                                            className="w-full px-3 py-2 bg-card border border-input rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring hover:border-border transition-colors"
+                                        >
+                                            <option value="">All Action Types</option>
+                                            {ACTION_TYPE_GROUPS.map(group => (
+                                                <optgroup key={group.category} label={group.category}>
+                                                    {group.actions.map(action => (
+                                                        <option key={action.value} value={action.value}>
+                                                            {action.label}
+                                                        </option>
+                                                    ))}
+                                                </optgroup>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <select
+                                            value={logsSortOrder}
+                                            onChange={(e) => {
+                                                setLogsSortOrder(e.target.value as 'asc' | 'desc');
+                                                setLogsPage(1);
+                                            }}
+                                            className="w-full px-3 py-2 bg-card border border-input rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring hover:border-border transition-colors"
+                                        >
+                                            <option value="desc">Newest First</option>
+                                            <option value="asc">Oldest First</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-xs text-muted-foreground block mb-1">Start Date</label>
+                                        <Input
+                                            type="datetime-local"
+                                            value={logsStartDateFilter}
+                                            onChange={(e) => {
+                                                setLogsStartDateFilter(e.target.value);
+                                                setLogsPage(1);
+                                            }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-muted-foreground block mb-1">End Date</label>
+                                        <Input
+                                            type="datetime-local"
+                                            value={logsEndDateFilter}
+                                            onChange={(e) => {
+                                                setLogsEndDateFilter(e.target.value);
+                                                setLogsPage(1);
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="max-h-[500px] overflow-y-auto">
+                            {isLoadingLogs ? (
+                                <div className="p-8 text-center">
+                                    <Loader2 className="w-6 h-6 mx-auto mb-2 animate-spin text-primary" />
+                                    <p className="text-sm text-muted-foreground">Loading activity logs...</p>
+                                </div>
+                            ) : activityLogs.length === 0 ? (
+                                <div className="p-8 text-center text-muted-foreground">
+                                    <FileText className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                                    <p>No activity logs found</p>
+                                </div>
+                            ) : (
+                                <div className="divide-y divide-border">
+                                    {activityLogs.map(log => {
+                                        const actionTypeInfo = ACTION_TYPE_OPTIONS.find(opt => opt.value === String(log.action_type));
+                                        const timeAgo = (() => {
+                                            const now = new Date();
+                                            const logDate = new Date(log.date);
+                                            const diffMs = now.getTime() - logDate.getTime();
+                                            const diffMins = Math.floor(diffMs / 60000);
+                                            const diffHours = Math.floor(diffMs / 3600000);
+                                            const diffDays = Math.floor(diffMs / 86400000);
+                                            
+                                            if (diffMins < 1) return 'Just now';
+                                            if (diffMins < 60) return `${diffMins}m ago`;
+                                            if (diffHours < 24) return `${diffHours}h ago`;
+                                            if (diffDays < 7) return `${diffDays}d ago`;
+                                            return logDate.toLocaleDateString();
+                                        })();
+                                        
+                                        return (
+                                            <div key={log.id} className="p-4 hover:bg-muted/30 transition-colors">
+                                                <div className="flex items-start gap-3">
+                                                    <div className="flex-shrink-0 mt-0.5">
+                                                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                                            <span className="text-sm font-semibold text-primary">
+                                                                {log.User ? `${log.User.fname[0]}${log.User.lname[0]}` : '?'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-start justify-between gap-2 mb-1">
+                                                            <div className="flex-1">
+                                                                <p className="text-sm font-medium text-foreground">
+                                                                    {log.User ? `${log.User.fname} ${log.User.lname}` : 'Unknown User'}
+                                                                </p>
+                                                                {log.description && (
+                                                                    <p className="text-sm text-foreground/80 mt-1 leading-relaxed">
+                                                                        {formatActivityDescription(log.description, log.action_type)}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                                                {timeAgo}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                                                            <span className="inline-flex items-center text-xs px-2 py-1 bg-primary/10 rounded-md text-primary font-medium">
+                                                                {actionTypeInfo?.label || `Action ${log.action_type}`}
+                                                            </span>
+                                                            {log.Community && (
+                                                                <span className="inline-flex items-center gap-1 text-xs px-2 py-1 bg-muted rounded-md text-muted-foreground">
+                                                                    <Building2 className="w-3 h-3" />
+                                                                    {log.Community.name}
+                                                                </span>
+                                                            )}
+                                                            {actionTypeInfo?.subtitle && (
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    • {actionTypeInfo.subtitle}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                        {!isLoadingLogs && activityLogs.length > 0 && logsTotalPages > 1 && (
+                            <div className="border-t border-border p-4 flex items-center justify-between">
+                                <div className="text-sm text-muted-foreground">
+                                    Page {logsPage} of {logsTotalPages}
+                                </div>
+                                <Pagination>
+                                    <PaginationContent>
+                                        <PaginationItem>
+                                            <PaginationPrevious
+                                                onClick={() => setLogsPage(Math.max(1, logsPage - 1))}
+                                                aria-disabled={logsPage === 1}
+                                                className={logsPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                                            />
+                                        </PaginationItem>
+                                        {Array.from({ length: Math.min(5, logsTotalPages) }).map((_, i) => {
+                                            const pageNum = Math.max(1, Math.min(logsPage - 2 + i, logsTotalPages - 4)) + i;
+                                            return pageNum <= logsTotalPages ? (
+                                                <PaginationItem key={pageNum}>
+                                                    <PaginationLink
+                                                        onClick={() => setLogsPage(pageNum)}
+                                                        isActive={pageNum === logsPage}
+                                                        className="cursor-pointer"
+                                                    >
+                                                        {pageNum}
+                                                    </PaginationLink>
+                                                </PaginationItem>
+                                            ) : null;
+                                        })}
+                                        <PaginationItem>
+                                            <PaginationNext
+                                                onClick={() => setLogsPage(Math.min(logsTotalPages, logsPage + 1))}
+                                                aria-disabled={logsPage === logsTotalPages}
+                                                className={logsPage === logsTotalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                                            />
+                                        </PaginationItem>
+                                    </PaginationContent>
+                                </Pagination>
+                            </div>
+                        )}
                     </div>
                 </div>
             </main>
