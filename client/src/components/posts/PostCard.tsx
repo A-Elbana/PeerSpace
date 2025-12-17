@@ -229,8 +229,11 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
   };
 
   const goToPreview = () => {
-    if (post.cid) navigate(`/community/${post.cid}/post/${post.id}`);
-    else navigate(`/posts/${post.id}`);
+    const currentPath = window.location.pathname;
+    const targetPath = `/community/${post.cid}/post/${post.id}`;
+    if (currentPath !== targetPath) {
+      navigate(targetPath);
+    }
   };
 
   return (

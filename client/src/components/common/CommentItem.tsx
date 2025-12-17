@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { User, ChevronDown } from 'lucide-react';
 import { Button } from '../ui/button';
+import ApprovalButton from './ApprovalButton';
+import { commentApi } from '../../services/api';
 
 export interface Comment {
   id: number;
@@ -42,8 +44,8 @@ interface Props {
   handleAddReply: (parentId: number, content?: string) => Promise<Comment | null>;
   expandedCommentIds: Set<number>;
   toggleExpand: (id: number) => void;
-  currentUser?: { id: number; role?: string } | null;
-  isInstructor?: boolean;
+  currentUser?: { id: number; role: string } | null;
+  postOwnerId?: number | null;
   handleDelete?: (id: number) => Promise<void> | void;
 }
 
@@ -59,18 +61,45 @@ export const CommentItem: React.FC<Props> = ({
   handleAddReply,
   expandedCommentIds,
   toggleExpand,
-  currentUser = null,
-  isInstructor = false,
+  currentUser,
+  postOwnerId,
   handleDelete,
 }) => {
   const [localReply, setLocalReply] = useState('');
   const [editValue, setEditValue] = useState(comment.content);
-
+  const isInstructor = Boolean(currentUser && (currentUser.role || '').toLowerCase() === 'instructor');
   useEffect(() => {
     if (editingCommentId === comment.id) setEditValue(comment.content);
   }, [editingCommentId, comment.id, comment.content]);
 
   const canEdit = Boolean(currentUser && (currentUser.id === comment.User.id || ((currentUser.role || '').toLowerCase() === 'admin')));
+
+  // approval state (may come from server fields)
+  const [approvedByInst, setApprovedByInst] = useState<boolean>(Boolean((comment as any).approved_by_inst));
+  const [approvedByOp, setApprovedByOp] = useState<boolean>(Boolean((comment as any).approved_by_op));
+  const [approvedAtInst, setApprovedAtInst] = useState<string | null>((comment as any).approved_at_inst ? new Date((comment as any).approved_at_inst).toISOString() : null);
+  const [approvedAtOp, setApprovedAtOp] = useState<string | null>((comment as any).approved_at_op ? new Date((comment as any).approved_at_op).toISOString() : null);
+
+  // On mount, ensure we have the latest approval state from server
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const res = await commentApi.getById(comment.id);
+        const payload = res;
+        const data = payload?.data;
+        if (!mounted || !data) return;
+        setApprovedByInst(Boolean(data?.approved_by_inst));
+        setApprovedByOp(Boolean(data?.approved_by_op));
+        setApprovedAtInst(data?.approved_at_inst ? new Date(data.approved_at_inst).toISOString() : null);
+        setApprovedAtOp(data?.approved_at_op ? new Date(data.approved_at_op).toISOString() : null);
+      } catch (err) {
+        // ignore network errors; we keep optimistic local state
+      }
+    };
+    void load();
+    return () => { mounted = false; };
+  }, [comment.id]);
 
 const urlRegex = /(https?:\/\/[^\s)\]>\]]+|www\.[^\n\s)\]>\]]+)/gi;
 
@@ -127,6 +156,54 @@ const urlRegex = /(https?:\/\/[^\s)\]>\]]+|www\.[^\n\s)\]>\]]+)/gi;
 
                 <div className="mt-2 flex items-center gap-3 text-xs">
                 <button onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)} className="text-muted-foreground hover:text-foreground">Reply</button>
+                {/* Approval buttons: original-poster approval (left) and instructor approval (right) */}
+                <div className="flex items-center gap-2">
+                  {!isInstructor || currentUser?.id != postOwnerId? <ApprovalButton
+                    approved={approvedByOp}
+                    color="#10B981"
+                    tooltip={approvedByOp && approvedAtOp ? `Approved by Original Poster at ${new Date(approvedAtOp).toLocaleString()}` : ''}
+                    isIndicator={!(currentUser && postOwnerId && currentUser.id === postOwnerId)}
+                    ariaLabel="Original poster approval"
+                    onToggle={async () => {
+                      try {
+                        const res = await commentApi.toggleApproveOriginalPoster(comment.id);
+                        const payload = res;
+                        const updated = payload?.data;
+                        const newVal = Boolean(updated?.approved_by_op);
+                        setApprovedByOp(newVal);
+                        console.log(postOwnerId);
+                        console.log(currentUser?.id);
+                        setApprovedAtOp(updated?.approved_at_op ? new Date(updated.approved_at_op).toISOString() : null);
+                        return newVal;
+                      } catch (err) {
+                        console.log(err);
+                        return approvedByOp;
+                      }
+                    }}
+                  /> : null}
+
+                  <ApprovalButton
+                    approved={approvedByInst}
+                    color="#2563EB"
+                    tooltip={approvedByInst && approvedAtInst ? `Approved by an Instructor at ${new Date(approvedAtInst).toLocaleString()}` : ''}
+                    isIndicator={!isInstructor}
+                    ariaLabel="Instructor approval"
+                    onToggle={async () => {
+                      try {
+                        const res = await commentApi.toggleApproveInstructor(comment.id);
+                        const payload = res;
+                        const updated = payload?.data;
+                        const newVal = Boolean(updated?.approved_by_inst);
+                        setApprovedByInst(newVal);
+                        setApprovedAtInst(updated?.approved_at_inst ? new Date(updated.approved_at_inst).toISOString() : null);
+                        return newVal;
+                      } catch (err) {
+                        console.log(err);
+                        return approvedByInst;
+                      }
+                    }}
+                  />
+                </div>
                 {canEdit && (
                   <button onClick={() => { setEditingCommentId(comment.id); }} className="text-muted-foreground hover:text-foreground">Edit</button>
                 )}
@@ -185,7 +262,7 @@ const urlRegex = /(https?:\/\/[^\s)\]>\]]+|www\.[^\n\s)\]>\]]+)/gi;
                     expandedCommentIds={expandedCommentIds}
                     toggleExpand={toggleExpand}
                     currentUser={currentUser}
-                    isInstructor={isInstructor}
+                    postOwnerId={postOwnerId}
                     handleDelete={handleDelete}
                   />
                   {r.replies && r.replies.length > 0 && !expandedCommentIds.has(r.id) && (

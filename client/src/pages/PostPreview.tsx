@@ -183,15 +183,7 @@ const PostPreview: React.FC<{}> = () => {
           } catch (e) {
             // ignore
           }
-          // also fetch members to determine instructors for delete permission
-          try {
-            const membersRes = await communityApi.getMembers(String(cid), { limit: 100 });
-            const membersData = normalizeApi(membersRes) ?? (membersRes && (membersRes.data ?? membersRes));
-            const instr = membersData?.instructors ?? membersData?.data?.instructors ?? [];
-            setInstructors(instr || []);
-          } catch (e) {
-            // ignore
-          }
+          
         }
 
         // Fetch first-level comments only; replies are loaded on demand
@@ -504,7 +496,8 @@ const PostPreview: React.FC<{}> = () => {
                     expandedCommentIds={expandedCommentIds}
                     toggleExpand={toggleExpand}
                     currentUser={currentUser}
-                    isInstructor={Boolean(currentUser && currentUser.role === 'instructor' && instructors.some(i => i.id === currentUser.id))}
+                    postOwnerId={(post as any)?.owner_uid}
+                    
                     handleDelete={handleDeleteComment}
                   />
                 ))}

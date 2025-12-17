@@ -22,7 +22,6 @@ export const CreateItemModal: React.FC<CreateItemModalProps> = ({
     folders,
     onClose,
     onCreated,
-    onLoadMoreFolders,
     foldersHasMore,
     foldersLoadingMore,
 }) => {
@@ -124,7 +123,6 @@ export const CreateItemModal: React.FC<CreateItemModalProps> = ({
                                 onChange={(opt) => setFolderId(opt ? opt.value : undefined)}
                                 placeholder="Root (no notebook)"
                                 maxHeight={100}
-                                onLoadMore={onLoadMoreFolders}
                                 hasMore={foldersHasMore}
                                 loadingMore={foldersLoadingMore}
                             />
