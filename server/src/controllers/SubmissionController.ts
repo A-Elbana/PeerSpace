@@ -23,11 +23,16 @@ export const createSubmission = async (req: Request, res: Response) => {
     // Fetch assignment to get community ID
     const assignment = await prisma.assignment.findUnique({
       where: { id: aidNum },
-      select: { cid: true, title: true },
+      select: { cid: true, title: true,canBeLate:true,due_date:true },
     });
 
     if (!assignment) {
       return res.status(404).json({ message: "Assignment not found" });
+    }
+
+    const currentTime=new Date();
+    if(assignment.canBeLate===false&&assignment.due_date&&assignment.due_date<currentTime){
+      return res.status(403).json({ message: "Assignment deadline passed" });
     }
 
     const now = new Date();
