@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, LogOut, Search, X, Menu, MessageSquare, TrendingUp, Users } from 'lucide-react';
+import { Bell, LogOut, Search, X, Menu, MessageSquare, TrendingUp, Users, Home } from 'lucide-react';
 import NotificationContext from '../contexts/NotificationContext';
 import { useResolvedFileUrl } from '../hooks/useResolvedFileUrl';
 import { useSidebar } from '../contexts/SidebarContext';
