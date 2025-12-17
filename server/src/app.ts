@@ -21,6 +21,7 @@ import fileRoutes from "./routes/fileRoutes";
 import adminRoutes from "./routes/adminRoutes";
 import sessionRoutes from "./routes/sessionRoutes";
 import notificationsRoutes from "./routes/notificationsRoutes";
+import instructorRoutes from "./routes/instructorRoutes";
 import { getCorsConfig } from "./config/corsConfig";
 import { generalLimiter } from "./middleware/rateLimitMiddleware";
 import { errorHandler, asyncHandler } from "./middleware/errorHandler";
@@ -73,6 +74,7 @@ app.use("/api/files", fileRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/sessions", sessionRoutes);
 app.use("/api/notifications", notificationsRoutes);
+app.use("/api/instructor", instructorRoutes);
 
 // 6. 404 handler for undefined routes
 app.use((req: Request, res: Response) => {
