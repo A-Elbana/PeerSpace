@@ -9,6 +9,7 @@ import {
   getAllPosts,
   getAllMyPosts,
   getPostsFromMyCommunities,
+  getCommonPostsOfUser,
 } from "../controllers/PostController";
 import {
   authenticateToken,
@@ -351,6 +352,43 @@ router.get("/me", authenticateToken, getAllMyPosts);
  *         description: Server error
  */
 router.get("/feed/my-communities", authenticateToken, getPostsFromMyCommunities);
+
+/**
+ * @swagger
+ * /api/posts/common/{uid}:
+ *   get:
+ *     summary: Get posts created by a target user in communities common with the authenticated user
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: uid
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Target user ID (student or instructor)
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Posts by target user in shared communities
+ *       400:
+ *         description: Invalid input or target is admin
+ *       404:
+ *         description: Target user not found
+ *       500:
+ *         description: Server error
+ */
+router.get("/common/:uid", authenticateToken, getCommonPostsOfUser);
 
 /**
  * @swagger
