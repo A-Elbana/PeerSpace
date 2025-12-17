@@ -254,21 +254,28 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
           </div>
         ) : (
           <div className="w-12 bg-muted/30 flex flex-col items-center py-3 gap-1">
-            <button
-              onClick={(e) => { e.stopPropagation(); void handleUp(); }}
-              className={`transition-colors flex items-center justify-center ${userVote === true ? 'bg-turf-green-600 text-white w-8 h-8 rounded-full' : 'text-turf-green-600 hover:text-turf-green-700'}`}
-              aria-pressed={userVote === true}
-            >
-              <ArrowBigUp size={20} />
-            </button>
-            <span className="text-sm font-bold text-foreground">{score}</span>
-            <button
-              onClick={(e) => { e.stopPropagation(); void handleDown(); }}
-              className={`transition-colors flex items-center justify-center ${userVote === false ? 'bg-red-600 text-white w-8 h-8 rounded-full' : 'text-red-600 hover:text-red-700'}`}
-              aria-pressed={userVote === false}
-            >
-              <ArrowBigDown size={20} />
-            </button>
+            {currentUser?.role !== 'admin' && (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); void handleUp(); }}
+                  className={`transition-colors flex items-center justify-center ${userVote === true ? 'bg-turf-green-600 text-white w-8 h-8 rounded-full' : 'text-turf-green-600 hover:text-turf-green-700'}`}
+                  aria-pressed={userVote === true}
+                >
+                  <ArrowBigUp size={20} />
+                </button>
+                <span className="text-sm font-bold text-foreground">{score}</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); void handleDown(); }}
+                  className={`transition-colors flex items-center justify-center ${userVote === false ? 'bg-red-600 text-white w-8 h-8 rounded-full' : 'text-red-600 hover:text-red-700'}`}
+                  aria-pressed={userVote === false}
+                >
+                  <ArrowBigDown size={20} />
+                </button>
+              </>
+            )}
+            {currentUser?.role === 'admin' && (
+              <span className="text-sm font-bold text-foreground">{score}</span>
+            )}
           </div>
         )}
 

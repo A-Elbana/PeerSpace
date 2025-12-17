@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { isAuthenticated } from '../utils/auth'
+import { ArrowRight, Sparkles } from 'lucide-react'
+import logo from '../assets/peerspace-logo.png'
 
 interface HeroProps {
   theme: 'theme-light' | 'theme-dark';
@@ -173,20 +175,33 @@ const Hero: React.FC<HeroProps> = ({ theme }) => {
   return (
     <section className="ps-hero" id="hero">
       <canvas ref={canvasRef} className="ps-hero-canvas" />
+      <div className="ps-hero-logo-glow">
+        <img src={logo} alt="" aria-hidden="true" />
+      </div>
       <div className="ps-hero-content">
-        <h1>PeerSpace — Classrooms for the modern student</h1>
+        <div className="ps-hero-badge">
+          <Sparkles size={16} />
+          <span>Collaborative Learning Platform</span>
+        </div>
+        <h1>Transform Your Classroom Into a Digital Learning Hub</h1>
         <p>
-          Create classes, share materials, assign work, and collaborate — all
-          in one friendly workspace.
+          PeerSpace brings together everything you need to teach and learn — assignments, 
+          discussions, file sharing, and real-time collaboration in one beautiful workspace.
         </p>
         <div className="ps-hero-cta">
           {isAuthenticated() ? (
-            <Link to="/dashboard" className="btn-primary">Open Dashboard</Link>
+            <Link to="/explore" className="btn-primary">
+              <span>Open Dashboard</span>
+              <ArrowRight size={20} />
+            </Link>
           ) : (
-            <Link to="/signup" className="btn-primary">Join Now</Link>
+            <Link to="/signup" className="btn-primary">
+              <span>Get Started Free</span>
+              <ArrowRight size={20} />
+            </Link>
           )}
           <a className="btn-ghost" href="#features">
-            Learn More
+            View Demo
           </a>
         </div>
       </div>

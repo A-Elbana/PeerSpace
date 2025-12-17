@@ -16,6 +16,7 @@ interface CommunityHeaderProps {
   isEnrolled?: boolean;
   onEnroll?: () => void;
   onLeave?: () => void;
+  userRole?: 'student' | 'instructor' | 'admin';
 }
 
 const CommunityHeader: React.FC<CommunityHeaderProps> = ({
@@ -30,6 +31,7 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
   isEnrolled = false,
   onEnroll,
   onLeave,
+  userRole,
 }) => {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -378,7 +380,7 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
             </div>
 
             <div className="flex flex-wrap gap-2 md:justify-end">
-              {!isEnrolled && !isInstructor && onEnroll && (
+              {!isEnrolled && !isInstructor && userRole !== 'admin' && onEnroll && (
                 <button
                   onClick={onEnroll}
                   className="flex items-center gap-2 px-4 py-2 bg-tech-blue-500 hover:bg-tech-blue-600 text-white text-sm font-medium rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-tech-blue-500/30"
@@ -387,7 +389,7 @@ const CommunityHeader: React.FC<CommunityHeaderProps> = ({
                 </button>
               )}
 
-              {isEnrolled && !isInstructor && onLeave && (
+              {isEnrolled && !isInstructor && userRole !== 'admin' && onLeave && (
                 <button
                   onClick={onLeave}
                   className="flex items-center gap-2 px-4 py-2 bg-red-500/90 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-all duration-300"

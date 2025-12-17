@@ -149,7 +149,8 @@ const PostPreview: React.FC<{}> = () => {
         // fetch current user (for permission checks)
         try {
           const me = await api.get('/auth/me');
-          setCurrentUser(me.data);
+          const normalizedRole = (me.data?.role || '').toLowerCase();
+          setCurrentUser({ id: me.data?.id, role: normalizedRole });
         } catch (e) {
           console.log(e);
           

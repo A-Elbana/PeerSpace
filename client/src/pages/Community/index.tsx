@@ -359,6 +359,7 @@ const Community: React.FC = () => {
             isEnrolled={isEnrolledInCommunity}
             onEnroll={handleEnroll}
             onLeave={handleLeave}
+            userRole={user?.role}
           />
 
           {/* Two Column Layout */}
