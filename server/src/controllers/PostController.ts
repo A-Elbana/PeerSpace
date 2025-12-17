@@ -768,3 +768,159 @@ export const getAllMyPosts = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Failed to fetch my posts" });
   }
 };
+
+/**
+ * Get all posts from communities the authenticated student is enrolled in
+ * Returns posts from all enrolled communities with pagination and sorting
+ */
+export const getPostsFromMyCommunities = async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
+
+  // Pagination
+  const pageParam = parseInt(req.query.page as string);
+  const limitParam = parseInt(req.query.limit as string);
+  const page = !isNaN(pageParam) && pageParam > 0 ? pageParam : 1;
+  const limit =
+    !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
+  const skip = (page - 1) * limit;
+
+  // Sort parameter: 'new' (default) or 'top' (by votes)
+  const sort = ((req.query.sort as string | undefined) || "new").toLowerCase();
+
+  try {
+    // Get all communities the user is enrolled in
+    const enrollments = await prisma.enrollment.findMany({
+      where: { sid: userId },
+      select: { cid: true },
+    });
+
+    const enrolledCommunityIds = enrollments.map(e => e.cid);
+
+    if (enrolledCommunityIds.length === 0) {
+      return res.status(200).json({
+        message: "No posts found - not enrolled in any communities",
+        data: [],
+        meta: {
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+          communitiesCount: 0,
+        },
+      });
+    }
+
+    const total = await prisma.post.count({ where: { cid: { in: enrolledCommunityIds } } });
+
+    // For 'top' sorting, fetch a larger window to sort in-memory, then paginate
+    const fetchSkip = sort === "new" ? skip : 0;
+    const fetchTake = sort === "new" ? limit : Math.min(Math.max(limit * 3, 50), 300);
+
+    const posts = await prisma.post.findMany({
+      where: { cid: { in: enrolledCommunityIds } },
+      skip: fetchSkip,
+      take: fetchTake,
+      orderBy: { post_date: "desc" },
+      include: {
+        User: {
+          select: {
+            id: true,
+            fname: true,
+            lname: true,
+            avatar_file_id: true,
+          },
+        },
+        Community: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+          },
+        },
+        PostFileAttachment: {
+          include: {
+            File: {
+              select: {
+                id: true,
+                public_id: true,
+                secure_url: true,
+                resource_type: true,
+                format: true,
+              },
+            },
+          },
+        },
+        PostTag: { select: { tag: true } },
+        _count: {
+          select: { Comment: true },
+        },
+      },
+    });
+
+    // Get vote data for all posts
+    const postIds = posts.map(p => p.id);
+    const allVotes = await prisma.voted.findMany({
+      where: { pid: { in: postIds } },
+      select: { pid: true, voteType: true, sid: true },
+    });
+
+    const votesByPost = new Map<number, { upvotes: number; downvotes: number; userVote: boolean | null }>();
+    postIds.forEach(pid => {
+      votesByPost.set(pid, { upvotes: 0, downvotes: 0, userVote: null });
+    });
+
+    allVotes.forEach(vote => {
+      const postVotes = votesByPost.get(vote.pid)!;
+      if (vote.voteType) {
+        postVotes.upvotes++;
+      } else {
+        postVotes.downvotes++;
+      }
+      if (vote.sid === userId) {
+        postVotes.userVote = vote.voteType;
+      }
+    });
+
+    let postsWithVotes = posts.map(post => {
+      const votes = votesByPost.get(post.id)!;
+      return {
+        ...post,
+        votes: {
+          upvotes: votes.upvotes,
+          downvotes: votes.downvotes,
+          score: votes.upvotes - votes.downvotes,
+          userVote: votes.userVote,
+        },
+      };
+    });
+
+    // Sort by votes if requested
+    if (sort === "top") {
+      postsWithVotes = postsWithVotes.sort((a, b) => {
+        const scoreDiff = b.votes.score - a.votes.score;
+        if (scoreDiff !== 0) return scoreDiff;
+        // If scores are equal, sort by date (newest first)
+        return new Date(b.post_date).getTime() - new Date(a.post_date).getTime();
+      });
+      // Paginate after sorting
+      const start = (page - 1) * limit;
+      postsWithVotes = postsWithVotes.slice(start, start + limit);
+    }
+
+    res.status(200).json({
+      message: "Posts from enrolled communities retrieved successfully",
+      data: postsWithVotes,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        communitiesCount: enrolledCommunityIds.length,
+        sort,
+      },
+    });
+  } catch (error) {
+    console.error("Get Posts From My Communities Error:", error);
+    res.status(500).json({ message: "Failed to fetch posts from enrolled communities" });
+  }
+};

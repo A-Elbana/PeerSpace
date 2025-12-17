@@ -8,6 +8,7 @@ import {
   togglePostResolved,
   getAllPosts,
   getAllMyPosts,
+  getPostsFromMyCommunities,
 } from "../controllers/PostController";
 import {
   authenticateToken,
@@ -284,6 +285,72 @@ router.get(
  *         description: Server error
  */
 router.get("/me", authenticateToken, getAllMyPosts);
+
+/**
+ * @swagger
+ * /api/posts/feed/my-communities:
+ *   get:
+ *     summary: Get posts from all enrolled communities
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *     description: Retrieve all posts from communities the authenticated student is enrolled in, with pagination and vote data
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *           maximum: 50
+ *         description: Number of posts per page
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *           enum: [new, top]
+ *           default: new
+ *         description: Sort by 'new' (date, newest first) or 'top' (vote score, highest first)
+ *     responses:
+ *       200:
+ *         description: Posts from enrolled communities retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                 meta:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                     communitiesCount:
+ *                       type: integer
+ *                     sort:
+ *                       type: string
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get("/feed/my-communities", authenticateToken, getPostsFromMyCommunities);
 
 /**
  * @swagger
