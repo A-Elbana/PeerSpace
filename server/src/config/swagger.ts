@@ -1,13 +1,14 @@
 import swaggerJsdoc from "swagger-jsdoc";
-import { readFileSync } from "fs";
-import { join } from "path";
 
-// Load Prisma-generated JSON schemas
-const jsonSchemaPath = join(
-  __dirname,
-  "../generated/json-schema/json-schema.json"
-);
-const prismaSchemas = JSON.parse(readFileSync(jsonSchemaPath, "utf-8"));
+// Load Prisma-generated JSON schemas with error handling
+let prismaSchemas: any = { definitions: {} };
+try {
+  // Use require for dynamic loading and easy try-catch
+  // @ts-ignore - Ignore missing file during build
+  prismaSchemas = require("../generated/json-schema/json-schema.json");
+} catch (error) {
+  console.warn("[Swagger] Prisma JSON schema not found. Documentation schemas may be missing.");
+}
 
 // Convert JSON Schema $ref paths to OpenAPI format
 // Replace "#/definitions/" with "#/components/schemas/"

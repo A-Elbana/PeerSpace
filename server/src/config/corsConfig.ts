@@ -15,6 +15,7 @@ export const corsOptions = {
 
     const allowedOrigins = [
       ...envOrigins,
+      "https://peer-space-mocha.vercel.app",
       "http://localhost:5173",
       "http://localhost:3000",
       "http://localhost:5174",
