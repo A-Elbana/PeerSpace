@@ -252,8 +252,8 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
             }
         }
 
-        const dueDate = t.end_date ? new Date(t.end_date).toLocaleDateString() : null;
-        const startDate = t.start_date ? new Date(t.start_date).toLocaleDateString() : null;
+        const dueDate = t.end_date ? new Date(t.end_date).toLocaleString() : null;
+        const startDate = t.start_date ? new Date(t.start_date).toLocaleString() : null;
 
         const p = t.priority;
         let priority: Task['priority'] = 'low';

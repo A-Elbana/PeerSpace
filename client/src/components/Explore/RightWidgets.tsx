@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Filter, Lock, Loader2, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, Filter, Lock, Loader2, Search, X, ChevronLeft, ChevronRight, ClockIcon } from 'lucide-react';
 import { instructorApi } from '../../services/api';
 import CommunityItem from '../../components/common/CommunityItem';
 import DeadlineItem from '../../components/common/DeadlineItem';
@@ -146,12 +146,6 @@ const RightSide: React.FC<RightSideProps> = ({
     }
   };
 
-  const loadMoreManaged = async () => {
-    if (isLoadingManaged) return;
-    const next = managedPage + 1;
-    if (managedMeta && next > managedMeta.totalPages) return;
-    await fetchManaged(next);
-  };
   return (
     <div className="hidden lg:block lg:w-80 xl:w-96 space-y-6 overflow-y-auto scrollbar-hide no-scrollbar max-h-[calc(100vh-3rem)] sticky top-6">
       {user?.role === 'instructor' ? (
@@ -437,12 +431,6 @@ const RightSide: React.FC<RightSideProps> = ({
   );
 };
 
-// Local fallback for Clock icon to avoid extra dependency import in this file
-const ClockIcon = (props: any) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
-    <circle cx="12" cy="12" r="9" strokeWidth="1.5" />
-    <path d="M12 7v5l3 2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
+
 
 export default RightSide;
