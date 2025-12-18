@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, type FC } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Clock, User, ArrowBigUp, ArrowBigDown, Megaphone, MoreHorizontal, PenSquare, Trash2, Download, FileIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { MessageSquare, ArrowBigUp, ArrowBigDown, MoreHorizontal, PenSquare, Trash2, Download, FileIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useResolvedFileUrl } from '../../hooks/useResolvedFileUrl';
 import { MarkdownPreview } from '../MarkdownEditor';
 import TickButton from './TickButton';
@@ -9,6 +9,9 @@ import PostImageModal from './PostImageModal';
 import { voteApi, communityApi } from '../../services/api';
 import TagChip from '../common/TagChip';
 import { toast } from 'sonner';
+import PostCardHeader from './PostCardHeader';
+import PostTypeSidebar from './PostTypeSidebar';
+import { getPostTypeConfig } from './postTypeConfig';
 
 interface PostAuthor {
   id: number;
@@ -53,27 +56,12 @@ interface PostCardProps {
   currentUser?: { id: number; role: string } | null;
   onDelete?: (postId: number) => void;
   clickable?: boolean;
-  onNavigate?: (cid?: string) => void;
   onEdit?: (post?: PostShape) => void;
 }
 
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString();
-};
-
-
-export default function PostCard({ post, currentUser, onDelete, clickable = true, onNavigate, onEdit }: PostCardProps) {
+export default function PostCard({ post, currentUser, onDelete, clickable = true, onEdit }: PostCardProps) {
+  // Get post type configuration
+  const typeConfig = getPostTypeConfig(post.type);
   const menuRef = useRef<HTMLDivElement>(null);
   const authorAvatarUrl = useResolvedFileUrl(post.User.avatar_file_id);
   const navigate = useNavigate();
@@ -104,8 +92,12 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
   }, [post.cid, currentUser]);
   const canModify = currentUser && (
     currentUser.id === post.User.id ||
-    currentUser.role === 'admin' ||
-    (currentUser.role === 'instructor')
+    currentUser.role.toLowerCase() === 'admin' ||
+    (currentUser.role.toLowerCase() === 'instructor')
+  );
+  const canEdit = currentUser && (
+    currentUser.id === post.User.id ||
+    currentUser.role.toLowerCase() === 'admin'
   );
 
   const isAuthor = Boolean(currentUser && currentUser.id === post.User.id);
@@ -114,7 +106,7 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
     setIsResolvedState(post.is_resolved ?? null);
   }, [post.is_resolved]);
 
-  const isPrivilegedViewer = currentUser && (currentUser.role === 'admin' || currentUser.role === 'instructor');
+  const isPrivilegedViewer = currentUser && (currentUser.role.toLowerCase() === 'admin' || currentUser.role.toLowerCase() === 'instructor');
 
   // Get attachments - handle both old and new format
   const attachments = (post.PostFileAttachment || []).filter(a => a.File?.secure_url);
@@ -161,6 +153,8 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
   const [userVote, setUserVote] = useState<boolean | null>(null);
 
   useEffect(() => {
+    console.log(post);
+    
     let mounted = true;
     (async () => {
       try {
@@ -286,17 +280,11 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
         if (isEditOpen || showImageModal) return;
         goToPreview();
       }}
-      className={`relative ${isResolvedState ? 'bg-turf-green-100/50 dark:bg-turf-green-600/70' : 'bg-card'} border rounded-xl overflow-visible ${clickable ? 'hover:border-frosted-blue-500/50 hover:shadow-md cursor-pointer' : ''} transition-all duration-200 ${post.type.toLowerCase() === "announcement" ? 'border-yellow-500/50 ring-1 ring-yellow-500/20' : 'border-border'}`}
+      className={`relative ${isResolvedState && typeConfig.showResolved ? 'bg-turf-green-100/50 dark:bg-turf-green-600/70' : typeConfig.cardBg} border rounded-xl overflow-visible ${clickable ? 'hover:border-frosted-blue-500/50 hover:shadow-md cursor-pointer' : ''} transition-all duration-200 ${typeConfig.cardBorder}`}
     >
       <div className="flex">
-        {post.type.toLowerCase() == "announcement" ? (
-          <div className="w-12 bg-linear-to-b from-yellow-500/20 to-orange-500/20 flex flex-col items-center justify-center py-3 border-r border-yellow-500/30">
-            <div className="w-8 h-8 rounded-full bg-linear-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg shadow-yellow-500/30">
-              <Megaphone size={16} className="text-white" />
-            </div>
-          </div>
-        ) : (
-          <div className="w-12 bg-muted/30 flex flex-col items-center py-3 gap-1">
+        <PostTypeSidebar config={typeConfig}>
+          {typeConfig.showVoting && (
             <VoteControls
               score={score}
               userVote={userVote}
@@ -304,37 +292,18 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
               onDown={handleDown}
               readOnly={isPrivilegedViewer || !currentUser}
             />
-          </div>
-        )}
+          )}
+        </PostTypeSidebar>
 
         <div className="flex-1 p-4 relative overflow-hidden">
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              {authorAvatarUrl ? (
-                <img src={authorAvatarUrl} alt={`${post.User.fname} ${post.User.lname}`} className="w-8 h-8 rounded-full object-cover" />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-frosted-blue-500/20 flex items-center justify-center">
-                  <User className="w-4 h-4 text-frosted-blue-600" />
-                </div>
-              )}
-              <div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.User.id}`); }}
-                    className="text-sm font-medium text-foreground hover:text-frosted-blue-600 hover:underline cursor-pointer transition-colors"
-                  >
-                    {post.User.fname} {post.User.lname}
-                  </button>
-                  {post.cid && (
-                    <span className="text-sm text-muted-foreground">· {communityName}</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Clock className="w-3 h-3" />
-                  <span>{formatDate(post.post_date)}</span>
-                </div>
-              </div>
-            </div>
+            <PostCardHeader
+              author={post.User}
+              postDate={post.post_date}
+              authorAvatarUrl={authorAvatarUrl}
+              communityName={communityName}
+              tags={post.PostTag}
+            />
 
             <div className="flex items-center gap-2">
               <div className="flex flex-wrap gap-1">
@@ -343,7 +312,7 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
                 ))}
               </div>
 
-              {isResolvedState !== null && (isAuthor || isResolvedState) && (
+              {typeConfig.showResolved && isResolvedState !== null && (isAuthor || isResolvedState) && (
                 <div onClick={(e) => e.stopPropagation()} className="flex items-center">
                   <TickButton
                     postId={post.id}
@@ -366,7 +335,7 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
                   </button>
                   {isMenuOpen && (
                     <div className="absolute right-0 top-full mt-1 w-32 bg-card border border-border rounded-lg shadow-xl z-10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                      <button
+                      {canEdit && (<button
                         onClick={(e) => {
                           e.stopPropagation();
                           setIsMenuOpen(false);
@@ -379,7 +348,7 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
                         className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 text-foreground transition-colors"
                       >
                         <PenSquare size={14} /> Edit
-                      </button>
+                      </button>)}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -397,7 +366,7 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
             </div>
           </div>
 
-          <h3 className={`font-semibold mb-2 text-base ${post.type.toLowerCase() == "announcement" ? 'text-yellow-600 dark:text-yellow-400' : 'text-foreground'}`}>{post.title}</h3>
+          <h3 className={`font-semibold mb-2 text-base ${typeConfig.titleColor}`}>{post.title}</h3>
           {post.body && <MarkdownPreview content={post.body} className="text-sm mb-3" />}
 
           {/* Image Gallery */}
@@ -494,7 +463,7 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
               <MessageSquare className="w-3 h-3" />
               <span>{post._count?.Comment || 0} comments</span>
             </div>
-            {post.is_resolved !== null && (
+            {typeConfig.showResolved && post.is_resolved !== null && (
               <span className={`px-2 py-0.5 rounded text-xs ${post.is_resolved ? 'bg-turf-green-500/10 text-turf-green-600' : 'bg-royal-gold-500/10 text-royal-gold-600'}`}>{post.is_resolved ? 'Resolved' : 'Open'}</span>
             )}
           </div>
