@@ -132,7 +132,7 @@ const UserProfileHeader: React.FC<Props> = ({ viewedUser, viewedAvatarUrl }) => 
                     <a
                       href={scholarHref}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="flex items-center gap-3 rounded-lg border border-border bg-background/50 px-4 py-3 transition-all hover:bg-muted/30 hover:border-primary/40 group"
                     >
                       <ExternalLink className="h-4 w-4 text-info shrink-0 group-hover:text-primary transition-colors" />

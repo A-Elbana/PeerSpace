@@ -53,7 +53,12 @@ const ProfileView: React.FC<ProfileProps> = ({ onLogout }) => {
         if (userId) {
           try {
             const vres = await api.get(`/users/${userId}`);
+            vres.data.title = vres.data.Instructor?.title ?? '';
+            vres.data.expertise = vres.data.Instructor?.area_of_expertise ?? '';
+            vres.data.google_scholar = vres.data.Instructor?.google_scholar_link ?? '';
             setViewedUser(vres.data);
+
+            
           } catch (err) {
             // fallback: if fetching other user fails, show friendly message but continue
             console.warn('Failed to fetch viewed user:', err);
