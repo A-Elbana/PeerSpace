@@ -20,12 +20,14 @@ interface RightSideProps {
   enrolledCommunityIds: Set<string>;
   onNavigate: (id: string) => void;
   navigate: any;
-  handleLoadMorePublic: () => void;
+  handlePageChangePublic: (p: number) => void;
+  publicPage: number;
+  publicMeta: any;
   isLoadingPublic: boolean;
-  hasMorePublic: boolean;
-  handleLoadMorePrivate: () => void;
+  handlePageChangePrivate: (p: number) => void;
+  privatePage: number;
+  privateMeta: any;
   isLoadingPrivate: boolean;
-  hasMorePrivate: boolean;
 }
 
 const RightSide: React.FC<RightSideProps> = ({
@@ -44,12 +46,14 @@ const RightSide: React.FC<RightSideProps> = ({
   enrolledCommunityIds = new Set(),
   onNavigate,
   navigate,
-  handleLoadMorePublic,
+  handlePageChangePublic,
+  publicPage,
+  publicMeta,
   isLoadingPublic,
-  hasMorePublic,
-  handleLoadMorePrivate,
+  handlePageChangePrivate,
+  privatePage,
+  privateMeta,
   isLoadingPrivate,
-  hasMorePrivate,
 }) => {
   const [managedCommunities, setManagedCommunities] = useState<any[]>([]);
   const [isLoadingManaged, setIsLoadingManaged] = useState(false);
@@ -151,7 +155,7 @@ const RightSide: React.FC<RightSideProps> = ({
 
   return (
     <div className="hidden lg:block lg:w-80 xl:w-96 space-y-6 overflow-y-auto scrollbar-hide no-scrollbar max-h-[calc(100vh-3rem)] sticky top-6">
-      {user?.role === 'instructor' ? (
+      {user?.role === 'instructor' && (
         <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-20 h-20 bg-linear-to-bl from-frosted-blue-500/10 to-transparent rounded-bl-full" />
 
@@ -210,7 +214,9 @@ const RightSide: React.FC<RightSideProps> = ({
             </button>
           </div>
         </div>
-      ) : (
+      )}
+
+      {user?.role !== 'instructor' && (
         <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-20 h-20 bg-linear-to-bl from-frosted-blue-500/10 to-transparent rounded-bl-full" />
 
@@ -257,21 +263,6 @@ const RightSide: React.FC<RightSideProps> = ({
             </div>
           </div>
 
-          {communityFilterSearch && (
-            <div className="flex items-center gap-1.5 mb-3 text-xs">
-              <span className="text-muted-foreground">Filtering:</span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-frosted-blue-500/10 text-frosted-blue-600 font-medium rounded-full">
-                "{communityFilterSearch}"
-                <button
-                  onClick={() => setIsCommunityFilterOpen(false)}
-                  className="hover:bg-frosted-blue-500/20 rounded-full transition-colors"
-                >
-                  <X size={12} />
-                </button>
-              </span>
-            </div>
-          )}
-
           <div className="space-y-4">
             {communities.filter((c: any) => c.name.toLowerCase().includes(communityFilterSearch.toLowerCase())).length === 0 ? (
               <div className="text-center py-6">
@@ -285,7 +276,6 @@ const RightSide: React.FC<RightSideProps> = ({
             ) : (
               communities
                 .filter((c: any) => c.name.toLowerCase().includes(communityFilterSearch.toLowerCase()))
-                .slice(0, hasMorePublic ? 3 : communities.length)
                 .map((community: any, index: number) => (
                   <CommunityItem
                     key={community.id}
@@ -302,16 +292,27 @@ const RightSide: React.FC<RightSideProps> = ({
                 ))
             )}
           </div>
-          {hasMorePublic && communities.filter((c: any) => c.name.toLowerCase().includes(communityFilterSearch.toLowerCase())).length > 0 && (
+          <div className="mt-4 flex items-center justify-between gap-2">
             <button
-              onClick={handleLoadMorePublic}
-              disabled={isLoadingPublic}
-              className="w-full mt-4 py-2 rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground flex items-center justify-center"
+              onClick={() => handlePageChangePublic(Math.max(1, publicPage - 1))}
+              disabled={isLoadingPublic || publicPage <= 1}
+              aria-label="Previous page"
+              title="Previous page"
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground disabled:opacity-50"
             >
-              {isLoadingPublic ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
-              Show More
+              <ChevronLeft className="w-5 h-5" />
             </button>
-          )}
+            <div className="text-sm text-muted-foreground px-2">Page {publicPage}{publicMeta ? ` of ${publicMeta.totalPages}` : ''}</div>
+            <button
+              onClick={() => handlePageChangePublic(publicPage + 1)}
+              disabled={isLoadingPublic || (publicMeta ? publicPage >= publicMeta.totalPages : communities.length < 5)}
+              aria-label="Next page"
+              title="Next page"
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground disabled:opacity-50"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -350,90 +351,101 @@ const RightSide: React.FC<RightSideProps> = ({
               ))
             )}
           </div>
-          {hasMorePrivate && (
+          <div className="mt-4 flex items-center justify-between gap-2">
             <button
-              onClick={handleLoadMorePrivate}
-              disabled={isLoadingPrivate}
-              className="w-full mt-4 py-2 rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground flex items-center justify-center"
+              onClick={() => handlePageChangePrivate(Math.max(1, privatePage - 1))}
+              disabled={isLoadingPrivate || privatePage <= 1}
+              aria-label="Previous page"
+              title="Previous page"
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground disabled:opacity-50"
             >
-              {isLoadingPrivate ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
-              Show More
+              <ChevronLeft className="w-5 h-5" />
             </button>
-          )}
+            <div className="text-sm text-muted-foreground px-2">Page {privatePage}{privateMeta ? ` of ${privateMeta.totalPages}` : ''}</div>
+            <button
+              onClick={() => handlePageChangePrivate(privatePage + 1)}
+              disabled={isLoadingPrivate || (privateMeta ? privatePage >= privateMeta.totalPages : privateCommunities.length < 5)}
+              aria-label="Next page"
+              title="Next page"
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground disabled:opacity-50"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       )}
 
-      <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
-        <div className="absolute bottom-0 left-0 w-full h-1 bg-linear-to-r from-frosted-blue-500 via-turf-green-500 to-royal-gold-500 opacity-50" />
+      {user?.role !== 'admin' && (
+        <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
+          <div className="absolute bottom-0 left-0 w-full h-1 bg-linear-to-r from-frosted-blue-500 via-turf-green-500 to-royal-gold-500 opacity-50" />
 
-        <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider flex items-center gap-2">
-          <ClockIcon className="w-4 h-4 text-frosted-blue-500" />
-          {user?.role === 'instructor' ? 'Pending Actions' : 'Upcoming Deadlines'}
-        </h3>
-        <div className="space-y-3">
-          {user?.role === 'instructor' ? (
-            <>
-              {managedPending.length > 0 ? (
-                managedPending.map((assignment: any, idx: number) => (
-                  <DeadlineItem
-                    key={idx}
-                    course={assignment.communityName}
-                    task={assignment.title}
-                    due={`${assignment.ungradedCount} submission${assignment.ungradedCount !== 1 ? 's' : ''} to grade`}
-                    isInstructor
-                    onClick={() => navigate(`/community/${assignment.cid}/assignment/${assignment.id}`)}
-                  />
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">No pending submissions</p>
-              )}
+          <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider flex items-center gap-2">
+            <ClockIcon className="w-4 h-4 text-frosted-blue-500" />
+            {user?.role === 'instructor' ? 'Pending Actions' : 'Upcoming Deadlines'}
+          </h3>
+          <div className="space-y-3">
+            {user?.role === 'instructor' ? (
+              <>
+                {managedPending.length > 0 ? (
+                  managedPending.map((assignment: any, idx: number) => (
+                    <DeadlineItem
+                      key={idx}
+                      course={assignment.communityName}
+                      task={assignment.title}
+                      due={`${assignment.ungradedCount} submission${assignment.ungradedCount !== 1 ? 's' : ''} to grade`}
+                      isInstructor
+                      onClick={() => navigate(`/community/${assignment.cid}/assignment/${assignment.id}`)}
+                    />
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">No pending submissions</p>
+                )}
 
-              {/* Pending actions pager */}
-              <div className="mt-4 flex items-center justify-between gap-2">
-                <button
-                  onClick={() => fetchPending(Math.max(1, pendingPage - 1))}
-                  disabled={isLoadingPending || pendingPage <= 1}
-                  aria-label="Previous pending page"
-                  title="Previous"
-                  className="w-10 h-10 flex items-center justify-center rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground disabled:opacity-50"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <div className="text-sm text-muted-foreground px-2">Page {pendingPage}{pendingMeta ? ` of ${pendingMeta.totalPages}` : ''}</div>
-                <button
-                  onClick={() => fetchPending(pendingPage + 1)}
-                  disabled={isLoadingPending || (pendingMeta ? pendingPage >= pendingMeta.totalPages : !hasMorePending)}
-                  aria-label="Next pending page"
-                  title="Next"
-                  className="w-10 h-10 flex items-center justify-center rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground disabled:opacity-50"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              {deadlines.length > 0 ? (
-                deadlines.map((assignment: any, idx: number) => (
-                  <DeadlineItem
-                    key={idx}
-                    course={assignment.communityName}
-                    task={assignment.title}
-                    due={assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : 'No due date'}
-                    onClick={() => navigate(`/community/${assignment.cid}/assignment/${assignment.id}`)}
-                  />
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">No upcoming deadlines</p>
-              )}
-            </>
-          )}
+                {/* Pending actions pager */}
+                <div className="mt-4 flex items-center justify-between gap-2">
+                  <button
+                    onClick={() => fetchPending(Math.max(1, pendingPage - 1))}
+                    disabled={isLoadingPending || pendingPage <= 1}
+                    aria-label="Previous pending page"
+                    title="Previous"
+                    className="w-10 h-10 flex items-center justify-center rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground disabled:opacity-50"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <div className="text-sm text-muted-foreground px-2">Page {pendingPage}{pendingMeta ? ` of ${pendingMeta.totalPages}` : ''}</div>
+                  <button
+                    onClick={() => fetchPending(pendingPage + 1)}
+                    disabled={isLoadingPending || (pendingMeta ? pendingPage >= pendingMeta.totalPages : !hasMorePending)}
+                    aria-label="Next pending page"
+                    title="Next"
+                    className="w-10 h-10 flex items-center justify-center rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground disabled:opacity-50"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {deadlines.length > 0 ? (
+                  deadlines.map((assignment: any, idx: number) => (
+                    <DeadlineItem
+                      key={idx}
+                      course={assignment.communityName}
+                      task={assignment.title}
+                      due={assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : 'No due date'}
+                      onClick={() => navigate(`/community/${assignment.cid}/assignment/${assignment.id}`)}
+                    />
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">No upcoming deadlines</p>
+                )}
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
-
-
 
 export default RightSide;

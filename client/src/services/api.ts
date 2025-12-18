@@ -783,6 +783,35 @@ export const instructorApi = {
   },
 };
 
+// Student API (student-specific endpoints)
+export const studentApi = {
+  // Explore feed for students (only posts from communities where the student is enrolled)
+  getFeed: async (params?: {
+    page?: number;
+    limit?: number;
+    sort?: "new" | "top" | string;
+    category?: string;
+    tags?: string;
+  }): Promise<PostsListResponse> => {
+    const cleanParams: any = {};
+    if (params) {
+      if (params.page) cleanParams.page = params.page;
+      if (params.limit) cleanParams.limit = params.limit;
+      if (params.sort) cleanParams.sort = params.sort;
+      if (params.category) cleanParams.category = params.category;
+      if (params.tags) cleanParams.tags = params.tags;
+    }
+    const response = await api.get('/student/explore', { params: cleanParams });
+    return response.data as PostsListResponse;
+  },
+
+  // Student dashboard summary
+  getDashboard: async (): Promise<{ data: any }> => {
+    const response = await api.get('/student/dashboard');
+    return response.data;
+  },
+};
+
 // Comment API
 export const commentApi = {
   getByPost: async (
@@ -863,12 +892,12 @@ export const fileApi = {
     resource_type: string;
     format?: string;
     context:
-      | "POST"
-      | "SUBMISSION"
-      | "NOTE"
-      | "ASSIGNMENT"
-      | "COMMUNITY_BANNER"
-      | "USER_AVATAR";
+    | "POST"
+    | "SUBMISSION"
+    | "NOTE"
+    | "ASSIGNMENT"
+    | "COMMUNITY_BANNER"
+    | "USER_AVATAR";
     context_id: string;
     is_private?: boolean;
   }) => {
