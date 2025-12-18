@@ -34,7 +34,7 @@ import { initSocket } from "./services/socket";
 import { startNotificationBroadcaster } from "./services/notificationBroadcaster";
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 // Create HTTP server so Socket.io can attach
 const server = http.createServer(app);
@@ -96,10 +96,7 @@ startNotificationBroadcaster(io).catch((err) =>
   console.error("Notification broadcaster failed:", err)
 );
 
-server.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-  console.log(
-    `API Documentation available at http://localhost:${PORT}/api-docs`
-  );
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server is running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
 });

@@ -7,12 +7,17 @@ import cors from "cors";
 export const corsOptions = {
   // Allow requests from these origins
   origin: (origin: string | undefined, callback: Function) => {
-    // Allowed domains - update based on your frontend URLs
+    // In production, we strictly use FRONTEND_URL environment variable
+    // In development, we allow localhost variants
+    const envOrigins = process.env.FRONTEND_URL
+      ? process.env.FRONTEND_URL.split(',').map(o => o.trim())
+      : [];
+
     const allowedOrigins = [
-      "http://localhost:5173", // Vite dev server
-      "http://localhost:3000", // Alternative dev port
+      ...envOrigins,
+      "http://localhost:5173",
+      "http://localhost:3000",
       "http://localhost:5174",
-      process.env.FRONTEND_URL, // Production frontend URL
     ].filter(Boolean);
 
     // Allow requests with no origin (mobile apps, curl requests, Postman)
