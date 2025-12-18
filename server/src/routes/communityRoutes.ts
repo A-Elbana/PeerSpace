@@ -396,11 +396,11 @@ router.get(
  * @swagger
  * /api/communities/{id}/enroll:
  *   post:
- *     summary: Enroll in community (Student only)
+ *     summary: Join or manage community (Student/Instructor)
  *     tags: [Communities]
  *     security:
  *       - bearerAuth: []
- *     description: Enroll student in community using invitation code (which is the community ID). PUBLIC communities require no code; PRIVATE communities require invitation code in body for body-based enrollment
+ *     description: Enroll a student in community using invitation code (which is the community ID) or add an instructor as a manager. PUBLIC communities require no code; PRIVATE communities require invitation code in body for body-based enrollment
  *     parameters:
  *       - in: path
  *         name: id
@@ -425,7 +425,7 @@ router.get(
  *       400:
  *         description: Invalid community ID format or missing code for private community
  *       403:
- *         description: Only students can enroll
+ *         description: Only students or instructors can enroll
  *       404:
  *         description: Community not found
  *       409:
@@ -436,7 +436,7 @@ router.get(
 router.post(
   "/:id/enroll",
   authenticateToken,
-  authorizeRole(["STUDENT"]),
+  authorizeRole(["STUDENT", "INSTRUCTOR"]),
   loadCommunity,
   enrollInCommunity
 );

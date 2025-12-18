@@ -22,49 +22,93 @@ export const enrollInCommunity = async (req: Request, res: Response) => {
   const userId = (req as any).userId;
   const userRole = (req as any).role;
 
-  // Only STUDENT role can enroll
-  if (userRole !== Role.STUDENT) {
-    return res
-      .status(403)
-      .json({ message: "Only students can enroll in communities" });
-  }
-
   try {
-    // Check if already enrolled
-    const existing = await prisma.enrollment.findUnique({
-      where: {
-        cid_sid: {
+    if (userRole === Role.STUDENT) {
+      const existingEnrollment = await prisma.enrollment.findUnique({
+        where: {
+          cid_sid: {
+            cid: community.id,
+            sid: userId,
+          },
+        },
+      });
+
+      if (existingEnrollment) {
+        return res
+          .status(409)
+          .json({ message: "Already enrolled in this community" });
+      }
+
+      await prisma.enrollment.create({
+        data: {
           cid: community.id,
           sid: userId,
         },
-      },
-    });
+      });
 
-    if (existing) {
-      return res
-        .status(409)
-        .json({ message: "Already enrolled in this community" });
+      await ActivityLogService.logActivity({
+        userId,
+        communityId: community.id,
+        actionType: ActivityActionType.USER_JOINED_COMMUNITY,
+        description: `Joined community "${community.name || community.id}"`,
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: `Successfully enrolled in community`,
+      });
     }
 
-    await prisma.enrollment.create({
-      data: {
-        cid: community.id,
-        sid: userId,
-      },
-    });
+    if (userRole === Role.INSTRUCTOR) {
+      const instructor = await prisma.instructor.findUnique({
+        where: { uid: userId },
+        include: { User: true },
+      });
 
-    // Log join event
-    await ActivityLogService.logActivity({
-      userId,
-      communityId: community.id,
-      actionType: ActivityActionType.USER_JOINED_COMMUNITY,
-      description: `Joined community "${community.name || community.id}"`,
-    });
+      if (!instructor || instructor.User.role !== Role.INSTRUCTOR) {
+        return res
+          .status(404)
+          .json({ message: "Instructor profile not found" });
+      }
 
-    res.status(201).json({
-      success: true,
-      message: `Successfully enrolled in community`,
-    });
+      const existingManager = await prisma.manages.findUnique({
+        where: {
+          iid_cid: {
+            iid: userId,
+            cid: community.id,
+          },
+        },
+      });
+
+      if (existingManager) {
+        return res
+          .status(409)
+          .json({ message: "Already managing this community" });
+      }
+
+      await prisma.manages.create({
+        data: {
+          iid: userId,
+          cid: community.id,
+        },
+      });
+
+      await ActivityLogService.logActivity({
+        userId,
+        communityId: community.id,
+        actionType: ActivityActionType.USER_JOINED_COMMUNITY,
+        description: `Started managing community "${community.name || community.id}"`,
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: "You are now managing this community",
+      });
+    }
+
+    return res
+      .status(403)
+      .json({ message: "Only students or instructors can join communities" });
   } catch (error: any) {
     console.error("Enroll Error:", error);
     if (error.code === "P2003") {
