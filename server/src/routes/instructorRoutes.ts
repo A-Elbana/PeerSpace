@@ -4,6 +4,7 @@ import {
   getInstructorFeedPosts,
   getUnresolvedPosts,
   getMyCommunities,
+  getMyAssignments,
   getManagedSubmissions,
   getInstructorInsights,
 } from "../controllers/InstructorController";
@@ -57,6 +58,47 @@ router.get(
   authenticateToken,
   authorizeRole(["INSTRUCTOR", "ADMIN"]),
   getMyCommunities
+);
+
+/**
+ * @swagger
+ * /api/instructor/assignments:
+ *   get:
+ *     summary: Get assignments created by the authenticated instructor
+ *     tags: [Instructor]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *           maximum: 50
+ *       - in: query
+ *         name: cid
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Optional community UUID to filter assignments
+ *     responses:
+ *       200:
+ *         description: Paginated assignments created by the instructor
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  "/assignments",
+  authenticateToken,
+  authorizeRole(["INSTRUCTOR", "ADMIN"]),
+  getMyAssignments
 );
 
 /**

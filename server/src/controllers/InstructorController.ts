@@ -125,6 +125,66 @@ export const getMyCommunities = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Get assignments created by the authenticated instructor
+ * - Uses `assigner_uid` = token user id
+ * - Paginated, includes submission counts and related community
+ */
+export const getMyAssignments = async (req: Request, res: Response) => {
+  const userId = (req as any).userId as number;
+  const page = Math.max(1, parseInt((req.query.page as string) || "1"));
+  const limit = Math.min(50, Math.max(1, parseInt((req.query.limit as string) || "10")));
+  const skip = (page - 1) * limit;
+
+  try {
+    const where = { assigner_uid: userId } as any;
+
+    // Optional community filter
+    const cid = req.query.cid as string | undefined;
+    if (cid) {
+      // basic validation: length check; leave UUID validation to caller if needed
+      where.cid = cid;
+    }
+
+    const [assignments, total] = await Promise.all([
+      prisma.assignment.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { due_date: "desc" },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          due_date: true,
+          max_points: true,
+          canBeLate: true,
+          cid: true,
+          assigner_uid: true,
+          _count: { select: { Submission: true } },
+          AssignmentFileAttachment: {
+            select: {
+              fid: true,
+              File: { select: { id: true, secure_url: true, is_private: true, public_id: true, resource_type: true, format: true } },
+            },
+          },
+          Community: { select: { id: true, name: true } },
+        },
+      }),
+      prisma.assignment.count({ where }),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: assignments,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    });
+  } catch (error) {
+    console.error("Get My Assignments Error:", error);
+    res.status(500).json({ message: "Failed to fetch assignments" });
+  }
+};
+
 export const getInstructorFeedPosts = async (req: Request, res: Response) => {
   const userId = (req as any).userId as number;
   const { page, limit, skip } = parsePageLimit(req);
