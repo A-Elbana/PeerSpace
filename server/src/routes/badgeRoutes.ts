@@ -396,11 +396,6 @@ router.patch(
  *       500:
  *         description: Server error
  */
-router.delete(
-  "/:id",
-  authenticateToken,
-  authorizeRole(["ADMIN"]),
-  deleteBadge
-);
+router.delete("/:id", authenticateToken, authorizeRole(["ADMIN"]), deleteBadge);
 
 export default router;

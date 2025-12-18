@@ -200,6 +200,22 @@ export interface PostsListResponse {
   meta: PaginationMeta;
 }
 
+export interface UserDetail {
+  id: number;
+  email: string;
+  fname: string;
+  lname: string;
+  role: string;
+  avatar_file_id?: string | null;
+  activated?: boolean;
+  Instructor?: {
+    uid: number;
+    title?: string | null;
+    area_of_expertise?: string | null;
+    google_scholar_link?: string | null;
+  } | null;
+}
+
 // Community API calls
 export const communityApi = {
   create: async (data: {
@@ -337,7 +353,7 @@ export const badgeApi = {
       if (params.page) cleanParams.page = params.page;
       if (params.limit) cleanParams.limit = params.limit;
     }
-    const response = await api.get('/badges', { params: cleanParams });
+    const response = await api.get("/badges", { params: cleanParams });
     return response.data as {
       message: string;
       data: BadgeResponse[];
@@ -350,7 +366,7 @@ export const badgeApi = {
       if (params.page) cleanParams.page = params.page;
       if (params.limit) cleanParams.limit = params.limit;
     }
-    const response = await api.get('/badges/me', { params: cleanParams });
+    const response = await api.get("/badges/me", { params: cleanParams });
     return response.data as {
       message: string;
       data: { Badge: BadgeResponse }[];
@@ -366,7 +382,9 @@ export const badgeApi = {
       if (params.page) cleanParams.page = params.page;
       if (params.limit) cleanParams.limit = params.limit;
     }
-    const response = await api.get(`/badges/user/${uid}`, { params: cleanParams });
+    const response = await api.get(`/badges/user/${uid}`, {
+      params: cleanParams,
+    });
     return response.data as {
       message?: string;
       data: { Badge: BadgeResponse }[];
@@ -578,7 +596,7 @@ export const instructorApi = {
     limit?: number;
     resolved?: string;
     cid?: string;
-    sort?: 'new' | 'top' | string;
+    sort?: "new" | "top" | string;
   }): Promise<PostsListResponse> => {
     const cleanParams: any = {};
     if (params) {
@@ -588,36 +606,62 @@ export const instructorApi = {
       if (params.cid) cleanParams.cid = params.cid;
       if (params.sort) cleanParams.sort = params.sort;
     }
-    const response = await api.get('/instructor/feed/posts', { params: cleanParams });
+    const response = await api.get("/instructor/feed/posts", {
+      params: cleanParams,
+    });
     return response.data;
   },
 
   // Get managed communities (paginated)
-  getManagedCommunities: async (params?: { page?: number; limit?: number; search?: string }) => {
+  getManagedCommunities: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+  }) => {
     const cleanParams: any = {};
     if (params) {
       if (params.page) cleanParams.page = params.page;
       if (params.limit) cleanParams.limit = params.limit;
-      if (params.search && params.search.trim()) cleanParams.search = params.search.trim();
+      if (params.search && params.search.trim())
+        cleanParams.search = params.search.trim();
     }
-    const response = await api.get('/instructor/communities', { params: cleanParams });
-    return response.data as { success: boolean; data: CommunityResponse[]; meta: PaginationMeta };
+    const response = await api.get("/instructor/communities", {
+      params: cleanParams,
+    });
+    return response.data as {
+      success: boolean;
+      data: CommunityResponse[];
+      meta: PaginationMeta;
+    };
   },
 
   // Get unresolved posts across managed communities
-  getUnresolvedPosts: async (params?: { page?: number; limit?: number; cid?: string }) => {
+  getUnresolvedPosts: async (params?: {
+    page?: number;
+    limit?: number;
+    cid?: string;
+  }) => {
     const cleanParams: any = {};
     if (params) {
       if (params.page) cleanParams.page = params.page;
       if (params.limit) cleanParams.limit = params.limit;
       if (params.cid) cleanParams.cid = params.cid;
     }
-    const response = await api.get('/instructor/posts/unresolved', { params: cleanParams });
+    const response = await api.get("/instructor/posts/unresolved", {
+      params: cleanParams,
+    });
     return response.data as PostsListResponse;
   },
 
   // Get submissions across managed communities
-  getManagedSubmissions: async (params?: { page?: number; limit?: number; cid?: string; aid?: number; graded?: string; sid?: number }) => {
+  getManagedSubmissions: async (params?: {
+    page?: number;
+    limit?: number;
+    cid?: string;
+    aid?: number;
+    graded?: string;
+    sid?: number;
+  }) => {
     const cleanParams: any = {};
     if (params) {
       if (params.page) cleanParams.page = params.page;
@@ -627,13 +671,21 @@ export const instructorApi = {
       if (params.graded) cleanParams.graded = params.graded;
       if (params.sid) cleanParams.sid = params.sid;
     }
-    const response = await api.get('/instructor/submissions', { params: cleanParams });
+    const response = await api.get("/instructor/submissions", {
+      params: cleanParams,
+    });
     return response.data;
   },
 
   // Grade a submission
-  gradeSubmission: async (id: number, data: { grade: number; feedback?: string }) => {
-    const response = await api.patch(`/instructor/submissions/${id}/grade`, data);
+  gradeSubmission: async (
+    id: number,
+    data: { grade: number; feedback?: string }
+  ) => {
+    const response = await api.patch(
+      `/instructor/submissions/${id}/grade`,
+      data
+    );
     return response.data;
   },
 
@@ -641,7 +693,9 @@ export const instructorApi = {
   getInsights: async (params?: { cid?: string }) => {
     const cleanParams: any = {};
     if (params && params.cid) cleanParams.cid = params.cid;
-    const response = await api.get('/instructor/insights', { params: cleanParams });
+    const response = await api.get("/instructor/insights", {
+      params: cleanParams,
+    });
     return response.data;
   },
 };
@@ -670,13 +724,18 @@ export const commentApi = {
   },
 
   // Fetch first-level replies for a comment
-  getReplies: async (commentId: number, params?: { page?: number; limit?: number }) => {
+  getReplies: async (
+    commentId: number,
+    params?: { page?: number; limit?: number }
+  ) => {
     const cleanParams: any = {};
     if (params) {
       if (params.page) cleanParams.page = params.page;
       if (params.limit) cleanParams.limit = params.limit;
     }
-    const response = await api.get(`/comments/${commentId}/replies`, { params: cleanParams });
+    const response = await api.get(`/comments/${commentId}/replies`, {
+      params: cleanParams,
+    });
     return response.data;
   },
 
@@ -721,12 +780,12 @@ export const fileApi = {
     resource_type: string;
     format?: string;
     context:
-    | "POST"
-    | "SUBMISSION"
-    | "NOTE"
-    | "ASSIGNMENT"
-    | "COMMUNITY_BANNER"
-    | "USER_AVATAR";
+      | "POST"
+      | "SUBMISSION"
+      | "NOTE"
+      | "ASSIGNMENT"
+      | "COMMUNITY_BANNER"
+      | "USER_AVATAR";
     context_id: string;
     is_private?: boolean;
   }) => {
@@ -796,7 +855,7 @@ export const adminApi = {
     actionType?: number;
     startDate?: string;
     endDate?: string;
-    sortOrder?: 'asc' | 'desc';
+    sortOrder?: "asc" | "desc";
   }): Promise<{
     success: boolean;
     data: Array<{
@@ -836,7 +895,9 @@ export const adminApi = {
       if (params.endDate) cleanParams.endDate = params.endDate;
       if (params.sortOrder) cleanParams.sortOrder = params.sortOrder;
     }
-    const response = await api.get("/admin/activity-logs", { params: cleanParams });
+    const response = await api.get("/admin/activity-logs", {
+      params: cleanParams,
+    });
     return response.data;
   },
 };
@@ -875,15 +936,7 @@ export const userApi = {
 
   getById: async (
     id: string
-  ): Promise<{
-    id: number;
-    email: string;
-    fname: string;
-    lname: string;
-    role: string;
-    avatar_file_id?: string;
-    activated: boolean;
-  }> => {
+  ): Promise<UserDetail> => {
     const response = await api.get(`/users/${id}`);
     return response.data;
   },
@@ -896,10 +949,15 @@ export const userApi = {
       email?: string;
       role?: string;
       password?: string;
+      currentPassword?: string;
+      title?: string;
+      area_of_expertise?: string;
+      google_scholar_link?: string;
+      avatar_file_id?: string | null;
     }
   ): Promise<{
-    success: boolean;
     message: string;
+    user: UserDetail;
   }> => {
     const response = await api.put(`/users/${id}`, data);
     return response.data;
@@ -1182,6 +1240,16 @@ export const notificationsApi = {
 
   markAllRead: async () => {
     const response = await api.post("/notifications/mark-all-read");
+    return response.data;
+  },
+
+  deleteNotification: async (id: number) => {
+    const response = await api.delete(`/notifications/${id}`);
+    return response.data;
+  },
+
+  deleteAll: async () => {
+    const response = await api.delete("/notifications");
     return response.data;
   },
 };
