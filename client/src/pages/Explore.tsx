@@ -13,13 +13,13 @@ interface SearchedPost {
     post_date: string;
     body?: string;
 }
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Sidebar } from '../components/dashboard';
 import Header from '../components/Header';
 import { useSidebar } from '../contexts/SidebarContext';
-import api, { communityApi, postApi, assignmentApi, submissionApi, instructorApi, type CommunityResponse, type PostResponse, type PaginationMeta } from '../services/api';
+import api, { communityApi, postApi, assignmentApi, submissionApi, type CommunityResponse } from '../services/api';
 import { removeTokens } from '../utils/auth';
 
 
@@ -100,30 +100,21 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [communities, setCommunities] = useState<CommunityWithMeta[]>([]);
     const [privateCommunities, setPrivateCommunities] = useState<CommunityWithMeta[]>([]);
-    const [posts, setPosts] = useState<PostResponse[]>([]);
 
     const [joiningCommunityId, setJoiningCommunityId] = useState<string | null>(null);
     const [enrolledCommunityIds, setEnrolledCommunityIds] = useState<Set<string>>(new Set());
 
     // Community Pagination
-    const COMMUNITIES_PER_PAGE = 4;
+    const COMMUNITIES_PER_PAGE = 5;
     const [publicPage, setPublicPage] = useState(1);
     const [privatePage, setPrivatePage] = useState(1);
-    const [hasMorePublic, setHasMorePublic] = useState(true);
-    const [hasMorePrivate, setHasMorePrivate] = useState(true);
+    const [publicMeta, setPublicMeta] = useState<any>(null);
+    const [privateMeta, setPrivateMeta] = useState<any>(null);
     const [isLoadingPublic, setIsLoadingPublic] = useState(false);
     const [isLoadingPrivate, setIsLoadingPrivate] = useState(false);
 
 
     // Initial load state
-    const [displayedPosts, setDisplayedPosts] = useState<PostResponse[]>([]);
-    const [isLoadingMore, setIsLoadingMore] = useState(false);
-    const [hasMore, setHasMore] = useState(true);
-    const [feedMeta, setFeedMeta] = useState<PaginationMeta | null>(null);
-    const POSTS_PER_PAGE = 10; // backend page size for feed requests
-    // Note: instructor page size is unified with POSTS_PER_PAGE
-    const [feedPage, setFeedPage] = useState(1); // current page for instructor feed
-    const loadMoreRef = useRef<HTMLDivElement>(null);
 
     // Filter states
     const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -138,49 +129,33 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
     const [deadlines, setDeadlines] = useState<any[]>([]);
     const [pendingSubmissions, setPendingSubmissions] = useState<any[]>([]);
 
-    const handleLoadMorePublic = async () => {
-        if (isLoadingPublic || !hasMorePublic) return;
+    const handlePageChangePublic = async (page: number) => {
+        if (isLoadingPublic) return;
         setIsLoadingPublic(true);
         try {
-            const nextPage = publicPage + 1;
-            const response = await communityApi.getAll({ type: 'PUBLIC', limit: COMMUNITIES_PER_PAGE, page: nextPage });
-
-            if (response.data.length > 0) {
-                setCommunities(prev => [...prev, ...response.data]);
-                setPublicPage(nextPage);
-                setHasMorePublic(response.data.length === COMMUNITIES_PER_PAGE);
-
-                // Check enrollment for new communities
-                // Note: ideally we should refactor checkEnrollment to be reusable, but for now we trust the flow or ignore immediate check for new badges until refresh
-                // or we can just run the check for these new ones:
-                await checkEnrollmentStatus(response.data, user);
-            } else {
-                setHasMorePublic(false);
-            }
+            const response = await communityApi.getAll({ type: 'PUBLIC', limit: COMMUNITIES_PER_PAGE, page });
+            setCommunities(response.data);
+            setPublicPage(page);
+            setPublicMeta(response.meta || null);
+            await checkEnrollmentStatus(response.data, user);
         } catch (error) {
-            console.error('Failed to load more public communities', error);
+            console.error('Failed to change public page', error);
         } finally {
             setIsLoadingPublic(false);
         }
     };
 
-    const handleLoadMorePrivate = async () => {
-        if (isLoadingPrivate || !hasMorePrivate) return;
+    const handlePageChangePrivate = async (page: number) => {
+        if (isLoadingPrivate) return;
         setIsLoadingPrivate(true);
         try {
-            const nextPage = privatePage + 1;
-            const response = await communityApi.getAll({ type: 'PRIVATE', limit: COMMUNITIES_PER_PAGE, page: nextPage });
-
-            if (response.data.length > 0) {
-                setPrivateCommunities(prev => [...prev, ...response.data]);
-                setPrivatePage(nextPage);
-                setHasMorePrivate(response.data.length === COMMUNITIES_PER_PAGE);
-                await checkEnrollmentStatus(response.data, user);
-            } else {
-                setHasMorePrivate(false);
-            }
+            const response = await communityApi.getAll({ type: 'PRIVATE', limit: COMMUNITIES_PER_PAGE, page });
+            setPrivateCommunities(response.data);
+            setPrivatePage(page);
+            setPrivateMeta(response.meta || null);
+            await checkEnrollmentStatus(response.data, user);
         } catch (error) {
-            console.error('Failed to load more private communities', error);
+            console.error('Failed to change private page', error);
         } finally {
             setIsLoadingPrivate(false);
         }
@@ -205,70 +180,8 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
         );
     };
 
-    // Load more posts (supports instructor server pagination)
-    const loadMorePosts = useCallback(async () => {
-        if (isLoadingMore || !hasMore) return;
-        setIsLoadingMore(true);
-
-        try {
-            const next = feedPage + 1;
-            try {
-                if (user?.role === 'instructor') {
-                    const sort = activeTab === 'top' ? 'top' : 'new';
-                    const res = await instructorApi.getFeed({ page: next, limit: POSTS_PER_PAGE, sort, cid: undefined });
-                    const data = res?.data || [];
-                    if (data.length > 0) {
-                        const meta = res?.meta ?? null;
-                        setPosts(prev => [...prev, ...data]);
-                        setDisplayedPosts(prev => [...prev, ...data]);
-                        setFeedMeta(meta);
-                        setFeedPage(next);
-                        setHasMore(meta ? next < meta.totalPages : data.length === POSTS_PER_PAGE);
-                    } else {
-                        setHasMore(false);
-                    }
-                } else {
-                    const res = await postApi.getAll({ page: next, limit: POSTS_PER_PAGE });
-                    const data = res?.data || [];
-                    if (data.length > 0) {
-                        const meta = res?.meta ?? null;
-                        setPosts(prev => [...prev, ...data]);
-                        setDisplayedPosts(prev => [...prev, ...data]);
-                        setFeedMeta(meta);
-                        setFeedPage(next);
-                        setHasMore(meta ? next < meta.totalPages : data.length === POSTS_PER_PAGE);
-                    } else {
-                        setHasMore(false);
-                    }
-                }
-            } catch (err) {
-                const e = err as any;
-                console.error('Failed to load feed page:', e.message ?? e);
-                if (e.config) console.error('Request URL:', e.config.url, 'method:', e.config.method);
-                if (e.response) console.error('Response status:', e.response.status, 'data:', e.response.data);
-            }
-        } finally {
-            setIsLoadingMore(false);
-        }
-    }, [isLoadingMore, hasMore, displayedPosts.length, posts, user, feedPage]);
-
-    // Intersection Observer for infinite scroll
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
-                    loadMorePosts();
-                }
-            },
-            { threshold: 0.1 }
-        );
-
-        if (loadMoreRef.current) {
-            observer.observe(loadMoreRef.current);
-        }
-
-        return () => observer.disconnect();
-    }, [loadMorePosts, hasMore, isLoadingMore]);
+    const loadMoreRef = useRef<HTMLDivElement>(null);
+    // Intersection Observer for infinite scroll moved to Feed component
 
     // Close filter dropdowns when clicking outside
     useEffect(() => {
@@ -285,29 +198,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Initialize/extend displayed posts when `posts` changes.
-    // When new pages are appended to `posts`, expand `displayedPosts` instead
-    // of resetting to the first page so infinite scroll visibly extends.
-    useEffect(() => {
-        if (posts.length === 0) {
-            setDisplayedPosts([]);
-            setHasMore(false);
-            return;
-        }
-
-        setDisplayedPosts((prev) => {
-            // If we've already shown as many posts as exist, keep showing them.
-            if (prev.length >= posts.length) return prev;
-            // Otherwise, show all posts fetched so far (this will append newly loaded pages).
-            return posts.slice(0, posts.length);
-        });
-
-        if (feedMeta) {
-            setHasMore(feedPage < feedMeta.totalPages);
-        } else {
-            setHasMore(posts.length > POSTS_PER_PAGE);
-        }
-    }, [posts, feedMeta, feedPage]);
+    // Unified post management handled inside the Feed component
 
     useEffect(() => {
         const fetchInitialData = async () => {
@@ -325,12 +216,12 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                 // Fetch public communities
                 const communitiesResponse = await communityApi.getAll({ type: 'PUBLIC', limit: COMMUNITIES_PER_PAGE, page: 1 });
                 setCommunities(communitiesResponse.data);
-                setHasMorePublic(communitiesResponse.data.length === COMMUNITIES_PER_PAGE);
+                setPublicMeta(communitiesResponse.meta || null);
 
-                // Fetch private communities (user's enrolled/managed private communities)
+                // Fetch private communities
                 const privateCommunitiesResponse = await communityApi.getAll({ type: 'PRIVATE', limit: COMMUNITIES_PER_PAGE, page: 1 });
                 setPrivateCommunities(privateCommunitiesResponse.data);
-                setHasMorePrivate(privateCommunitiesResponse.data.length === COMMUNITIES_PER_PAGE);
+                setPrivateMeta(privateCommunitiesResponse.meta || null);
 
                 // Check enrollment status for all communities
                 const allCommunities = [...communitiesResponse.data, ...privateCommunitiesResponse.data];
@@ -355,37 +246,6 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                 );
 
                 setEnrolledCommunityIds(enrolledIds);
-
-                // Fetch posts for feed. For instructors use server-side instructor feed endpoint (paginated),
-                // for others fetch posts from communities as before.
-                try {
-                    if (normalizedUser.role === 'instructor') {
-                        const sort = activeTab === 'top' ? 'top' : 'new';
-                        const res = await instructorApi.getFeed({ page: 1, limit: POSTS_PER_PAGE, sort, cid: undefined });
-                        const data = res?.data || [];
-                        const meta = res?.meta ?? null;
-                        setPosts(data as PostResponse[]);
-                        setDisplayedPosts(data as PostResponse[]);
-                        setFeedMeta(meta);
-                        setHasMore(meta ? 1 < meta.totalPages : (data.length === POSTS_PER_PAGE));
-                        setFeedPage(1);
-                    } else {
-                        const res = await postApi.getAll({ page: 1, limit: POSTS_PER_PAGE });
-                        const data = res?.data || [];
-                        const meta = res?.meta ?? null;
-                        setPosts(data as PostResponse[]);
-                        setDisplayedPosts(data as PostResponse[]);
-                        setFeedMeta(meta);
-                        setHasMore(meta ? 1 < meta.totalPages : (data.length === POSTS_PER_PAGE));
-                        setFeedPage(1);
-                    }
-                } catch (err) {
-                    const e = err as any;
-                    console.error('Failed to fetch feed initial page, falling back to community aggregation:', e.message ?? e);
-                    if (e.config) console.error('Request URL:', e.config.url, 'method:', e.config.method);
-                    if (e.response) console.error('Response status:', e.response.status, 'data:', e.response.data);
-                    await fetchPostsFromCommunities(communitiesResponse.data);
-                }
 
                 // Fetch deadlines/submissions based on role
                 if (normalizedUser.role === 'student') {
@@ -468,69 +328,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
         fetchInitialData();
     }, [navigate]);
 
-    // When user selects the 'New' or 'Top' tab, refresh the feed from backend
-    useEffect(() => {
-        const fetchNewOrTopFeed = async () => {
-            if (activeTab !== 'new' && activeTab !== 'top') return;
-            setIsLoadingMore(true);
-            try {
-                if (user?.role === 'instructor') {
-                    const sort = activeTab === 'top' ? 'top' : 'new';
-                    const res = await instructorApi.getFeed({ page: 1, limit: POSTS_PER_PAGE, sort, cid: undefined });
-                    const data = res?.data || [];
-                    const meta = res?.meta ?? null;
-                    setPosts(data as PostResponse[]);
-                    setDisplayedPosts(data as PostResponse[]);
-                    setFeedMeta(meta);
-                    setHasMore(meta ? 1 < meta.totalPages : data.length === POSTS_PER_PAGE);
-                    setFeedPage(1);
-                } else {
-                    // non-instructors still use the public posts endpoint; 'top' sorting handled client-side if needed
-                    const res = await postApi.getAll({ page: 1, limit: POSTS_PER_PAGE });
-                    const data = res?.data || [];
-                    const meta = res?.meta ?? null;
-                    setPosts(data as PostResponse[]);
-                    setDisplayedPosts(data as PostResponse[]);
-                    setFeedMeta(meta);
-                    setHasMore(meta ? 1 < meta.totalPages : data.length === POSTS_PER_PAGE);
-                    setFeedPage(1);
-                }
-            } catch (err) {
-                const e = err as any;
-                console.error(`Failed to fetch "${activeTab}" feed:`, e.message ?? e);
-                if (e.config) console.error('Request URL:', e.config.url, 'method:', e.config.method);
-                if (e.response) console.error('Response status:', e.response.status, 'data:', e.response.data);
-            } finally {
-                setIsLoadingMore(false);
-            }
-        };
-
-        void fetchNewOrTopFeed();
-    }, [activeTab, user?.role]);
-
-    const fetchPostsFromCommunities = async (communityList: CommunityResponse[]) => {
-        try {
-            const allPosts: PostResponse[] = [];
-
-            for (const community of communityList.slice(0, 10)) { // Limit to first 10 communities
-                try {
-                    const postsResponse = await postApi.getByCommunity(community.id, { limit: 10 });
-                    allPosts.push(...postsResponse.data);
-                } catch (err) {
-                    console.error(`Failed to fetch posts for community ${community.id}:`, err);
-                }
-            }
-
-            // Sort by date (newest first)
-            allPosts.sort((a, b) => new Date(b.post_date).getTime() - new Date(a.post_date).getTime());
-            setPosts(allPosts);
-        } catch (err) {
-            console.error('Failed to fetch posts:', err);
-        }
-    };
-
-
-
+    // The Feed component now manages its own tab changes and pagination logic
 
 
 
@@ -579,7 +377,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                     user={null as any}
                     onLogout={onLogout}
                     searchValue=""
-                    onSearchChange={() => {}}
+                    onSearchChange={() => { }}
                     searchedPosts={[]}
                     searchedCommunities={[]}
                     isSearching={false}
@@ -611,75 +409,72 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
     // Render the page
     return (
         <>
-        <div className="bg-background">
-            <Header
-                user={user}
-                onLogout={onLogout}
-                searchValue={exploreSearch}
-                onSearchChange={setExploreSearch}
-                searchedPosts={searchedPosts}
-                searchedCommunities={searchedCommunities}
-                isSearching={isSearching}
-            />
-            <div className="flex min-h-screen bg-background text-foreground font-sans">
-                <Sidebar onLogout={onLogout} />
+            <div className="bg-background">
+                <Header
+                    user={user}
+                    onLogout={onLogout}
+                    searchValue={exploreSearch}
+                    onSearchChange={setExploreSearch}
+                    searchedPosts={searchedPosts}
+                    searchedCommunities={searchedCommunities}
+                    isSearching={isSearching}
+                />
+                <div className="flex min-h-screen bg-background text-foreground font-sans">
+                    <Sidebar onLogout={onLogout} />
 
-                {/* Main Content Area */}
-                <main
-                    className="flex-1 p-4 sm:p-6 transition-all duration-300"
-                    style={{ marginLeft: `${sidebarWidth}px` }}
-                >
-                    <div className="w-full max-w-7xl mx-auto">
-                        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
-                            <Feed
-                                user={user}
-                                fetchPostsFromCommunities={fetchPostsFromCommunities}
-                                communities={communities}
-                                activeTab={activeTab}
-                                setActiveTab={setActiveTab}
-                                filterRef={filterRef}
-                                isFilterOpen={isFilterOpen}
-                                setIsFilterOpen={setIsFilterOpen}
-                                filterSearch={filterSearch}
-                                setFilterSearch={setFilterSearch}
-                                postTitleSearch={postTitleSearch}
-                                setPostTitleSearch={setPostTitleSearch}
-                                displayedPosts={displayedPosts}
-                                posts={posts}
-                                loadMoreRef={loadMoreRef}
-                                isLoadingMore={isLoadingMore}
-                                hasMore={hasMore}
-                                getCommunityName={getCommunityName}
-                            />
-                            <RightSide
-                                user={user}
-                                pendingSubmissions={pendingSubmissions}
-                                deadlines={deadlines}
-                                communities={communities}
-                                privateCommunities={privateCommunities}
-                                communityFilterSearch={communityFilterSearch}
-                                isCommunityFilterOpen={isCommunityFilterOpen}
-                                communityFilterRef={communityFilterRef}
-                                setIsCommunityFilterOpen={setIsCommunityFilterOpen}
-                                setCommunityFilterSearch={setCommunityFilterSearch}
-                                joiningCommunityId={joiningCommunityId}
-                                onJoinCommunity={handleJoinCommunity}
-                                enrolledCommunityIds={enrolledCommunityIds}
-                                onNavigate={(id: string) => navigate(`/community/${id}`)}
-                                navigate={navigate}
-                                handleLoadMorePublic={handleLoadMorePublic}
-                                isLoadingPublic={isLoadingPublic}
-                                hasMorePublic={hasMorePublic}
-                                handleLoadMorePrivate={handleLoadMorePrivate}
-                                isLoadingPrivate={isLoadingPrivate}
-                                hasMorePrivate={hasMorePrivate}
-                            />
+                    {/* Main Content Area */}
+                    <main
+                        className="flex-1 p-4 sm:p-6 transition-all duration-300"
+                        style={{ marginLeft: `${sidebarWidth}px` }}
+                    >
+                        <div className="w-full max-w-7xl mx-auto">
+                            <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+                                <Feed
+                                    user={user}
+                                    communities={communities}
+                                    activeTab={activeTab}
+                                    setActiveTab={setActiveTab}
+                                    filterRef={filterRef}
+                                    isFilterOpen={isFilterOpen}
+                                    setIsFilterOpen={setIsFilterOpen}
+                                    filterSearch={filterSearch}
+                                    setFilterSearch={setFilterSearch}
+                                    postTitleSearch={postTitleSearch}
+                                    setPostTitleSearch={setPostTitleSearch}
+                                    loadMoreRef={loadMoreRef}
+                                    getCommunityName={getCommunityName}
+                                />
+                                <RightSide
+                                    user={user}
+                                    pendingSubmissions={pendingSubmissions}
+                                    deadlines={deadlines}
+                                    communities={communities}
+                                    privateCommunities={privateCommunities}
+                                    communityFilterSearch={communityFilterSearch}
+                                    isCommunityFilterOpen={isCommunityFilterOpen}
+                                    communityFilterRef={communityFilterRef}
+                                    setIsCommunityFilterOpen={setIsCommunityFilterOpen}
+                                    setCommunityFilterSearch={setCommunityFilterSearch}
+                                    joiningCommunityId={joiningCommunityId}
+                                    onJoinCommunity={handleJoinCommunity}
+                                    enrolledCommunityIds={enrolledCommunityIds}
+                                    onNavigate={(id: string) => navigate(`/community/${id}`)}
+                                    navigate={navigate}
+                                    handlePageChangePublic={handlePageChangePublic}
+                                    publicPage={publicPage}
+                                    publicMeta={publicMeta}
+                                    isLoadingPublic={isLoadingPublic}
+                                    handlePageChangePrivate={handlePageChangePrivate}
+                                    privatePage={privatePage}
+                                    privateMeta={privateMeta}
+                                    isLoadingPrivate={isLoadingPrivate}
+                                />
+                            </div>
                         </div>
-                    </div>
-                </main>
-            </div>
+                    </main>
+                </div>
 
-        </div>
+            </div>
         </>
     );
 };

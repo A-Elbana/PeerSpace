@@ -1,11 +1,12 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Sparkles, Loader2, BookOpen, Rocket, X, Clock, Filter, ArrowBigUp, Search } from 'lucide-react';
-import { instructorApi, postApi, studentApi } from '../../services/api';
-import CreatePostWidget from '../../components/posts/CreatePostWidget';
-import PostCard from '../../components/posts/PostCard';
+import { instructorApi } from '../../services/api';
+import CreatePostWidget from '../posts/CreatePostWidget';
+import PostCard from '../posts/PostCard';
 
 interface FeedProps {
   user?: any;
+  fetchPostsFromCommunities: (c: any[]) => Promise<void>;
   communities: any[];
   activeTab: string;
   setActiveTab: (s: string) => void;
@@ -16,13 +17,19 @@ interface FeedProps {
   setFilterSearch: (v: string) => void;
   postTitleSearch: string;
   setPostTitleSearch: (v: string) => void;
+  displayedPosts: any[];
+  posts: any[];
   loadMoreRef: React.RefObject<HTMLDivElement | null>;
+  isLoadingMore: boolean;
+  hasMore: boolean;
   getCommunityName: (cid: string) => string;
 };
 
-const Feed: React.FC<FeedProps> = (props) => {
+const InstructorFeed: React.FC<FeedProps> = (props) => {
   const {
     user,
+    fetchPostsFromCommunities,
+    communities,
     activeTab,
     setActiveTab,
     filterRef,
@@ -33,13 +40,16 @@ const Feed: React.FC<FeedProps> = (props) => {
     postTitleSearch,
     setPostTitleSearch,
 
+    posts,
     loadMoreRef,
+    isLoadingMore,
 
     getCommunityName,
   } = props;
 
   // Internal paginated state (fetch 10 posts per page)
   const [postsList, setPostsList] = useState<any[]>([]);
+  const [page, setPage] = useState<number>(1);
   const [isLoadingPage, setIsLoadingPage] = useState<boolean>(false);
   const [hasMoreLocal, setHasMoreLocal] = useState<boolean>(true);
   const internalLoadRef = useRef<HTMLDivElement | null>(null);
@@ -48,23 +58,17 @@ const Feed: React.FC<FeedProps> = (props) => {
 
   const sentinelRef = loadMoreRef ?? internalLoadRef;
 
-  const fetchPage = async (p: number) => {
+  const fetchPage = useCallback(async (p: number) => {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
+    setIsLoadingPage(true);
     try {
-      setIsLoadingPage(true);
       let res: any;
-      if (user?.role === 'instructor') {
-        if (activeTab === 'unresolved') {
-          res = await instructorApi.getUnresolvedPosts({ page: p, limit: 10, cid: undefined });
-        } else {
-          res = await instructorApi.getFeed({ page: p, limit: 10, sort: activeTab as any, cid: undefined });
-        }
-      } else if (user?.role === 'student') {
-        res = await studentApi.getFeed({ page: p, limit: 10, sort: activeTab as any });
+      // Instructor-only feed: unresolved or normal feed
+      if (activeTab === 'unresolved') {
+        res = await instructorApi.getUnresolvedPosts({ page: p, limit: 10, cid: undefined });
       } else {
-        res = await postApi.getAll({ page: p, limit: 10 });
-        
+        res = await instructorApi.getFeed({ page: p, limit: 10, sort: activeTab as any });
       }
 
       const newPosts = res.data || [];
@@ -72,25 +76,30 @@ const Feed: React.FC<FeedProps> = (props) => {
       if (p === 1) setPostsList(newPosts);
       else setPostsList(prev => [...prev, ...newPosts]);
 
-      const totalPages = meta.totalPages || 1;
-      setHasMoreLocal(p < totalPages);
+      const totalPages = typeof meta?.totalPages === 'number' ? meta.totalPages : undefined;
+      setHasMoreLocal(totalPages ? p < totalPages : newPosts.length === 10);
+
+      // update refs/state for next page
       pageRef.current = p + 1;
+      setPage(p + 1);
     } catch (err) {
       console.error('Failed to load posts page', err);
+      // stop trying further pages on repeated errors (prevents infinite retry loop)
       setHasMoreLocal(false);
     } finally {
-      setIsLoadingPage(false);
       fetchingRef.current = false;
+      setIsLoadingPage(false);
     }
-  };
+  }, [user?.role, activeTab]);
 
   // Load first page when activeTab or selectedCommunity changes
   useEffect(() => {
     pageRef.current = 1;
+    setPage(1);
     setHasMoreLocal(true);
     void fetchPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, fetchPage]);
 
   // Intersection observer to load more pages
   useEffect(() => {
@@ -106,7 +115,7 @@ const Feed: React.FC<FeedProps> = (props) => {
     obs.observe(el);
     return () => obs.disconnect();
     // include relevant deps
-  }, [sentinelRef, isLoadingPage, hasMoreLocal]);
+  }, [sentinelRef, isLoadingPage, hasMoreLocal, fetchPage]);
 
   return (
     <div className="flex-1 min-w-0 space-y-4 lg:max-w-2xl lg:mx-auto">
@@ -125,32 +134,29 @@ const Feed: React.FC<FeedProps> = (props) => {
 
       <CreatePostWidget
         currentUser={user || undefined}
-        onCreated={() => void fetchPage(1)}
+        onCreated={() => fetchPostsFromCommunities(communities)}
       />
 
       <div className="flex items-center gap-4 text-sm font-medium text-muted-foreground mb-2">
-        {user?.role !== 'admin' && (
-          <>
-            <button
-              onClick={() => setActiveTab('new')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${activeTab === 'new' ? 'text-primary bg-muted' : ''}`}
-            >
-              <Clock size={18} /> New
-            </button>
-            <button
-              onClick={() => { setActiveTab('top'); }}
-              className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${activeTab === 'top' ? 'text-primary bg-muted' : ''}`}
-            >
-              <ArrowBigUp size={18} /> Top
-            </button>
-          </>
-        )}
+        {/* 'Popular' filter removed; kept tabs: New, Top */}
+        <button
+          onClick={() => setActiveTab('new')}
+          className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${activeTab === 'new' ? 'text-primary bg-muted' : ''}`}
+        >
+          <Clock size={18} /> New
+        </button>
+        <button
+          onClick={() => { setActiveTab('top'); }}
+          className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${activeTab === 'top' ? 'text-primary bg-muted' : ''}`}
+        >
+          <ArrowBigUp size={18} /> Top
+        </button>
 
         {user?.role === 'instructor' && (
           <button
             onClick={() => {
               setActiveTab('unresolved');
-              pageRef.current = 1;
+              setPage(1);
               setHasMoreLocal(true);
               void fetchPage(1);
             }}
@@ -225,7 +231,7 @@ const Feed: React.FC<FeedProps> = (props) => {
         </div>
       )}
 
-      {(postTitleSearch ? postsList.filter((p: any) => p.title.toLowerCase().includes(postTitleSearch.toLowerCase())).length === 0 : postsList.length === 0) ? (
+      {(postTitleSearch ? posts.filter(p => p.title.toLowerCase().includes(postTitleSearch.toLowerCase())).length === 0 : posts.length === 0) ? (
         <div className="bg-card rounded-xl border border-border p-12 text-center relative overflow-hidden">
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             <div className="absolute -top-10 -right-10 w-40 h-40 bg-linear-to-br from-frosted-blue-500/10 to-turf-green-500/10 rounded-full blur-3xl" />
@@ -267,12 +273,13 @@ const Feed: React.FC<FeedProps> = (props) => {
                 key={post.id}
                 post={post}
                 communityName={getCommunityName(post.cid)}
+                onNavigate={(id?: string) => { if (id) window.location.pathname = `/community/${id}`; }}
                 currentUser={user}
               />
             ))}
 
           <div ref={sentinelRef as any} className="py-4">
-            {(isLoadingPage) && (
+            {(isLoadingPage || isLoadingMore) && (
               <div className="flex items-center justify-center gap-3">
                 <Loader2 className="w-5 h-5 text-frosted-blue-500 animate-spin" />
                 <span className="text-sm text-muted-foreground">Loading more posts...</span>
@@ -293,4 +300,4 @@ const Feed: React.FC<FeedProps> = (props) => {
   );
 };
 
-export default Feed;
+export default InstructorFeed;
