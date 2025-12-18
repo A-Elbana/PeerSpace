@@ -345,6 +345,16 @@ export const communityApi = {
     });
     return response.data;
   },
+
+  isEnrolled: async (
+    id: string
+  ): Promise<{
+    success: boolean;
+    isEnrolled: boolean;
+  }> => {
+    const response = await api.get(`/communities/${id}/is-enrolled`);
+    return response.data;
+  },
 };
 
 // Helper function to transform badge names (remove underscores)

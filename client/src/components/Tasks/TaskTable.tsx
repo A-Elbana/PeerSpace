@@ -80,7 +80,7 @@ const AssigneeAvatar: React.FC<{ assignee: Assignee; index: number }> = ({ assig
 };
 
 export const TaskTable: React.FC<Props> = ({ taskList, title, isFetching = false, updatingTaskIds = [], onRowClick, onToggleComplete, onDelete }) => {
-    console.log(taskList);
+    
   return (
     <div className="mb-8">
       <h2 className="text-xl font-semibold mb-4 text-foreground flex items-center gap-2">

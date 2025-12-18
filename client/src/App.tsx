@@ -21,7 +21,7 @@ import ManageCommunity from './pages/ManageCommunity';
 import AssignmentDetails from './pages/Assignments/AssignmentDetails';
 import Assignments from './pages/Assignments/Assignments';
 import { Submissions, SubmissionDetail } from './pages/Submissions';
-import Schedule from './pages/Schedule/Schedule';
+import Schedule from './pages/Schedule/Schedule.tsx';
 import FileAttachmentTest from './pages/FileTest';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';

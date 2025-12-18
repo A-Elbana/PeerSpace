@@ -153,7 +153,6 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
   const [userVote, setUserVote] = useState<boolean | null>(null);
 
   useEffect(() => {
-    console.log(post);
     
     let mounted = true;
     (async () => {

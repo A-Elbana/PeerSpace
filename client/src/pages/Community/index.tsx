@@ -67,6 +67,7 @@ const Community: React.FC = () => {
 
   // Set page title
   useEffect(() => {
+    
     document.title = community ? `PeerSpace - ${community.name}` : 'PeerSpace - Community';
   }, [community]);
 
@@ -101,13 +102,14 @@ const Community: React.FC = () => {
       try {
         setIsLoading(true);
 
-        // Fetch community details
-        const communityResponse = await communityApi.getById(communityId);
-        setCommunity(communityResponse.data);
+        // Fetch community details and enrollment status in parallel
+        const [communityResponse, enrollmentResponse] = await Promise.all([
+          communityApi.getById(communityId),
+          communityApi.isEnrolled(communityId)
+        ]);
 
-        // Some APIs return membership status; default to true if unknown so existing behavior is preserved
-        const membershipFlag = (communityResponse.data as any).isEnrolled ?? (communityResponse.data as any).is_member ?? true;
-        setIsEnrolledInCommunity(Boolean(membershipFlag));
+        setCommunity(communityResponse.data);
+        setIsEnrolledInCommunity(enrollmentResponse.isEnrolled);
 
       } catch (error: unknown) {
         console.error('Failed to fetch community:', error);
@@ -451,6 +453,7 @@ const Community: React.FC = () => {
               )}
 
               {/* Assignments Widget */}
+              {isEnrolledInCommunity && (
               <div className="bg-card border border-border rounded-xl p-4 mb-6 shadow-sm space-y-4">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -467,10 +470,9 @@ const Community: React.FC = () => {
                   showCreateButton={false}
                   variant="compact"
                   showMoreButton={true}
-                  showAllLink={false}
                   onAssignmentClick={(assignment) => navigate(`/community/${community.id}/assignment/${assignment.id}`)}
                 />
-              </div>
+              </div>)}
 
               <MembersPanel
                 communityId={community.id}

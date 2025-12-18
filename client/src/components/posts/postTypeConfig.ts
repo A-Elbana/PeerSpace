@@ -39,7 +39,6 @@ export const POST_TYPE_CONFIGS: Record<PostType, PostTypeConfig> = {
 
 export const getPostTypeConfig = (type: string): PostTypeConfig => {
   const normalizedType = type.toUpperCase() as PostType;
-  console.log(POST_TYPE_CONFIGS[normalizedType]);
   
   return POST_TYPE_CONFIGS[normalizedType] || POST_TYPE_CONFIGS.DISCUSSION;
 };
