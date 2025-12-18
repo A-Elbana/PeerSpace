@@ -98,6 +98,13 @@ router.post(
  *         description: Server error
  */
 router.post("/login", validateLogin, handleValidationErrors, loginUser);
+router.all("/login", (req, res) => {
+  res.status(405).json({
+    message: `Method ${req.method} not allowed on /login. Use POST.`,
+    receivedMethod: req.method,
+    url: req.originalUrl
+  });
+});
 
 /**
  * @swagger

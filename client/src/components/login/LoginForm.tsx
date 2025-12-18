@@ -66,6 +66,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
             console.error('Login failed', err);
             const axiosError = err as { response?: { status?: number; data?: { message?: string } } };
             console.error('Status:', axiosError.response?.status);
+            console.error('Data:', axiosError.response?.data);
             console.error('Message:', axiosError.response?.data?.message);
 
             // Extract detailed error message from response

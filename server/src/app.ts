@@ -36,13 +36,30 @@ import { startNotificationBroadcaster } from "./services/notificationBroadcaster
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
+// Health check - At the very top for debugging
+app.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    env: process.env.NODE_ENV,
+    time: new Date().toISOString(),
+    version: "1.0.1"
+  });
+});
+
 // Create HTTP server so Socket.io can attach
 const server = http.createServer(app);
 
-// Middleware - Order matters!
-// 1. CORS configuration
+const cors = require("cors");
+const corsMiddleware = cors(getCorsConfig());
+
+// Middlewares
 app.use((req: Request, res: Response, next: NextFunction) => {
-  const corsMiddleware = require("cors")(getCorsConfig());
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`[Response] ${req.method} ${req.url} ${res.statusCode} ${duration}ms`);
+  });
+  console.log(`[Request] ${req.method} ${req.url}`);
   corsMiddleware(req, res, next);
 });
 
