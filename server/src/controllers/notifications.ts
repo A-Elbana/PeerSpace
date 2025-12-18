@@ -60,3 +60,22 @@ export const markAllRead = async (req: Request, res: Response) => {
   });
   res.json({ success: true, updated: updated.count });
 };
+
+export const deleteNotification = async (req: Request, res: Response) => {
+  const userId = (req as any).userId as number;
+  const id = (req as any).id ?? parseInt(String(req.params.id ?? ""), 10);
+
+  const deleted = await prisma.userNotification.deleteMany({
+    where: { id, recipientId: userId },
+  });
+
+  res.json({ success: true, deleted: deleted.count });
+};
+
+export const deleteAllNotifications = async (req: Request, res: Response) => {
+  const userId = (req as any).userId as number;
+  const deleted = await prisma.userNotification.deleteMany({
+    where: { recipientId: userId },
+  });
+  res.json({ success: true, deleted: deleted.count });
+};

@@ -1197,4 +1197,14 @@ export const notificationsApi = {
     const response = await api.post("/notifications/mark-all-read");
     return response.data;
   },
+
+  deleteNotification: async (id: number) => {
+    const response = await api.delete(`/notifications/${id}`);
+    return response.data;
+  },
+
+  deleteAll: async () => {
+    const response = await api.delete("/notifications");
+    return response.data;
+  },
 };
