@@ -1,14 +1,26 @@
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
 
+type BadgeRarity = "COMMON" | "RARE" | "EPIC" | "LEGENDARY";
+
 /**
  * Create a new badge (Admin only)
- * Expects: name, icon_url
+ * Expects: name, description (optional), rarity (optional)
  */
 export const createBadge = async (req: Request, res: Response) => {
-  const { name, icon_url } = req.body;
+  const { name, description, rarity } = req.body;
 
   try {
+    if (!name || typeof name !== "string" || name.trim() === "") {
+      return res.status(400).json({ message: "Badge name is required" });
+    }
+
+    // If rarity provided, validate it
+    const allowedRarities = ["COMMON", "RARE", "EPIC", "LEGENDARY"];
+    if (rarity !== undefined && !allowedRarities.includes(rarity)) {
+      return res.status(400).json({ message: "Invalid rarity value" });
+    }
+
     // Check if badge with same name already exists
     const existingBadge = await prisma.badge.findFirst({
       where: { name: name.trim() },
@@ -20,11 +32,15 @@ export const createBadge = async (req: Request, res: Response) => {
         .json({ message: "Badge with this name already exists" });
     }
 
+    const data: any = {
+      name: name.trim(),
+    };
+
+    if (description !== undefined) data.description = description?.trim();
+    if (rarity !== undefined) data.rarity = rarity;
+
     const badge = await prisma.badge.create({
-      data: {
-        name: name.trim(),
-        icon_url: icon_url.trim(),
-      },
+      data,
     });
 
     return res.status(201).json({
@@ -229,24 +245,36 @@ export const getBadgeById = async (req: Request, res: Response) => {
 /**
  * Update a badge (Admin only)
  * Params: id
- * Body: name (optional), icon_url (optional)
+ * Body: name (optional), description (optional), rarity (optional)
  */
 export const updateBadge = async (req: Request, res: Response) => {
   const badgeId = parseInt(req.params.id || "");
-  const { name, icon_url } = req.body;
+  const { name, description, rarity } = req.body;
 
   if (isNaN(badgeId)) {
     return res.status(400).json({ message: "Invalid badge ID" });
   }
 
-  const updateData: { name?: string; icon_url?: string } = {};
+  const updateData: {
+    name?: string;
+    description?: string;
+    rarity?: BadgeRarity;
+  } = {};
 
   if (name !== undefined) {
     updateData.name = name.trim();
   }
 
-  if (icon_url !== undefined) {
-    updateData.icon_url = icon_url.trim();
+  if (description !== undefined) {
+    updateData.description = description.trim();
+  }
+
+  if (rarity !== undefined) {
+    const allowedRarities = ["COMMON", "RARE", "EPIC", "LEGENDARY"];
+    if (!allowedRarities.includes(rarity)) {
+      return res.status(400).json({ message: "Invalid rarity value" });
+    }
+    updateData.rarity = rarity as BadgeRarity;
   }
 
   if (Object.keys(updateData).length === 0) {
