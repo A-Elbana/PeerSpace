@@ -4,6 +4,10 @@ import { Role, CommunityType } from "../generated/prisma/client";
 import ActivityLogService, {
   ActivityActionType,
 } from "../services/ActivityLogService";
+import {
+  isUserMemberOfCommunity,
+  isUserManagerOfCommunity,
+} from "../utils/helpers";
 
 const isValidUUID = (value: string): boolean => {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
@@ -288,5 +292,51 @@ export const removeStudentFromCommunity = async (
     res
       .status(500)
       .json({ message: "Failed to remove student from community" });
+  }
+};
+
+/**
+ * Check if user is enrolled/managing a community
+ * For STUDENT: checks if enrolled in the community
+ * For INSTRUCTOR: checks if managing the community
+ */
+export const isEnrolledInCommunity = async (req: Request, res: Response) => {
+  const community = (req as any).community;
+  const userId = (req as any).userId;
+  const userRole = (req as any).role;
+
+  try {
+    if (userRole === Role.STUDENT) {
+      const isMember = await isUserMemberOfCommunity(userId, community.id);
+      return res.status(200).json({
+        success: true,
+        isEnrolled: isMember,
+        message: isMember
+          ? "User is enrolled in this community"
+          : "User is not enrolled in this community",
+      });
+    }
+
+    if (userRole === Role.INSTRUCTOR) {
+      const isManager = await isUserManagerOfCommunity(userId, community.id);
+      return res.status(200).json({
+        success: true,
+        isEnrolled: isManager,
+        message: isManager
+          ? "Instructor manages this community"
+          : "Instructor does not manage this community",
+      });
+    }
+
+    return res.status(403).json({
+      success: false,
+      message: "Only students or instructors can check enrollment status",
+    });
+  } catch (error: any) {
+    console.error("Check Enrollment Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to check enrollment status",
+    });
   }
 };
