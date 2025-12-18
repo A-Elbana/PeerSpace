@@ -30,10 +30,13 @@ const router = Router();
  *         name:
  *           type: string
  *           description: Badge name
- *         icon_url:
+ *         description:
  *           type: string
- *           format: uri
- *           description: URL to the badge icon
+ *           description: Optional badge description
+ *         rarity:
+ *           type: string
+ *           description: Badge rarity
+ *           enum: [COMMON, RARE, EPIC, LEGENDARY]
  *         _count:
  *           type: object
  *           properties:
@@ -44,17 +47,19 @@ const router = Router();
  *       type: object
  *       required:
  *         - name
- *         - icon_url
  *       properties:
  *         name:
  *           type: string
  *           minLength: 1
  *           maxLength: 255
  *           description: Badge name
- *         icon_url:
+ *         description:
  *           type: string
- *           format: uri
- *           description: URL to the badge icon
+ *           description: Optional badge description
+ *         rarity:
+ *           type: string
+ *           description: Badge rarity
+ *           enum: [COMMON, RARE, EPIC, LEGENDARY]
  *     BadgeUpdateInput:
  *       type: object
  *       properties:
@@ -63,10 +68,13 @@ const router = Router();
  *           minLength: 1
  *           maxLength: 255
  *           description: Badge name
- *         icon_url:
+ *         description:
  *           type: string
- *           format: uri
- *           description: URL to the badge icon
+ *           description: Optional badge description
+ *         rarity:
+ *           type: string
+ *           description: Badge rarity
+ *           enum: [COMMON, RARE, EPIC, LEGENDARY]
  *     BadgePaginatedResponse:
  *       type: object
  *       properties:
@@ -106,7 +114,8 @@ const router = Router();
  *             $ref: '#/components/schemas/BadgeCreateInput'
  *           example:
  *             name: "Top Contributor"
- *             icon_url: "https://example.com/icons/top-contributor.png"
+ *             description: "Awarded for outstanding contributions"
+ *             rarity: "RARE"
  *     responses:
  *       201:
  *         description: Badge created successfully

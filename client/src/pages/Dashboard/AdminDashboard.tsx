@@ -12,9 +12,11 @@ import {
     Lock,
     Globe,
     UserPlus,
-    CheckCircle
+    CheckCircle,
+    Award
 } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+import { toast } from 'sonner';
 
 // Components
 import { Sidebar } from '../../components/dashboard';
@@ -46,6 +48,8 @@ import UserManagementModal from '../../components/dashboard/UserManagementModal'
 import CommunityManagementModal from '../../components/dashboard/CommunityManagementModal';
 import PostManagementModal from '../../components/dashboard/PostManagementModal';
 import CreateCommunityModal, { type CreateCommunityData } from '../../components/dashboard/CreateCommunityModal';
+import { CreateBadgeModal } from '../../components/dashboard';
+import { badgeApi } from '../../services/api';
 import CreateUserModal, { type CreateUserData } from '../../components/dashboard/CreateUserModal';
 
 // API
@@ -356,6 +360,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
     const [isCreatingCommunity, setIsCreatingCommunity] = useState(false);
     const [createUserOpen, setCreateUserOpen] = useState(false);
     const [isCreatingUser, setIsCreatingUser] = useState(false);
+    const [createBadgeOpen, setCreateBadgeOpen] = useState(false);
+    const [isCreatingBadge, setIsCreatingBadge] = useState(false);
 
     // Reusable fetch functions
     const fetchStats = async () => {
@@ -882,6 +888,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                                             <Building2 className="w-4 h-4" />
                                             Create Community
                                         </Button>
+                                        <Button
+                                            className="gap-2 ml-2 bg-turf-green-500 hover:bg-turf-green-600 text-white"
+                                            onClick={() => setCreateBadgeOpen(true)}
+                                        >
+                                            <Award className="w-4 h-4" />
+                                            Create Badge
+                                        </Button>
                                     </div>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
@@ -1396,6 +1409,31 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                     }
                 }}
             />
+
+                        {/* Create Badge Modal */}
+                        <CreateBadgeModal
+                            isOpen={createBadgeOpen}
+                            onClose={() => setCreateBadgeOpen(false)}
+                            isLoading={isCreatingBadge}
+                            onSubmit={async (data) => {
+                                try {
+                                    setIsCreatingBadge(true);
+                                    await badgeApi.create({
+                                        name: data.name,
+                                        description: data.description,
+                                        rarity: data.rarity,
+                                    });
+                                    toast.success('Badge created successfully');
+                                    setCreateBadgeOpen(false);
+                                } catch (err) {
+                                    console.error('Failed to create badge:', err);
+                                    toast.error('Failed to create badge');
+                                    throw err;
+                                } finally {
+                                    setIsCreatingBadge(false);
+                                }
+                            }}
+                        />
         </div>
     );
 };

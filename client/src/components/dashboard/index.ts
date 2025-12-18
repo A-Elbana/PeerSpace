@@ -7,6 +7,7 @@ export { default as TodoList } from './TodoList';
 export { default as RecentCourseActivity } from './RecentCourseActivity';
 export { default as NotificationDropdown } from './NotificationDropdown';
 export { default as CreateCommunityModal } from './CreateCommunityModal';
+export { default as CreateBadgeModal } from './CreateBadgeModal';
 
 // Instructor-specific components
 export { default as ManageCourses } from './ManageCourses';
