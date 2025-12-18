@@ -1,23 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Clock, TrendingUp, Lock, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Dashboard Components
-import {
-  Sidebar,
-  Header,
-  MetricCard,
-  MyCourses,
-} from '../../components/dashboard';
+import { Sidebar, Header } from '../../components/dashboard';
 import { useSidebar } from '../../contexts/SidebarContext';
 
-import { communityApi, type CommunityResponse, assignmentApi, submissionApi } from '../../services/api';
+import {
+  communityApi,
+  type CommunityResponse,
+  assignmentApi,
+  submissionApi,
+  type PaginationMeta,
+} from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-
-// Types
-import type { Course } from '../../components/dashboard/MyCourses';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 
 interface StudentDashboardProps {
   user: {
@@ -41,8 +40,22 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
 
   // State
   const [isLoading, setIsLoading] = useState(true);
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [upcomingDeadlines, setUpcomingDeadlines] = useState<any[]>([]);
+
+  // Communities (server-side paginated)
+  const [communities, setCommunities] = useState<CommunityResponse[]>([]);
+  const [communitiesMeta, setCommunitiesMeta] = useState<PaginationMeta | null>(null);
+  const [communitiesPage, setCommunitiesPage] = useState(1);
+  const communitiesLimit = 10;
+
+  // Assignments (server-side paginated, filtered by selected community)
+  const [selectedCommunityId, setSelectedCommunityId] = useState<string>('');
+  const [assignments, setAssignments] = useState<Array<any>>([]);
+  const [assignmentsMeta, setAssignmentsMeta] = useState<PaginationMeta | null>(null);
+  const [assignmentsPage, setAssignmentsPage] = useState(1);
+  const assignmentsLimit = 10;
+
+  // Submissions for status mapping
+  const [submittedAssignmentIds, setSubmittedAssignmentIds] = useState<Set<number>>(new Set());
 
   // Private community enrollment state
   const [communityCode, setCommunityCode] = useState('');
@@ -56,60 +69,36 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
     try {
       setIsLoading(true);
 
-      // Fetch communities the student is enrolled in
-      const communitiesResponse = await communityApi.getMyCommunities({ limit: 50 });
+      // Communities (paginated)
+      const communitiesResponse = await communityApi.getMyCommunities({ page: communitiesPage, limit: communitiesLimit });
+      setCommunities(communitiesResponse.data);
+      setCommunitiesMeta(communitiesResponse.meta);
 
-      // Map communities to Course format
-      const enrolledCourses: Course[] = communitiesResponse.data.map((community: CommunityResponse) => ({
-        id: community.id,
-        name: community.name,
-        instructor: '', // Will be populated when we have instructor info
-        status: 'enrolled' as const,
-      }));
+      // Default selection to first community if none selected
+      const defaultCid = selectedCommunityId || communitiesResponse.data[0]?.id || '';
+      setSelectedCommunityId(prev => prev || defaultCid);
 
-      setCourses(enrolledCourses);
-
-      // Fetch assignments for all courses to populate deadlines
-      const assignmentPromises = enrolledCourses.map(course =>
-        assignmentApi.getByCommunity(course.id, { limit: 50 })
-          .then(res => res.data.map((a: any) => ({
-            ...a,
-            communityName: course.name,
-            type: 'assignment'
-          })))
-          .catch(() => [])
-      );
-
-      const allAssignments = (await Promise.all(assignmentPromises)).flat();
-
-      // Fetch student's submissions to determine submission status
-      let submittedAssignmentIds = new Set<number>();
+      // Submissions for status
       try {
-        const mySubmissions = await submissionApi.getMySubmissions({ limit: 100 });
-        submittedAssignmentIds = new Set(mySubmissions.data.map(sub => sub.aid));
+        const mySubmissions = await submissionApi.getMySubmissions({ page: 1, limit: 200 });
+        setSubmittedAssignmentIds(new Set(mySubmissions.data.map(sub => sub.aid)));
       } catch (error) {
         console.error('Failed to fetch submissions:', error);
       }
 
-      // Add submission status to each assignment
-      const assignmentsWithStatus = allAssignments.map((assignment: any) => ({
-        ...assignment,
-        submitted: submittedAssignmentIds.has(assignment.id)
-      }));
-
-      // Load Local Tasks
-      const storedTasks = localStorage.getItem('peerspace_personal_tasks')
-        ? JSON.parse(localStorage.getItem('peerspace_personal_tasks')!)
-        : [];
-
-      // Merge and Sort by Date
-      const mergedItems = [...assignmentsWithStatus, ...storedTasks].sort((a: any, b: any) => {
-        const dateA = a.due_date ? new Date(a.due_date).getTime() : (a.dueDate ? new Date(a.dueDate).getTime() : Infinity);
-        const dateB = b.due_date ? new Date(b.due_date).getTime() : (b.dueDate ? new Date(b.dueDate).getTime() : Infinity);
-        return dateA - dateB;
-      });
-
-      setUpcomingDeadlines(mergedItems.slice(0, 10)); // Top 10
+      // Assignments for selected community (paginated)
+      if (defaultCid) {
+        const assignmentsResp = await assignmentApi.getByCommunity(defaultCid, { page: assignmentsPage, limit: assignmentsLimit });
+        const enriched = assignmentsResp.data.map((a: any) => ({
+          ...a,
+          submitted: submittedAssignmentIds.has(a.id),
+        }));
+        setAssignments(enriched);
+        setAssignmentsMeta(assignmentsResp.meta);
+      } else {
+        setAssignments([]);
+        setAssignmentsMeta({ total: 0, page: 1, limit: assignmentsLimit, totalPages: 1 });
+      }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
     } finally {
@@ -146,8 +135,13 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
       setIsEnrolling(false);
     }
   };
-
-  const nextDue = upcomingDeadlines.find(i => i.type === 'assignment' && (!i.submitted) && (new Date(i.due_date) > new Date()));
+  const nextDue = useMemo(() => {
+    const now = new Date();
+    const upcoming = assignments
+      .filter(i => !i.submitted && i.due_date && new Date(i.due_date) > now)
+      .sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime());
+    return upcoming[0];
+  }, [assignments]);
 
   if (isLoading) {
     return (
@@ -173,110 +167,78 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
           subtitle={`Welcome back, ${user.fname}!`}
           showNewTaskButton={false}
         />
-
-        {/* Metric Cards Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <MetricCard
-            icon={Clock}
-            iconBgColor="bg-frosted-blue-100"
-            title="Next Assignment Due"
-            subtitle={nextDue ? `${nextDue.title} - ${new Date(nextDue.due_date).toLocaleDateString()}` : "No upcoming deadlines"}
-            onClick={() => nextDue && navigate(`/community/${nextDue.cid}/assignment/${nextDue.id}`)}
-          />
-          <MetricCard
-            icon={TrendingUp}
-            iconBgColor="bg-frosted-blue-100"
-            title="My Schedule"
-            subtitle="View your full task list and progress"
-            onClick={() => navigate('/schedule')}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-          {/* Main Column: Upcoming Deadlines */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-card border border-border rounded-xl shadow-sm">
-              <div className="p-6 border-b border-border flex justify-between items-center">
-                <h2 className="text-lg font-semibold">Upcoming Deadlines</h2>
-                <Button variant="ghost" size="sm" onClick={() => navigate('/schedule')}>View All</Button>
-              </div>
-              <div className="divide-y divide-border">
-                {upcomingDeadlines.length > 0 ? (
-                  upcomingDeadlines.map((item, idx) => (
-                    <div key={idx} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() => {
-                        if (item.type === 'assignment') {
-                          navigate(`/community/${item.cid}/assignment/${item.id}`);
-                        }
-                      }}
-                    >
-                      <div>
-                        <h3 className={`font-medium ${item.completed || item.submitted ? 'text-muted-foreground line-through' : 'text-foreground dark:text-gray-100'}`}>
-                          {item.title}
-                        </h3>
-                        <div className="text-xs text-muted-foreground dark:text-gray-400 flex gap-2 mt-1">
-                          <span className="text-primary/80 dark:text-primary/100">{item.communityName || 'Personal'}</span>
-                          {item.due_date && <span>• Due {new Date(item.due_date).toLocaleDateString()}</span>}
-                        </div>
-                      </div>
-                      {item.type === 'assignment' && (() => {
-                        const now = new Date();
-                        const dueDate = item.due_date ? new Date(item.due_date) : null;
-                        const isOverdue = dueDate && dueDate < now && !item.submitted;
-                        const isSubmitted = item.submitted;
-
-                        let statusClass = 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400';
-                        let statusText = 'Pending';
-
-                        if (isSubmitted) {
-                          statusClass = 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400';
-                          statusText = 'Submitted';
-                        } else if (isOverdue) {
-                          statusClass = 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400';
-                          statusText = 'Overdue';
-                        }
-
-                        return (
-                          <div className={`text-xs px-2 py-1 rounded ${statusClass}`}>
-                            {statusText}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  ))
-                ) : (
-                  <div className="p-8 text-center text-muted-foreground">No upcoming tasks!</div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Side Column: Courses & Join */}
-          <div className="space-y-6">
-            <MyCourses
-              title="My Communities"
-              courses={courses}
-              onViewCourse={(id) => navigate(`/community/${id}`)}
-            />
-
-            {/* Join Private Community Section */}
-            <div className="bg-card rounded-xl border border-border shadow-sm p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 rounded-lg bg-frosted-blue-500/10 dark:bg-frosted-blue-500/20">
-                  <Lock className="h-5 w-5 text-purple-500" />
+        {/* Metric Cards Row (Admin-style Cards) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {/* Next Assignment Card */}
+          <Card className="rounded-xl border border-border bg-card hover:shadow-lg transition-all duration-300 relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-blue-500/5 before:to-transparent before:pointer-events-none">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 ring-1 ring-blue-500/20">
+                  <Clock className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground">Join Private Community</h3>
-                  <p className="text-sm text-muted-foreground">Enter the community ID shared by your instructor</p>
+                  <CardTitle className="text-base">Next Assignment</CardTitle>
+                  <CardDescription className="text-xs">Upcoming deadline</CardDescription>
                 </div>
               </div>
-              <div className="flex flex-col gap-3">
+            </CardHeader>
+            <CardContent>
+              {nextDue ? (
+                <div className="space-y-2 relative z-10">
+                  <p className="font-semibold text-foreground line-clamp-1">{nextDue.title}</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">{new Date(nextDue.due_date!).toLocaleDateString()}</p>
+                    <Button variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => navigate(`/community/${nextDue.cid}/assignment/${nextDue.id}`)}>Open</Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground py-2">No upcoming deadlines</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* My Schedule Card */}
+          <Card className="rounded-xl border border-border bg-card hover:shadow-lg transition-all duration-300 relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-green-500/5 before:to-transparent before:pointer-events-none">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-xl bg-green-500/10 dark:bg-green-500/20 ring-1 ring-green-500/20">
+                  <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">My Schedule</CardTitle>
+                  <CardDescription className="text-xs">Tasks & progress</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 relative z-10">
+                <p className="text-sm text-muted-foreground">View all tasks across communities</p>
+                <Button variant="default" size="sm" className="w-full bg-green-600 hover:bg-green-700" onClick={() => navigate('/schedule')}>View Schedule</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Join Private Community Card (moved from sidebar) */}
+          <Card className="rounded-xl border border-border bg-card hover:shadow-lg transition-all duration-300 relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-purple-500/5 before:to-transparent before:pointer-events-none">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 ring-1 ring-purple-500/20">
+                  <Lock className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Join Community</CardTitle>
+                  <CardDescription className="text-xs">Enter private ID</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 relative z-10">
                 <Input
                   type="text"
                   placeholder="Enter community ID"
                   value={communityCode}
                   onChange={(e) => setCommunityCode(e.target.value)}
-                  className="flex-1"
+                  className="h-9 text-sm"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       handleEnrollInPrivateCommunity();
@@ -286,7 +248,8 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
                 <Button
                   onClick={handleEnrollInPrivateCommunity}
                   disabled={isEnrolling || !communityCode.trim()}
-                  className="bg-frosted-blue-500 hover:bg-frosted-blue-600 text-white"
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                  size="sm"
                 >
                   {isEnrolling ? (
                     <>
@@ -294,9 +257,188 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
                       Joining...
                     </>
                   ) : (
-                    'Join Community'
+                    'Join Now'
                   )}
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+          {/* Main Column: Upcoming Assignments (Admin-style Table) */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-card border border-border rounded-xl shadow-sm">
+              <div className="p-6 border-b border-border flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-lg font-semibold">Upcoming Assignments</h2>
+                  <select
+                    className="text-sm bg-muted/40 border border-border rounded-md px-2 py-1"
+                    value={selectedCommunityId}
+                    onChange={async (e) => {
+                      const cid = e.target.value;
+                      setSelectedCommunityId(cid);
+                      setAssignmentsPage(1);
+                      setIsLoading(true);
+                      try {
+                        if (cid) {
+                          const resp = await assignmentApi.getByCommunity(cid, { page: 1, limit: assignmentsLimit });
+                          const enriched = resp.data.map((a: any) => ({ ...a, submitted: submittedAssignmentIds.has(a.id) }));
+                          setAssignments(enriched);
+                          setAssignmentsMeta(resp.meta);
+                        } else {
+                          setAssignments([]);
+                          setAssignmentsMeta({ total: 0, page: 1, limit: assignmentsLimit, totalPages: 1 });
+                        }
+                      } catch (err) {
+                        console.error('Failed to fetch assignments for community', err);
+                        setAssignments([]);
+                      } finally {
+                        setIsLoading(false);
+                      }
+                    }}
+                  >
+                    {communities.length === 0 ? (
+                      <option value="">No communities</option>
+                    ) : (
+                      communities.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))
+                    )}
+                  </select>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => navigate('/schedule')}>View Schedule</Button>
+              </div>
+
+              {/* Table Header */}
+              <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-6 py-4 bg-muted/30 border-b border-border text-sm font-medium text-muted-foreground">
+                <div>Title</div>
+                <div className="w-40 text-center">Due date</div>
+                <div className="w-28 text-center">Max points</div>
+                <div className="w-28 text-center">Submissions</div>
+                <div className="w-28 text-center">Status</div>
+              </div>
+
+              {/* Table Rows */}
+              <div className="divide-y divide-border">
+                {assignments.filter(a => a.due_date && !a.submitted).length === 0 ? (
+                  <div className="px-6 py-8 text-center text-muted-foreground">No upcoming or overdue assignments found.</div>
+                ) : (
+                  assignments
+                    .filter(a => a.due_date && !a.submitted)
+                    .map((a) => {
+                    const now = new Date();
+                    const dueDate = a.due_date ? new Date(a.due_date) : null;
+                    const isOverdue = dueDate && dueDate < now && !a.submitted;
+                    const isSubmitted = a.submitted;
+                    let statusText = 'Pending';
+                    let statusClass = 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400';
+                    if (isSubmitted) { statusText = 'Submitted'; statusClass = 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'; }
+                    else if (isOverdue) { statusText = 'Overdue'; statusClass = 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'; }
+                    return (
+                      <div key={a.id} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-6 py-4 hover:bg-muted/20 transition-colors cursor-pointer" onClick={() => navigate(`/community/${a.cid}/assignment/${a.id}`)}>
+                        <div className="flex flex-col min-w-0">
+                          <div className={`font-medium truncate ${isSubmitted ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{a.title}</div>
+                          <div className="text-xs text-muted-foreground mt-1">Community • {a.Community?.name || '—'}</div>
+                        </div>
+                        <div className="w-40 text-center text-sm">{a.due_date ? new Date(a.due_date).toLocaleDateString() : '-'}</div>
+                        <div className="w-28 text-center text-sm">{a.max_points ?? '-'}</div>
+                        <div className="w-28 text-center text-sm">{a._count?.Submission ?? 0}</div>
+                        <div className="w-28 flex items-center justify-center"><span className={`text-xs px-2 py-1 rounded ${statusClass}`}>{statusText}</span></div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-muted/20">
+                <div className="text-xs text-muted-foreground">Page {assignmentsMeta?.page ?? assignmentsPage} of {assignmentsMeta?.totalPages ?? 1}</div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" disabled={(assignmentsMeta?.page ?? assignmentsPage) <= 1} onClick={async () => {
+                    const next = (assignmentsMeta?.page ?? assignmentsPage) - 1;
+                    setAssignmentsPage(next);
+                    if (selectedCommunityId) {
+                      const resp = await assignmentApi.getByCommunity(selectedCommunityId, { page: next, limit: assignmentsLimit });
+                      const enriched = resp.data.map((a: any) => ({ ...a, submitted: submittedAssignmentIds.has(a.id) }));
+                      setAssignments(enriched);
+                      setAssignmentsMeta(resp.meta);
+                    }
+                  }}>Previous</Button>
+                  <Button variant="outline" size="sm" disabled={(assignmentsMeta?.page ?? 1) >= (assignmentsMeta?.totalPages ?? 1)} onClick={async () => {
+                    const next = (assignmentsMeta?.page ?? assignmentsPage) + 1;
+                    setAssignmentsPage(next);
+                    if (selectedCommunityId) {
+                      const resp = await assignmentApi.getByCommunity(selectedCommunityId, { page: next, limit: assignmentsLimit });
+                      const enriched = resp.data.map((a: any) => ({ ...a, submitted: submittedAssignmentIds.has(a.id) }));
+                      setAssignments(enriched);
+                      setAssignmentsMeta(resp.meta);
+                    }
+                  }}>Next</Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Side Column: Communities & Join */}
+          <div className="space-y-6">
+            {/* My Communities (Admin-style Table) */}
+            <div className="bg-card rounded-xl border border-border shadow-sm">
+              <div className="p-6 border-b border-border flex items-center justify-between">
+                <h3 className="text-lg font-semibold">My Communities</h3>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => fetchDashboardData()}>Refresh</Button>
+                </div>
+              </div>
+
+              {/* Table Header */}
+              <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-6 py-4 bg-muted/30 border-b border-border text-sm font-medium text-muted-foreground">
+                <div>Name</div>
+                <div className="w-24 text-center">Type</div>
+                <div className="w-24 text-center">Members</div>
+                <div className="w-24 text-center">Actions</div>
+              </div>
+
+              {/* Table Rows */}
+              <div className="divide-y divide-border">
+                {communities.length === 0 ? (
+                  <div className="px-6 py-8 text-center text-muted-foreground">No communities enrolled.</div>
+                ) : (
+                  communities.map((c) => (
+                    <div key={c.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-6 py-4 hover:bg-muted/20 transition-colors">
+                      <div className="flex flex-col min-w-0">
+                        <div className="font-medium truncate text-foreground">{c.name}</div>
+                        <div className="text-xs text-muted-foreground mt-1">ID • {c.id}</div>
+                      </div>
+                      <div className="w-24 text-center text-sm">{c.type}</div>
+                      <div className="w-24 text-center text-sm">{c._count?.Enrollment ?? '-'}</div>
+                      <div className="w-24 flex items-center justify-center">
+                        <Button variant="outline" size="sm" onClick={() => navigate(`/community/${c.id}`)}>View</Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-muted/20">
+                <div className="text-xs text-muted-foreground">Page {communitiesMeta?.page ?? communitiesPage} of {communitiesMeta?.totalPages ?? 1}</div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" disabled={(communitiesMeta?.page ?? communitiesPage) <= 1} onClick={async () => {
+                    const next = (communitiesMeta?.page ?? communitiesPage) - 1;
+                    setCommunitiesPage(next);
+                    const resp = await communityApi.getMyCommunities({ page: next, limit: communitiesLimit });
+                    setCommunities(resp.data);
+                    setCommunitiesMeta(resp.meta);
+                  }}>Previous</Button>
+                  <Button variant="outline" size="sm" disabled={(communitiesMeta?.page ?? 1) >= (communitiesMeta?.totalPages ?? 1)} onClick={async () => {
+                    const next = (communitiesMeta?.page ?? communitiesPage) + 1;
+                    setCommunitiesPage(next);
+                    const resp = await communityApi.getMyCommunities({ page: next, limit: communitiesLimit });
+                    setCommunities(resp.data);
+                    setCommunitiesMeta(resp.meta);
+                  }}>Next</Button>
+                </div>
               </div>
             </div>
           </div>
