@@ -217,7 +217,7 @@ export const BadgeCard = React.memo<BadgeCardProps>(({
 
         {/* Hover overlay */}
         <div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl flex items-end justify-center p-4">
-          <span className="text-white text-sm font-semibold flex items-center gap-1.5">
+          <span className="text-white text-sm font-semibold flex items-center gap-1.5 z-10">
             View Details <ChevronRight className="h-4 w-4" />
           </span>
         </div>
@@ -257,13 +257,7 @@ export const BadgeCard = React.memo<BadgeCardProps>(({
           {badge.description || 'Complete the challenge to unlock'}
         </p>
 
-        {/* Global Completion Rate */}
-        {badge.globalCompletion !== undefined && (
-          <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground pt-1">
-            <Users className="h-3 w-3" />
-            <span>{badge.globalCompletion}% earned this</span>
-          </div>
-        )}
+        
 
         {/* How to Earn Button */}
         <div className="pt-3">

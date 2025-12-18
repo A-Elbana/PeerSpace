@@ -5,6 +5,8 @@ import { useResolvedFileUrl } from '../../hooks/useResolvedFileUrl';
 import { MarkdownEditor } from '../MarkdownEditor';
 import { toast } from 'sonner';
 import TagChip from '../common/TagChip';
+import { PostTypeSelector } from '../PostTypeSelector';
+import type { PostType } from '../PostTypeSelector';
 
 type CommunityOption = { id: string; name: string; memberCount?: number; postCount?: number; isEnrolled?: boolean };
 
@@ -13,6 +15,7 @@ interface CurrentUser {
   fname: string;
   lname: string;
   avatar_file_id?: string | null;
+  role: 'student' | 'instructor' | 'admin';
 }
 
 interface CreatePostWidgetProps {
@@ -23,6 +26,7 @@ interface CreatePostWidgetProps {
 
 const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaultCommunityId, onCreated }) => {
   const [expanded, setExpanded] = useState(false);
+  const [postType, setPostType] = useState<PostType>('discussion');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [tagsArr, setTagsArr] = useState<string[]>([]);
@@ -171,22 +175,19 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
 
       // Step 2: Create the post with file_ids so backend can attach them
       const selectedTags = tagsArr.map(t => t.trim()).filter(Boolean);
-      const hasAnnouncementTag = selectedTags.some(t => t.toLowerCase() === 'announcement');
-      // If 'announcement' is used as a tag, treat post type as announcement and remove it from tags
-      const payloadTags = selectedTags.filter(t => t.toLowerCase() !== 'announcement');
-      const payloadType = hasAnnouncementTag ? 'announcement' : 'discussion';
 
       const created = await postApi.create({
         title: title.trim(),
         body: body.trim() || undefined,
-        type: payloadType,
+        type: postType,
         cid: (communityId || defaultCommunityId) as string,
         file_ids: fileIds.length ? fileIds : undefined,
         // send tags array so server can persist PostTag relations
-        tags: payloadTags.length ? payloadTags : undefined,
+        tags: selectedTags.length ? selectedTags : undefined,
       } as any);
 
       // Reset form
+      setPostType('discussion');
       setTitle('');
       setBody('');
       setTagsArr([]);
@@ -347,6 +348,15 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
               </div>
             )}
           </div>
+
+          {/* Post Type Selector */}
+          {currentUser?.role && (
+            <PostTypeSelector
+              value={postType}
+              onChange={setPostType}
+              userRole={currentUser.role}
+            />
+          )}
 
           <input
             value={title}

@@ -64,6 +64,7 @@ const Feed: React.FC<FeedProps> = (props) => {
         res = await studentApi.getFeed({ page: p, limit: 10, sort: activeTab as any });
       } else {
         res = await postApi.getAll({ page: p, limit: 10 });
+        
       }
 
       const newPosts = res.data || [];
@@ -266,7 +267,6 @@ const Feed: React.FC<FeedProps> = (props) => {
                 key={post.id}
                 post={post}
                 communityName={getCommunityName(post.cid)}
-                onNavigate={(id?: string) => { if (id) window.location.pathname = `/community/${id}`; }}
                 currentUser={user}
               />
             ))}

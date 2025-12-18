@@ -347,6 +347,12 @@ export const communityApi = {
   },
 };
 
+// Helper function to transform badge names (remove underscores)
+const transformBadge = (badge: BadgeResponse): BadgeResponse => ({
+  ...badge,
+  name: badge.name.replace(/_/g, ' '),
+});
+
 export const badgeApi = {
   // Create a new badge (Admin only)
   create: async (data: {
@@ -358,7 +364,10 @@ export const badgeApi = {
     badge: BadgeResponse;
   }> => {
     const response = await api.post("/badges", data);
-    return response.data;
+    return {
+      ...response.data,
+      badge: transformBadge(response.data.badge),
+    };
   },
 
   // Get all badges with pagination
@@ -373,7 +382,10 @@ export const badgeApi = {
       if (params.limit) cleanParams.limit = params.limit;
     }
     const response = await api.get("/badges", { params: cleanParams });
-    return response.data;
+    return {
+      ...response.data,
+      data: response.data.data.map(transformBadge),
+    };
   },
 
   // Get badges earned by the authenticated student
@@ -388,7 +400,13 @@ export const badgeApi = {
       if (params.limit) cleanParams.limit = params.limit;
     }
     const response = await api.get("/badges/me", { params: cleanParams });
-    return response.data;
+    return {
+      ...response.data,
+      data: response.data.data.map((entry: any) => ({
+        ...entry,
+        Badge: transformBadge(entry.Badge),
+      })),
+    };
   },
 
   // Get badges earned by a specific user
@@ -408,7 +426,13 @@ export const badgeApi = {
     const response = await api.get(`/badges/user/${uid}`, {
       params: cleanParams,
     });
-    return response.data;
+    return {
+      ...response.data,
+      data: response.data.data.map((entry: any) => ({
+        ...entry,
+        Badge: transformBadge(entry.Badge),
+      })),
+    };
   },
 
   // Get a single badge by ID
@@ -417,7 +441,10 @@ export const badgeApi = {
     badge: BadgeResponse;
   }> => {
     const response = await api.get(`/badges/${id}`);
-    return response.data;
+    return {
+      ...response.data,
+      badge: transformBadge(response.data.badge),
+    };
   },
 
   // Update a badge (Admin only)
@@ -433,7 +460,10 @@ export const badgeApi = {
     badge: BadgeResponse;
   }> => {
     const response = await api.put(`/badges/${id}`, data);
-    return response.data;
+    return {
+      ...response.data,
+      badge: transformBadge(response.data.badge),
+    };
   },
 
   // Delete a badge (Admin only)

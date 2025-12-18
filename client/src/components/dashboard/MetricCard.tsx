@@ -2,7 +2,7 @@ import React from 'react';
 import type { LucideIcon } from 'lucide-react';
 
 interface MetricCardProps {
-  icon: LucideIcon;
+  icon: any;
   iconBgColor?: string;
   title: string;
   subtitle: string;
