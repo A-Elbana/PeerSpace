@@ -3,12 +3,14 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Calendar, FileText, CheckCircle, Upload, AlertCircle, Loader2, ChevronRight, PenSquare, Trash2, Home, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../../components/ui/button';
+import AssignmentDetailsSkeleton from '../../components/assignments/AssignmentDetailsSkeleton';
 import api, { assignmentApi, submissionApi, communityApi, fileApi } from '../../services/api';
 import { Sidebar } from '../../components/dashboard';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { AssignmentModal } from '../../components/assignments';
 import { MarkdownPreview } from '../../components/MarkdownEditor';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
+import SubmissionList from '../../components/Submissions/SubmissionList';
 
 interface AssignmentDetailsData {
     id: number;
@@ -75,6 +77,23 @@ const AssignmentDetails: React.FC = () => {
 
     // Helper to get user from local storage or context
     const [user, setUser] = useState<UserData | null>(null);
+
+    // Memoize permission calculation to avoid recomputing on every render
+    const canEditDelete = React.useMemo(() => {
+        const userRole = user?.role?.toLowerCase();
+        const isAdmin = userRole === 'admin';
+        const isCreator = userRole === 'instructor' && user?.id === assignment?.Instructor?.User?.id;
+        return isAdmin || isCreator;
+    }, [user, assignment?.Instructor?.User?.id]);
+
+    // Log permission checks only when relevant inputs change
+    useEffect(() => {
+        const userRole = user?.role?.toLowerCase();
+        const creatorId = assignment?.Instructor?.User?.id;
+        const isAdmin = userRole === 'admin';
+        const isCreator = userRole === 'instructor' && user?.id === creatorId;
+        console.log('Edit/Delete Permission Check:', { userRole, userId: user?.id, creatorId, isAdmin, isCreator, canEditDelete });
+    }, [user, assignment?.Instructor?.User?.id, canEditDelete]);
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -169,8 +188,12 @@ const AssignmentDetails: React.FC = () => {
 
     useEffect(() => {
         fetchAssignmentDetails();
-        checkSubmissionStatus();
     }, [assignmentId]);
+
+    // Re-check submission status when assignment or user changes
+    useEffect(() => {
+        void checkSubmissionStatus();
+    }, [assignment, user]);
 
     const checkSubmissionStatus = async () => {
         if (!assignmentId || !user) return;
@@ -335,17 +358,42 @@ const AssignmentDetails: React.FC = () => {
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (missed) {
+            toast.error('Submission window has closed; you cannot upload files for this assignment.');
+            return;
+        }
         const f = e.target.files?.[0]; if (!f) return; if (!validateFile(f)) return; setUploadedFiles(prev => [...prev, f]);
     };
 
-    const handleDropFiles = (e: React.DragEvent) => { e.preventDefault(); setIsDragOverFiles(false); const files = Array.from(e.dataTransfer.files); const valid = files.filter(validateFile); if (valid.length) setUploadedFiles(prev => [...prev, ...valid]); };
+    const handleDropFiles = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragOverFiles(false);
+        if (missed) {
+            toast.error('Submission window has closed; you cannot upload files for this assignment.');
+            return;
+        }
+        const files = Array.from(e.dataTransfer.files);
+        const valid = files.filter(validateFile);
+        if (valid.length) setUploadedFiles(prev => [...prev, ...valid]);
+    };
 
     const removeUploadedFile = (index: number) => setUploadedFiles(prev => prev.filter((_, i) => i !== index));
 
+    // Page shell will render immediately; show inline skeleton in main content while loading
+
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-background">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <div className="flex min-h-screen bg-background">
+                <Sidebar onLogout={() => { }} />
+
+                <main
+                    className="flex-1 p-8 transition-all duration-300"
+                    style={{ marginLeft: `${sidebarWidth}px` }}
+                >
+                    <div className="max-w-4xl mx-auto">
+                        <AssignmentDetailsSkeleton />
+                    </div>
+                </main>
             </div>
         );
     }
@@ -368,228 +416,226 @@ const AssignmentDetails: React.FC = () => {
         <div className="flex min-h-screen bg-background">
             <Sidebar onLogout={() => { }} />
 
-            <main 
-              className="flex-1 p-8 transition-all duration-300"
-              style={{ marginLeft: `${sidebarWidth}px` }}
+            <main
+                className="flex-1 p-8 transition-all duration-300"
+                style={{ marginLeft: `${sidebarWidth}px` }}
             >
                 <div className="max-w-4xl mx-auto">
-                    {/* Breadcrumb Navigation */}
-                    <div className="mb-6 flex items-center text-sm text-muted-foreground">
-                        <Link to="/dashboard" className="flex items-center hover:text-foreground transition-colors">
-                            <Home className="w-4 h-4 mr-1" />
-                            Home
-                        </Link>
-                        <ChevronRight className="w-4 h-4 mx-2" />
-                        <Link to={`/community/${assignment.cid}`} className="hover:text-foreground transition-colors">
-                            {assignment.Community.name || 'Community'}
-                        </Link>
-                        <ChevronRight className="w-4 h-4 mx-2" />
-                        <span className="text-foreground font-medium truncate max-w-[200px]">
-                            {assignment.title}
-                        </span>
-                    </div>
+                    {isLoading ? (
+                        <AssignmentDetailsSkeleton />
+                    ) : (
+                        <>
+                            {/* Breadcrumb Navigation */}
+                            <div className="mb-6 flex items-center text-sm text-muted-foreground">
+                                <Link to="/dashboard" className="flex items-center hover:text-foreground transition-colors">
+                                    <Home className="w-4 h-4 mr-1" />
+                                    Home
+                                </Link>
+                                <ChevronRight className="w-4 h-4 mx-2" />
+                                <Link to={`/community/${assignment.cid}`} className="hover:text-foreground transition-colors">
+                                    {assignment.Community.name || 'Community'}
+                                </Link>
+                                <ChevronRight className="w-4 h-4 mx-2" />
+                                <span className="text-foreground font-medium truncate max-w-[200px]">
+                                    {assignment.title}
+                                </span>
+                            </div>
 
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-6">
-                        <div>
-                            <h1 className="text-3xl font-bold text-foreground mb-2">{assignment.title}</h1>
-                            <div className="flex items-center gap-4 text-muted-foreground">
-                                <div className="flex items-center gap-1">
-                                    <User className="w-4 h-4" />
-                                    <span className="text-sm">
-                                        {assignment.Instructor.User.fname} {assignment.Instructor.User.lname}
-                                    </span>
-                                </div>
-                                {assignment.due_date && (
-                                    <div className="flex items-center gap-1">
-                                        <Calendar className="w-4 h-4" />
-                                        <span className="text-sm">Due {new Date(assignment.due_date).toLocaleDateString()}</span>
+                            {/* Header */}
+                            <div className="flex items-start justify-between mb-6">
+                                <div>
+                                    <h1 className="text-3xl font-bold text-foreground mb-2">{assignment.title}</h1>
+                                    <div className="flex items-center gap-4 text-muted-foreground">
+                                        <div className="flex items-center gap-1">
+                                            <User className="w-4 h-4" />
+                                            <span className="text-sm">
+                                                {assignment.Instructor.User.fname} {assignment.Instructor.User.lname}
+                                            </span>
+                                        </div>
+                                        {assignment.due_date && (
+                                            <div className="flex items-center gap-1">
+                                                <Calendar className="w-4 h-4" />
+                                                <span className="text-sm">Due {new Date(assignment.due_date).toLocaleDateString()}</span>
+                                            </div>
+                                        )}
+                                        {assignment.max_points && (
+                                            <div className="flex items-center gap-1">
+                                                <FileText className="w-4 h-4" />
+                                                <span className="text-sm">{assignment.max_points} points</span>
+                                            </div>
+                                        )}
                                     </div>
-                                )}
-                                {assignment.max_points && (
-                                    <div className="flex items-center gap-1">
-                                        <FileText className="w-4 h-4" />
-                                        <span className="text-sm">{assignment.max_points} points</span>
+                                </div>
+
+                                {/* Instructor/Admin Actions */}
+                                {canEditDelete && (
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            onClick={() => setShowEditModal(true)}
+                                            className="inline-flex items-center gap-2 px-3 py-2 bg-muted hover:bg-muted/80 rounded-lg border border-border"
+                                        >
+                                            <PenSquare className="w-4 h-4" />
+                                            <span>Edit</span>
+                                        </button>
+
+                                        <button
+                                            onClick={handleDelete}
+                                            className="inline-flex items-center gap-2 px-3 py-2 bg-destructive/10 hover:bg-destructive/20 rounded-lg border border-border text-destructive"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                            <span>Delete</span>
+                                        </button>
                                     </div>
                                 )}
                             </div>
-                        </div>
 
-                        {/* Instructor/Admin Actions */}
-                        {(() => {
-                            const userRole = user?.role?.toLowerCase();
-                            const isAdmin = userRole === 'admin';
-                            const isCreator = userRole === 'instructor' && user?.id === assignment.Instructor.User.id;
-                            const canEditDelete = isAdmin || isCreator;
+                            {/* Content Grid */}
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                {/* Left Col: Description */}
+                                <div className="lg:col-span-2 space-y-6">
+                                    <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+                                        <h2 className="text-lg font-semibold mb-4 text-foreground">Description</h2>
+                                        {assignment.description ? (
+                                            <MarkdownPreview content={assignment.description} />
+                                        ) : (
+                                            <span className="italic opacity-50">No instructions provided.</span>
+                                        )}
+                                    </div>
 
-                            console.log('Edit/Delete Permission Check:', {
-                                userRole,
-                                userId: user?.id,
-                                creatorId: assignment.Instructor.User.id,
-                                isAdmin,
-                                isCreator,
-                                canEditDelete
-                            });
-
-                            return canEditDelete ? (
-                                <div className="flex gap-3">
-                                    <button
-                                        onClick={() => setShowEditModal(true)}
-                                        className="w-12 h-12 rounded-full bg-tech-blue-500 hover:bg-tech-blue-600 text-white flex items-center justify-center transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl"
-                                        title="Edit Assignment"
-                                    >
-                                        <PenSquare className="w-5 h-5" />
-                                    </button>
-                                    <button
-                                        onClick={handleDelete}
-                                        className="w-12 h-12 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl"
-                                        title="Delete Assignment"
-                                    >
-                                        <Trash2 className="w-5 h-5" />
-                                    </button>
-                                </div>
-                            ) : null;
-                        })()}
-                    </div>
-
-                    {/* Content Grid */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        {/* Left Col: Description */}
-                        <div className="lg:col-span-2 space-y-6">
-                            <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-                                <h2 className="text-lg font-semibold mb-4 text-foreground">Description</h2>
-                                {assignment.description ? (
-                                    <MarkdownPreview content={assignment.description} />
-                                ) : (
-                                    <span className="italic opacity-50">No instructions provided.</span>
-                                )}
-                            </div>
-
-                            {/* Attached Files Section */}
-                            {assignment.files && assignment.files.length > 0 && (
-                                <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-                                    <h2 className="text-lg font-semibold mb-4 text-foreground">Attached Files</h2>
-                                    <div className="space-y-3">
-                                        {assignment.files.map((file) => (
-                                            <div
-                                                key={file.id}
-                                                className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border hover:bg-muted/70 transition-colors"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-lg bg-tech-blue-500/10 flex items-center justify-center">
-                                                        {file.resource_type === 'raw' ? (
-                                                            <FileText className="w-5 h-5 text-tech-blue-600" />
-                                                        ) : (
-                                                            <div className="w-5 h-5 bg-gray-400 rounded-sm"></div>
-                                                        )}
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-medium text-foreground text-sm">
-                                                            {file.original_filename || `File.${file.format}`}
-                                                        </p>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            {file.format?.toUpperCase()} • {(file.secure_url.length / 1024).toFixed(1)} KB
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    asChild
-                                                >
-                                                    <a
-                                                        href={file.secure_url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-tech-blue-600 hover:text-tech-blue-700"
+                                    {/* Attached Files Section */}
+                                    {assignment.files && assignment.files.length > 0 && (
+                                        <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+                                            <h2 className="text-lg font-semibold mb-4 text-foreground">Attached Files</h2>
+                                            <div className="space-y-3">
+                                                {assignment.files.map((file) => (
+                                                    <div
+                                                        key={file.id}
+                                                        className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border hover:bg-muted/70 transition-colors"
                                                     >
-                                                        View
-                                                    </a>
-                                                </Button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Right Col: Submission (Students Only) */}
-                        {user?.role?.toLowerCase() === 'student' && (
-                            <div className="space-y-6">
-                                <div className="bg-card border border-border rounded-xl p-6 shadow-sm sticky top-6">
-                                    <h2 className="text-lg font-semibold mb-4 text-foreground">Your Work</h2>
-
-                                    {submitted ? (
-                                        <div className="text-center py-8 bg-green-500/10 rounded-lg border border-green-500/20">
-                                            <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
-                                            <h3 className="font-medium text-green-600 dark:text-green-400">Submitted!</h3>
-                                            <p className="text-sm text-muted-foreground mt-1">
-                                                Submitted on {new Date().toLocaleDateString()}
-                                            </p>
-                                        </div>
-                                    ) : missed ? (
-                                        <div className="text-center py-8 bg-red-500/10 rounded-lg border border-red-500/20">
-                                            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
-                                            <h3 className="font-medium text-red-600 dark:text-red-400">Missed</h3>
-                                            <p className="text-sm text-muted-foreground mt-1">
-                                                You cannot submit this assignment because the due date has passed and late submissions are not allowed.
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-4">
-                                            {/* File upload area */}
-                                            <div
-                                                onDragOver={(e) => { e.preventDefault(); setIsDragOverFiles(true); }}
-                                                onDragLeave={(e) => { e.preventDefault(); setIsDragOverFiles(false); }}
-                                                onDrop={handleDropFiles}
-                                                className={`relative border-2 border-dashed rounded-xl p-4 text-center transition-all duration-200 cursor-pointer ${isDragOverFiles ? 'border-tech-blue-500 bg-tech-blue-500/5' : 'border-muted-foreground/25 hover:border-tech-blue-500/50'} ${isUploadingFiles ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                onClick={() => fileInputRef.current?.click()}
-                                            >
-                                                <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.txt,.rtf,.jpg,.jpeg,.png" onChange={handleFileChange} className="hidden" disabled={isUploadingFiles} />
-                                                <div className="flex flex-col items-center gap-2">
-                                                    <Upload className="w-8 h-8 text-muted-foreground" />
-                                                    <p className="text-sm font-medium text-foreground">Drag & drop your files here or click to browse</p>
-                                                    <p className="text-xs text-muted-foreground">Supported: PDF, Word, Text, Images. Max 10MB</p>
-                                                </div>
-                                            </div>
-
-                                            {uploadedFiles.length > 0 && (
-                                                <div className="space-y-2">
-                                                    {uploadedFiles.map((f, idx) => (
-                                                        <div key={idx} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
-                                                            <div className="flex items-center gap-3">
-                                                                <FileText className="w-5 h-5 text-muted-foreground" />
-                                                                <div>
-                                                                    <p className="text-sm text-foreground">{f.name}</p>
-                                                                    <p className="text-xs text-muted-foreground">{(f.size / 1024 / 1024).toFixed(2)} MB</p>
-                                                                </div>
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-10 h-10 rounded-lg bg-tech-blue-500/10 flex items-center justify-center">
+                                                                {file.resource_type === 'raw' ? (
+                                                                    <FileText className="w-5 h-5 text-tech-blue-600" />
+                                                                ) : (
+                                                                    <div className="w-5 h-5 bg-gray-400 rounded-sm"></div>
+                                                                )}
                                                             </div>
-                                                            <button onClick={() => removeUploadedFile(idx)} className="text-destructive">Remove</button>
+                                                            <div>
+                                                                <p className="font-medium text-foreground text-sm">
+                                                                    {file.original_filename || `File.${file.format}`}
+                                                                </p>
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    {file.format?.toUpperCase()} • {(file.secure_url.length / 1024).toFixed(1)} KB
+                                                                </p>
+                                                            </div>
                                                         </div>
-                                                    ))}
-                                                </div>
-                                            )}
-
-                                            <Button
-                                                onClick={handleSubmit}
-                                                disabled={isSubmitting || isUploadingFiles}
-                                                className="w-full bg-tech-blue-500 hover:bg-tech-blue-600"
-                                            >
-                                                {isSubmitting ? (
-                                                    <>
-                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                        {isUploadingFiles ? 'Uploading...' : 'Submitting...'}
-                                                    </>
-                                                ) : (
-                                                    'Mark as Done'
-                                                )}
-                                            </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            asChild
+                                                        >
+                                                            <a
+                                                                href={file.secure_url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-tech-blue-600 hover:text-tech-blue-700"
+                                                            >
+                                                                View
+                                                            </a>
+                                                        </Button>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Right Col: Submission (Students Only) OR Submissions widget for instructor/admin */}
+                                {user?.role?.toLowerCase() === 'student' ? (
+                                    <div className="space-y-6">
+                                        <div className="bg-card border border-border rounded-xl p-6 shadow-sm sticky top-6">
+                                            <h2 className="text-lg font-semibold mb-4 text-foreground">Your Work</h2>
+
+                                            {submitted ? (
+                                                <div className="text-center py-8 bg-green-500/10 rounded-lg border border-green-500/20">
+                                                    <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
+                                                    <h3 className="font-medium text-green-600 dark:text-green-400">Submitted!</h3>
+                                                    <p className="text-sm text-muted-foreground mt-1">
+                                                        Submitted on {new Date().toLocaleDateString()}
+                                                    </p>
+                                                </div>
+                                            ) : missed ? (
+                                                <div className="text-center py-8 bg-red-500/10 rounded-lg border border-red-500/20">
+                                                    <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
+                                                    <h3 className="font-medium text-red-600 dark:text-red-400">Missed</h3>
+                                                    <p className="text-sm text-muted-foreground mt-1">
+                                                        You cannot submit this assignment because the due date has passed and late submissions are not allowed.
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-4">
+                                                    {/* File upload area */}
+                                                    <div
+                                                        onDragOver={(e) => { e.preventDefault(); setIsDragOverFiles(true); }}
+                                                        onDragLeave={(e) => { e.preventDefault(); setIsDragOverFiles(false); }}
+                                                        onDrop={handleDropFiles}
+                                                        className={`relative border-2 border-dashed rounded-xl p-4 text-center transition-all duration-200 cursor-pointer ${isDragOverFiles ? 'border-tech-blue-500 bg-tech-blue-500/5' : 'border-muted-foreground/25 hover:border-tech-blue-500/50'} ${isUploadingFiles ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                        onClick={() => fileInputRef.current?.click()}
+                                                    >
+                                                        <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.txt,.rtf,.jpg,.jpeg,.png" onChange={handleFileChange} className="hidden" disabled={isUploadingFiles || missed} />
+                                                        <div className="flex flex-col items-center gap-2">
+                                                            <Upload className="w-8 h-8 text-muted-foreground" />
+                                                            <p className="text-sm font-medium text-foreground">Drag & drop your files here or click to browse</p>
+                                                            <p className="text-xs text-muted-foreground">Supported: PDF, Word, Text, Images. Max 10MB</p>
+                                                        </div>
+                                                    </div>
+
+                                                    {uploadedFiles.length > 0 && (
+                                                        <div className="space-y-2">
+                                                            {uploadedFiles.map((f, idx) => (
+                                                                <div key={idx} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <FileText className="w-5 h-5 text-muted-foreground" />
+                                                                        <div>
+                                                                            <p className="text-sm text-foreground">{f.name}</p>
+                                                                            <p className="text-xs text-muted-foreground">{(f.size / 1024 / 1024).toFixed(2)} MB</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <button onClick={() => removeUploadedFile(idx)} className="text-destructive">Remove</button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    <Button
+                                                        onClick={handleSubmit}
+                                                        disabled={isSubmitting || isUploadingFiles || missed}
+                                                        className="w-full bg-tech-blue-500 hover:bg-tech-blue-600"
+                                                    >
+                                                        {isSubmitting ? (
+                                                            <>
+                                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                                {isUploadingFiles ? 'Uploading...' : 'Submitting...'}
+                                                            </>
+                                                        ) : (
+                                                            'Mark as Done'
+                                                        )}
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    // Show submissions list for admin or assignment creator (instructor)
+                                    (user?.role?.toLowerCase() === 'admin' || (user?.role?.toLowerCase() === 'instructor' && user?.id === assignment?.Instructor?.User?.id)) && (
+                                        <div className="lg:col-span-1">
+                                            {assignment && <SubmissionList assignmentId={assignment.id} currentUser={user} />}
+                                        </div>
+                                    )
+                                )}
                             </div>
-                        )}
-                    </div>
+                        </>
+                    )}
                 </div>
             </main>
 

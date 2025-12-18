@@ -2,7 +2,8 @@ import {
   LayoutDashboard,
   Compass,
   ClipboardList,
-  FileCheck,
+  FileText,
+
   Megaphone,
   Book,
   CheckSquare,
@@ -36,14 +37,9 @@ export const mainNavItems: NavItem[] = [
     path: "/assignments",
     roleRestriction: ["student", "instructor"],
   },
+  { id: "submissions", label: "My Submissions", icon: FileText, path: "/submissions", roleRestriction: ["student"] },
   {
-    id: "submissions",
-    label: "My Submissions",
-    icon: FileCheck,
-    path: "/submissions",
-    roleRestriction: ["student", "instructor"],
-  },
-  {
+
     id: "announcements",
     label: "Announcements",
     icon: Megaphone,

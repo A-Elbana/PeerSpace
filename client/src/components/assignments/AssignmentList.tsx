@@ -1,21 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, FileText, Loader2, Plus, ExternalLink } from 'lucide-react';
 import { Button } from '../ui/button';
-import { assignmentApi } from '../../services/api';
+import { instructorApi } from '../../services/api';
+import AssignmentSkeleton from './AssignmentSkeleton.tsx';
 import { toast } from 'sonner';
 
 interface Assignment {
-    id: number;
-    title: string;
+  id: number;
+  title: string;
   description?: string;
-    due_date: string | null;
+  due_date: string | null;
   canBeLate: boolean;
-    Instructor: {
-        User: {
-            fname: string;
-            lname: string;
-        };
+  cid: string;
+  Instructor: {
+    User: {
+      fname: string;
+      lname: string;
     };
+  };
   AssignmentFileAttachment?: Array<{
     File: {
       id: string;
@@ -24,93 +26,151 @@ interface Assignment {
       original_filename: string;
     };
   }>;
-    _count?: {
-        Submission: number;
-    };
+  _count?: {
+    Submission: number;
+  };
 }
 
 interface AssignmentListProps {
-    communityId: string;
-  communityName: string;
-    showCreateButton?: boolean;
+  communityId?: string;
+  communityName?: string;
+  showCreateButton?: boolean;
   variant?: 'compact' | 'full';
-    limit?: number;
-    showAllLink?: boolean;
+  limit?: number;
+  showAllLink?: boolean;
   showMoreButton?: boolean;
   onCreateClick?: () => void;
-    onAssignmentClick?: (assignment: Assignment) => void;
+  onAssignmentClick?: (assignment: Assignment) => void;
 }
 
 const AssignmentList: React.FC<AssignmentListProps> = ({
-    communityId,
-    communityName,
+  communityId,
+
   showCreateButton = true,
   variant = 'full',
   limit,
-  showAllLink = true,
+
   showMoreButton = false,
-    onCreateClick,
-    onAssignmentClick
+  onCreateClick,
+  onAssignmentClick
 }) => {
-    const [assignments, setAssignments] = useState<Assignment[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [showAllAssignments, setShowAllAssignments] = useState(false);
   const [totalAssignments, setTotalAssignments] = useState(0);
+  const [page, setPage] = useState(1);
+  const [limitPerPage] = useState<number>(limit || 5);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const fetchAssignments = async () => {
-        try {
-            setIsLoading(true);
-        // If showMoreButton is true, start with 2 assignments, otherwise use the provided limit
-        const fetchLimit = showMoreButton
-          ? (showAllAssignments ? 1000 : 2) // Show all when expanded, or just 2 initially
-          : (limit || 10);
-        const response = await assignmentApi.getByCommunity(communityId, {
-          limit: fetchLimit
-            });
+    // Reset when community changes
+    setAssignments([]);
+    setPage(1);
+    setHasMore(true);
+    setTotalAssignments(0);
+    const aborter = { aborted: false } as { aborted: boolean };
 
-        // Sort assignments: upcoming due dates first, past due dates last
-        const sortedAssignments = response.data.sort((a, b) => {
-            const now = new Date();
-          const aDue = a.due_date ? new Date(a.due_date) : null;
-          const bDue = b.due_date ? new Date(b.due_date) : null;
+    const fetchPage = async (p: number) => {
+      try {
+        if (p === 1) setIsLoading(true);
+        else setIsLoadingMore(true);
 
-          // If both have due dates
-          if (aDue && bDue) {
-            const aIsPast = aDue < now;
-            const bIsPast = bDue < now;
+        // If showMoreButton is active, emulate the previous small preview behaviour
+        if (showMoreButton && !showAllAssignments && p > 1) {
+          // no-op: do not auto-load more when using showMoreButton
+          return;
+        }
 
-            // Past due assignments go to the end
-            if (aIsPast && !bIsPast) return 1;
-            if (!aIsPast && bIsPast) return -1;
+        const params: any = { page: p, limit: limitPerPage };
+        if (communityId) params.cid = communityId;
+        const response = await instructorApi.getInstructorAssignments(params);
 
-            // If both are upcoming or both are past, sort by due date
-            return aDue.getTime() - bDue.getTime();
-          }
+        if (aborter.aborted) return;
 
-          // If one has no due date, put it at the end
-          if (!aDue && bDue) return 1;
-          if (aDue && !bDue) return -1;
+        // Map server items into the local Assignment shape (ensure Instructor exists)
+        const mapped = response.data.map((a: any) => ({
+          id: a.id,
+          cid: a.cid,
+          title: a.title,
+          description: a.description,
+          due_date: a.due_date,
+          canBeLate: a.canBeLate,
+          AssignmentFileAttachment: a.AssignmentFileAttachment,
+          _count: a._count,
+          Instructor: a.Instructor ?? { User: { fname: '', lname: '' } },
+        })) as Assignment[];
 
-          // If neither has due date, maintain original order
-          return 0;
-        });
-
-        setAssignments(sortedAssignments);
-        setTotalAssignments(response.meta.total);
+        setAssignments((prev) => (p === 1 ? mapped : [...prev, ...mapped]));
+        setTotalAssignments(response.meta?.total ?? 0);
+        setHasMore(response.meta ? p < response.meta.totalPages : response.data.length === limitPerPage);
+        setPage(p);
       } catch (error) {
         console.error('Failed to fetch assignments:', error);
         toast.error('Failed to load assignments');
-        } finally {
-            setIsLoading(false);
-        }
+      } finally {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+      }
     };
 
-    fetchAssignments();
-  }, [communityId, limit, showMoreButton, showAllAssignments]);
+    void fetchPage(1);
+
+    return () => {
+      aborter.aborted = true;
+    };
+  }, [communityId, limitPerPage, showMoreButton, showAllAssignments]);
+
+  // Intersection observer to lazy-load next page when sentinel visible
+  useEffect(() => {
+    if (showMoreButton) return; // skip infinite load if using showMoreButton mode
+    if (!sentinelRef.current) return;
+    if (!hasMore) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && !isLoadingMore && hasMore) {
+          const next = page + 1;
+          // fetch next page
+          void (async () => {
+            try {
+              setIsLoadingMore(true);
+              const params: any = { page: next, limit: limitPerPage };
+              if (communityId) params.cid = communityId;
+              const response = await instructorApi.getInstructorAssignments(params);
+              const mapped = response.data.map((a: any) => ({
+                id: a.id,
+                cid: a.cid,
+                title: a.title,
+                description: a.description,
+                due_date: a.due_date,
+                canBeLate: a.canBeLate,
+                AssignmentFileAttachment: a.AssignmentFileAttachment,
+                _count: a._count,
+                Instructor: a.Instructor ?? { User: { fname: '', lname: '' } },
+              })) as Assignment[];
+
+              setAssignments((prev) => [...prev, ...mapped]);
+              setTotalAssignments(response.meta?.total ?? totalAssignments);
+              setHasMore(response.meta ? next < response.meta.totalPages : response.data.length === limitPerPage);
+              setPage(next);
+            } catch (error) {
+              console.error('Failed to load more assignments:', error);
+            } finally {
+              setIsLoadingMore(false);
+            }
+          })();
+        }
+      });
+    }, { threshold: 0.1 });
+
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [sentinelRef.current, isLoadingMore, hasMore, page, communityId, limitPerPage, showMoreButton, totalAssignments]);
 
   // Reset showAllAssignments when showMoreButton changes
-    useEffect(() => {
+  useEffect(() => {
     if (!showMoreButton) {
       setShowAllAssignments(false);
       setTotalAssignments(0);
@@ -128,24 +188,16 @@ const AssignmentList: React.FC<AssignmentListProps> = ({
       isPast,
       timeUntil: isPast ? 'Past due' : `Due ${date.toLocaleDateString()}`
     };
-    };
+  };
 
-    if (isLoading) {
-        return (
-                <div className="flex items-center justify-center py-8">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-            </div>
-        );
-    }
+  // Do not block rendering of the parent/page — render skeleton only in the list area
 
-        return (
+  return (
     <div className="space-y-4">
       {/* Header */}
       {(showCreateButton || assignments.length > 0) && (
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-foreground">
-            Assignments {assignments.length > 0 && `(${assignments.length})`}
-          </h3>
+          <h3 className="text-lg font-semibold text-foreground">Assignments</h3>
           {showCreateButton && onCreateClick && (
             <Button
               onClick={onCreateClick}
@@ -156,20 +208,22 @@ const AssignmentList: React.FC<AssignmentListProps> = ({
               Create Assignment
             </Button>
           )}
-                </div>
+        </div>
       )}
 
       {/* Assignments List */}
-      {assignments.length === 0 ? (
+      {isLoading ? (
+        <AssignmentSkeleton />
+      ) : assignments.length === 0 ? (
         <div className="bg-card border border-border rounded-xl p-8 text-center">
           <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
             <FileText className="w-6 h-6 text-muted-foreground" />
-                </div>
+          </div>
           <h4 className="text-sm font-medium text-foreground mb-1">No assignments yet</h4>
           <p className="text-xs text-muted-foreground">
             {showCreateButton ? 'Create the first assignment for this community.' : 'Assignments will appear here when created.'}
-                </p>
-                {showCreateButton && onCreateClick && (
+          </p>
+          {showCreateButton && onCreateClick && (
             <Button
               onClick={onCreateClick}
               variant="outline"
@@ -177,26 +231,23 @@ const AssignmentList: React.FC<AssignmentListProps> = ({
               className="mt-3"
             >
               <Plus size={14} className="mr-2" />
-                        Create Assignment
-                    </Button>
-                )}
-            </div>
+              Create Assignment
+            </Button>
+          )}
+        </div>
       ) : (
         <div className="space-y-3">
           {assignments.map((assignment) => {
             const dueDateInfo = formatDueDate(assignment.due_date);
-
-    return (
+            return (
               <div
                 key={assignment.id}
                 onClick={() => onAssignmentClick?.(assignment)}
-                className={`bg-card border border-border rounded-xl p-4 hover:border-tech-blue-500/50 hover:shadow-sm transition-all cursor-pointer group ${variant === 'compact' ? 'p-3' : ''
-                  }`}
+                className={`bg-card border border-border rounded-xl p-4 hover:border-tech-blue-500/50 hover:shadow-sm transition-all cursor-pointer group ${variant === 'compact' ? 'p-3' : ''}`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
-                    <h4 className={`font-medium text-foreground mb-1 group-hover:text-tech-blue-600 transition-colors ${variant === 'compact' ? 'text-sm' : ''
-                      }`}>
+                    <h4 className={`font-medium text-foreground mb-1 group-hover:text-tech-blue-600 transition-colors ${variant === 'compact' ? 'text-sm' : ''}`}>
                       {assignment.title}
                     </h4>
 
@@ -207,9 +258,7 @@ const AssignmentList: React.FC<AssignmentListProps> = ({
                     )}
 
                     <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <span>By {assignment.Instructor.User.fname} {assignment.Instructor.User.lname}</span>
-                      </div>
+
 
                       {dueDateInfo && (
                         <div className={`flex items-center gap-1 ${dueDateInfo.isPast ? 'text-red-600' : ''}`}>
@@ -233,13 +282,13 @@ const AssignmentList: React.FC<AssignmentListProps> = ({
 
                       {assignment._count?.Submission !== undefined && (
                         <span>{assignment._count.Submission} submission{assignment._count.Submission !== 1 ? 's' : ''}</span>
-                    )}
+                      )}
                     </div>
                   </div>
 
                   <ExternalLink size={16} className="text-muted-foreground group-hover:text-tech-blue-600 transition-colors ml-2 flex-shrink-0" />
                 </div>
-            </div>
+              </div>
             );
           })}
 
@@ -247,26 +296,27 @@ const AssignmentList: React.FC<AssignmentListProps> = ({
           {assignments.length > 0 && (
             <div className="text-center pt-2">
               {showMoreButton && totalAssignments > assignments.length && !showAllAssignments ? (
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                  onClick={() => setShowAllAssignments(true)}
-                >
+                <Button variant="ghost" size="sm" onClick={() => setShowAllAssignments(true)}>
                   Show More Assignments ↓
                 </Button>
-              ) : showAllLink ? (
-                <Button variant="ghost" size="sm" asChild>
-                  <a href={`/community/${communityId}/assignments`}>
-                    View all assignments →
-                  </a>
-                    </Button>
               ) : null}
             </div>
           )}
-                </div>
-            )}
+
+          {/* sentinel for infinite scroll */}
+          {!showMoreButton && (
+            <div className="flex items-center justify-center mt-3">
+              {isLoadingMore ? (
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              ) : hasMore ? (
+                <div ref={sentinelRef} style={{ height: 1, width: '100%' }} />
+              ) : null}
+            </div>
+          )}
         </div>
-    );
+      )}
+    </div>
+  );
 };
 
 export default AssignmentList;

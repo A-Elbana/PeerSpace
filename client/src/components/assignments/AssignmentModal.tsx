@@ -36,6 +36,7 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({
     description: '',
     due_date: '',
     canBeLate: true,
+    max_points: '' as number | '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -63,6 +64,7 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({
         description: assignment.description || '',
         due_date: formattedDate,
         canBeLate: assignment.canBeLate !== undefined ? assignment.canBeLate : true,
+        max_points: assignment.max_points ?? '',
       });
       setAttachmentFile(null);
       setAttachmentName('');
@@ -73,6 +75,7 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({
         description: '',
         due_date: '',
         canBeLate: true,
+        max_points: '',
       });
       setAttachmentFile(null);
       setAttachmentName('');
@@ -168,6 +171,10 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({
       validationErrors.title = 'Assignment title is required';
     }
 
+    if (formData.max_points !== '' && (typeof formData.max_points !== 'number' || formData.max_points < 0)) {
+      validationErrors.max_points = 'Points must be a non-negative number';
+    }
+
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
@@ -237,6 +244,7 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 cid: communityId!,
                 due_date: formData.due_date || undefined,
                 canBeLate: formData.canBeLate,
+                max_points: typeof formData.max_points === 'number' ? formData.max_points : undefined,
               });
               createdAssignmentId = (created as any).id;
             } catch (createErr) {
@@ -349,6 +357,7 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({
           description: formData.description.trim() || undefined,
           due_date: formData.due_date || undefined,
           canBeLate: formData.canBeLate,
+          max_points: typeof formData.max_points === 'number' ? formData.max_points : undefined,
           file_ids: fileIds,
         });
         toast.success('Assignment updated successfully!');
@@ -360,6 +369,7 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({
             description: formData.description.trim() || undefined,
             due_date: formData.due_date || undefined,
             canBeLate: formData.canBeLate,
+            max_points: typeof formData.max_points === 'number' ? formData.max_points : undefined,
           });
           toast.success('Assignment updated successfully!');
         } else {
@@ -369,6 +379,7 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({
             cid: communityId!,
             due_date: formData.due_date || undefined,
             canBeLate: formData.canBeLate,
+            max_points: typeof formData.max_points === 'number' ? formData.max_points : undefined,
           });
           toast.success('Assignment created successfully!');
         }
@@ -382,6 +393,7 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({
         description: '',
         due_date: '',
         canBeLate: true,
+        max_points: '',
       });
       setAttachmentFile(null);
       setAttachmentName('');
@@ -412,6 +424,7 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({
         description: '',
         due_date: '',
         canBeLate: true,
+        max_points: '',
       });
       setAttachmentFile(null);
       setAttachmentName('');
@@ -494,6 +507,35 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({
             <p className="text-xs text-muted-foreground">
               Use the toolbar above to format your text with bold, italic, headings, lists, and more
             </p>
+          </div>
+
+          {/* Points */}
+          <div className="space-y-3">
+            <Label htmlFor="points" className="text-sm font-medium text-foreground flex items-center gap-2">
+              <div className="w-5 h-5 rounded bg-yellow-500/10 flex items-center justify-center">
+                <File className="w-3 h-3 text-yellow-600" />
+              </div>
+              Points (Max)
+            </Label>
+            <Input
+              id="points"
+              type="number"
+              placeholder="Total points for this assignment (optional)"
+              value={formData.max_points === '' ? '' : String(formData.max_points)}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === '') setFormData(prev => ({ ...prev, max_points: '' }));
+                else {
+                  const num = Number(v);
+                  setFormData(prev => ({ ...prev, max_points: Number.isNaN(num) ? '' : Math.max(0, Math.floor(num)) }));
+                }
+              }}
+              className={`h-11 ${errors.max_points ? 'border-destructive focus-visible:ring-destructive' : 'focus-visible:ring-tech-blue-500'}`}
+              disabled={isLoading}
+            />
+            {errors.max_points && (
+              <p className="text-sm text-destructive">{errors.max_points}</p>
+            )}
           </div>
 
           {/* File Attachment */}

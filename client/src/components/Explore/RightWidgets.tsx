@@ -132,8 +132,11 @@ const RightSide: React.FC<RightSideProps> = ({
         };
       });
 
+      // Filter out assignments that have zero ungraded submissions
+      const groupedFiltered = grouped.filter(g => (g.ungradedCount ?? 0) > 0);
+
       // Hide raw community IDs until we can resolve a friendly name
-      const hiddenIdGrouped = grouped.map(g => ({ ...g, communityName: g.communityName && g.communityName !== g.cid ? g.communityName : '' }));
+      const hiddenIdGrouped = groupedFiltered.map(g => ({ ...g, communityName: g.communityName && g.communityName !== g.cid ? g.communityName : '' }));
       setManagedPending(hiddenIdGrouped);
       const meta = res?.meta ?? null;
       setPendingMeta(meta);

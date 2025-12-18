@@ -751,6 +751,36 @@ export const instructorApi = {
     });
     return response.data;
   },
+  // Get assignments created by the authenticated instructor (paginated)
+  getInstructorAssignments: async (params?: { page?: number; limit?: number; cid?: string }) => {
+    const cleanParams: any = {};
+    if (params) {
+      if (params.page) cleanParams.page = params.page;
+      if (params.limit) cleanParams.limit = params.limit;
+      if (params.cid) cleanParams.cid = params.cid;
+    }
+    const response = await api.get('/instructor/assignments', { params: cleanParams });
+    return response.data as {
+      success: boolean;
+      data: Array<{
+        id: number;
+        title: string;
+        description?: string;
+        due_date: string | null;
+        max_points: number | null;
+        canBeLate: boolean;
+        assigner_uid: number;
+        cid: string;
+        _count: { Submission: number };
+        AssignmentFileAttachment?: Array<{
+          fid: string;
+          File: { id: string; secure_url: string; is_private: boolean; public_id?: string; resource_type?: string; format?: string };
+        }>;
+        Community?: { id: string; name: string };
+      }>;
+      meta: PaginationMeta;
+    };
+  },
 };
 
 // Comment API
@@ -1237,6 +1267,24 @@ export const submissionApi = {
     meta: PaginationMeta;
   }> => {
     const response = await api.get("/submissions/mine", { params });
+    return response.data;
+  },
+
+  getById: async (id: number): Promise<{
+    success: boolean;
+    data: {
+      id: number;
+      aid: number;
+      sid: number;
+      subm_date: string;
+      grade: number | null;
+      feedback: string | null;
+      comment: string | null;
+      Assignment: any;
+      SubmissionFileAttachment?: Array<{ File: any }>;
+    };
+  }> => {
+    const response = await api.get(`/submissions/${id}`);
     return response.data;
   },
 

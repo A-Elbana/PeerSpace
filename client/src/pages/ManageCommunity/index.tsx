@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Loader2, Trash2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Sidebar } from '../../components/dashboard';
 import { useSidebar } from '../../contexts/SidebarContext';
@@ -165,7 +165,7 @@ const ManageCommunity: React.FC = () => {
     <div className="flex min-h-screen bg-background">
       <Sidebar onLogout={handleLogout} />
 
-      <main 
+      <main
         className="flex-1 p-8 transition-all duration-300 flex flex-col items-center justify-center"
         style={{ marginLeft: `${sidebarWidth}px` }}
       >
