@@ -15,6 +15,7 @@ import {
   leaveCommunity,
   addStudentToCommunity,
   removeStudentFromCommunity,
+  isEnrolledInCommunity,
 } from "../controllers/EnrollmentController";
 import {
   authenticateToken,
@@ -476,6 +477,55 @@ router.delete(
   authorizeRole(["STUDENT"]),
   loadCommunity,
   leaveCommunity
+);
+
+/**
+ * @swagger
+ * /api/communities/{id}/is-enrolled:
+ *   get:
+ *     summary: Check if user is enrolled/managing community
+ *     tags: [Communities]
+ *     security:
+ *       - bearerAuth: []
+ *     description: Check if a student is enrolled in the community or if an instructor manages the community
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Community UUID
+ *     responses:
+ *       200:
+ *         description: Enrollment status retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 isEnrolled:
+ *                   type: boolean
+ *                   description: True if student is enrolled or instructor manages the community
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Invalid community ID format
+ *       403:
+ *         description: Only students or instructors can check enrollment
+ *       404:
+ *         description: Community not found
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  "/:id/is-enrolled",
+  authenticateToken,
+  authorizeRole(["STUDENT", "INSTRUCTOR"]),
+  loadCommunity,
+  isEnrolledInCommunity
 );
 
 /**
