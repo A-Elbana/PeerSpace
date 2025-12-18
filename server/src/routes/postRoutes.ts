@@ -251,6 +251,7 @@ router.get(
     next();
   },
   authenticateToken,
+  authorizeRole(["ADMIN"]),
   getAllPosts
 );
 

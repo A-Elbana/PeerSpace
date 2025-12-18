@@ -522,7 +522,6 @@ export const togglePostResolved = async (req: PostRequest, res: Response) => {
 export const getAllPosts = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).userId;
-    const userRole = (req as any).role;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
@@ -530,17 +529,7 @@ export const getAllPosts = async (req: Request, res: Response) => {
     const tagSearch = req.query.tags as string | undefined;
     const communityId = req.query.communityId as string | undefined;
 
-    console.log("[getAllPosts] Request params:", {
-      userId,
-      userRole,
-      page,
-      limit,
-      search,
-      tagSearch,
-      communityId,
-    });
-
-    // Build where clause
+    // Build where clause (admins may call this endpoint)
     const whereClause: any = {};
 
     // Search by ID or title
@@ -569,48 +558,9 @@ export const getAllPosts = async (req: Request, res: Response) => {
       };
     }
 
-    // For non-admin users, only show posts from communities they have access to
-    if (userRole !== "ADMIN") {
-      // Get user's accessible community IDs
-      const enrollments = await prisma.enrollment.findMany({
-        where: { sid: userId },
-        select: { cid: true },
-      });
-
-      const manages = await prisma.manages.findMany({
-        where: { iid: userId },
-        select: { cid: true },
-      });
-
-      const publicCommunities = await prisma.community.findMany({
-        where: { type: CommunityType.PUBLIC },
-        select: { id: true },
-      });
-
-      const accessibleCommunityIds = [
-        ...enrollments.map((e) => e.cid),
-        ...manages.map((m) => m.cid),
-        ...publicCommunities.map((c) => c.id),
-      ];
-
-      // If communityId filter is provided, intersect with accessible communities
-      if (communityId && communityId.trim()) {
-        const requestedCommunityId = communityId.trim();
-        if (accessibleCommunityIds.includes(requestedCommunityId)) {
-          whereClause.cid = requestedCommunityId;
-        } else {
-          // User doesn't have access to requested community, return empty
-          whereClause.cid = "IMPOSSIBLE_COMMUNITY_ID";
-        }
-      } else {
-        // No specific community filter, show all accessible communities
-        whereClause.cid = { in: accessibleCommunityIds };
-      }
-    } else {
-      // Admin user - apply community filter if provided
-      if (communityId && communityId.trim()) {
-        whereClause.cid = communityId.trim();
-      }
+    // Admin endpoint: optionally filter by communityId if provided
+    if (communityId && communityId.trim()) {
+      whereClause.cid = communityId.trim();
     }
 
     console.log(
@@ -638,6 +588,20 @@ export const getAllPosts = async (req: Request, res: Response) => {
             name: true,
           },
         },
+        PostFileAttachment: {
+          include: {
+            File: {
+              select: {
+                id: true,
+                public_id: true,
+                secure_url: true,
+                resource_type: true,
+                format: true,
+                is_private: true,
+              },
+            },
+          },
+        },
         PostTag: {
           select: {
             tag: true,
@@ -650,8 +614,6 @@ export const getAllPosts = async (req: Request, res: Response) => {
     });
 
     // Format posts with tags
-    
-
     const total = await prisma.post.count({ where: whereClause });
 
     res.status(200).json({
