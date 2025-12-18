@@ -551,12 +551,16 @@ export const validateBadgeCreate = [
     .isLength({ min: 1, max: 255 })
     .withMessage("Badge name must be between 1 and 255 characters"),
 
-  body("icon_url")
+  body("description")
+    .optional()
     .trim()
-    .notEmpty()
-    .withMessage("Icon URL is required")
-    .isURL()
-    .withMessage("Icon URL must be a valid URL"),
+    .isLength({ max: 1000 })
+    .withMessage("Description cannot exceed 1000 characters"),
+
+  body("rarity")
+    .optional()
+    .isIn(["COMMON", "RARE", "EPIC", "LEGENDARY"])
+    .withMessage("Rarity must be one of COMMON, RARE, EPIC, LEGENDARY"),
 ];
 
 /**
@@ -571,13 +575,16 @@ export const validateBadgeUpdate = [
     .isLength({ min: 1, max: 255 })
     .withMessage("Badge name must be between 1 and 255 characters"),
 
-  body("icon_url")
+  body("description")
     .optional()
     .trim()
-    .notEmpty()
-    .withMessage("Icon URL cannot be empty")
-    .isURL()
-    .withMessage("Icon URL must be a valid URL"),
+    .isLength({ max: 1000 })
+    .withMessage("Description cannot exceed 1000 characters"),
+
+  body("rarity")
+    .optional()
+    .isIn(["COMMON", "RARE", "EPIC", "LEGENDARY"])
+    .withMessage("Rarity must be one of COMMON, RARE, EPIC, LEGENDARY"),
 ];
 
 /**
