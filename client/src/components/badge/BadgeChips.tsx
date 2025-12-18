@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import api, { badgeApi, userApi, type BadgeResponse } from '../../services/api';
+import api, { badgeApi, type BadgeResponse } from '../../services/api';
+import { Award } from 'lucide-react';
 
 interface BadgeChipsProps {
   userId?: number | null;
@@ -41,39 +42,49 @@ const BadgeChips: React.FC<BadgeChipsProps> = ({ userId = undefined, limit = 3 }
   if (loading || badges.length === 0) return null;
 
   return (
-    <div className="flex items-center gap-2">
-        <style>{`
-          @keyframes badge-shine { 0% { transform: translateX(-100%) rotate(25deg); } 100% { transform: translateX(100%) rotate(25deg); } }
-          .badge-shine {
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: linear-gradient(120deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.45) 50%, rgba(255,255,255,0) 70%);
-            opacity: 0.85;
-            pointer-events: none;
-            mix-blend-mode: overlay;
-            animation: badge-shine 1.6s linear infinite;
-          }
-        `}</style>
+    <div className="flex items-center gap-2 flex-wrap">
+      <style>{`
+        @keyframes badge-shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        .badge-shimmer-effect {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+          pointer-events: none;
+          animation: badge-shimmer 2s ease-in-out infinite;
+        }
+      `}</style>
       {badges.map((b) => {
         const id = String(b.id);
         const isImage = Boolean(b.icon_url) && !failedImgs.has(id);
         return isImage ? (
-          <div key={id} title={b.name} className="relative w-8 h-8 rounded-full overflow-hidden border shadow-sm flex items-center justify-center" style={{ borderColor: '#00A86B', backgroundColor: 'transparent' }}>
+          <div
+            key={id}
+            title={b.name}
+            className="relative group w-9 h-9 rounded-full overflow-hidden border-2 border-success/40 bg-linear-to-br from-success/10 to-success/5 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 flex items-center justify-center"
+          >
             <img
               src={b.icon_url}
               alt={b.name}
               className="w-full h-full object-cover"
               onError={() => setFailedImgs(prev => { const s = new Set(prev); s.add(id); return s; })}
             />
-            <div className="badge-shine" />
+            <div className="badge-shimmer-effect opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         ) : (
-          <div key={id} title={b.name} className="relative inline-flex items-center h-8 px-3 rounded-full shadow-sm max-w-[12rem] overflow-hidden" style={{ backgroundColor: '#00A86B', color: 'white', borderColor: '#00A86B' }}>
-            <span className="text-sm leading-tight truncate whitespace-nowrap">{b.name ?? ''}</span>
-            <div className="badge-shine" />
+          <div
+            key={id}
+            title={b.name}
+            className="relative group inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-linear-to-r from-success to-turf-green-600 text-white shadow-sm hover:shadow-md max-w-48 overflow-hidden transition-all duration-200 hover:scale-105"
+          >
+            <Award className="h-3.5 w-3.5 shrink-0" />
+            <span className="text-xs font-medium leading-tight truncate whitespace-nowrap">{b.name ?? ''}</span>
+            <div className="badge-shimmer-effect opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         );
       })}

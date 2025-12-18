@@ -210,7 +210,7 @@ const BadgesPage: React.FC<ProfileProps> = ({ onLogout }) => {
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 p-8 text-white shadow-2xl"
+            className="relative overflow-hidden rounded-2xl bg-linear-to-r from-turf-green-500 to-frosted-blue-500 p-8 text-white shadow-2xl"
           >
             <div className="absolute inset-0 bg-black/20" />
             <div className="relative z-10 space-y-4">

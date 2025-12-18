@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { CommunityResponse } from '../../services/api';
 import CommunityCard from '../common/CommunityCard';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Users } from 'lucide-react';
 
 interface FetchResult {
   data: CommunityResponse[];
@@ -87,29 +87,55 @@ const CommunityList: React.FC<Props> = ({ title = 'Communities', fetcher, pageSi
   }, [loadPage, loading, hasMore, page, containerHeight]);
 
   return (
-    <div className="bg-card rounded-xl border border-border p-4">
-      <h3 className="text-lg font-semibold mb-3">{title}</h3>
-      <div ref={containerRef} style={containerHeight ? { height: containerHeight } : undefined} className={containerHeight ? 'overflow-auto' : ''}>
+    <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="px-5 py-4 border-b border-border bg-muted/30">
+        <div className="flex items-center gap-2">
+          <Users className="h-5 w-5 text-primary" />
+          <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div
+        ref={containerRef}
+        style={containerHeight ? { height: containerHeight } : undefined}
+        className={`${containerHeight ? 'overflow-auto' : ''} px-4 py-4 space-y-3`}
+      >
         {loading && items.length === 0 ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin mr-2" />
-            <span>Loading...</span>
+          <div className="flex flex-col items-center justify-center py-12 gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="text-sm text-muted-foreground">Loading communities...</span>
           </div>
         ) : items.length === 0 ? (
-          <div className="text-sm text-muted-foreground">No communities yet.</div>
+          <div className="flex flex-col items-center justify-center py-12 gap-3">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+              <Users className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <p className="text-sm text-muted-foreground text-center">No communities yet</p>
+          </div>
         ) : (
-          <div className="space-y-2">
-            {items.map(c => (
-              <CommunityCard key={c.id} community={c} onClick={() => onCommunityClick ? onCommunityClick(c.id) : undefined} />
-            ))}
-            <div className="pt-3 flex items-center justify-center">
+          <>
+            <div className="space-y-3">
+              {items.map(c => (
+                <CommunityCard
+                  key={c.id}
+                  community={c}
+                  onClick={() => onCommunityClick ? onCommunityClick(c.id) : undefined}
+                />
+              ))}
+            </div>
+            <div className="pt-4 flex items-center justify-center">
               {loading ? (
-                <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading...</div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Loading...</span>
+                </div>
               ) : !hasMore ? (
-                <div className="text-xs text-muted-foreground">No more communities</div>
+                <div className="text-xs text-muted-foreground">• End of list •</div>
               ) : null}
             </div>
-          </div>
+          </>
         )}
       </div>
     </div>

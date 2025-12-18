@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sidebar } from '../../components/dashboard';
-import api, { communityApi, postApi, type CommunityResponse, type PostResponse } from '../../services/api';
+import api, { communityApi, postApi, type PostResponse } from '../../services/api';
 import { useResolvedFileUrl } from '../../hooks/useResolvedFileUrl';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Activity } from 'lucide-react';
 import PostCard from '../../components/posts/PostCard';
 import CommunityList from '../../components/profile/CommunityList';
 import UserProfileHeader from '../../components/profile/UserProfileHeader';
@@ -173,50 +173,75 @@ const MyProfile: React.FC<MyProfileProps> = ({ onLogout }) => {
   return (
     <div className="flex min-h-screen bg-background text-foreground font-sans">
       <Sidebar onLogout={handleLogout} />
-      <main className="flex-1 ml-20 p-6 transition-all duration-300">
-        <div className="w-full max-w-none">
+      <main className="flex-1 ml-20 transition-all duration-300">
+        {/* Container with max-width for better readability */}
+        <div className="max-w-screen-2xl mx-auto px-6 py-8">
+          {/* Profile Header */}
           <UserProfileHeader viewedUser={viewedUser} viewedAvatarUrl={viewedAvatarUrl} />
 
-          <div className="flex gap-6 mt-6">
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold mb-3">Recent activity</h3>
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Column - Activity Feed (Takes 2/3 on large screens) */}
+            <div className="lg:col-span-2 space-y-4">
+              {/* Section Header */}
+              <div className="flex items-center gap-2 pb-2">
+                <Activity className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-bold text-foreground">Recent Activity</h2>
+              </div>
+
+              {/* Posts Content */}
               <div className="space-y-4">
                 {postsLoading && myPosts.length === 0 ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                    <span>Loading posts...</span>
+                  <div className="flex flex-col items-center justify-center py-16 gap-3 bg-card rounded-xl border border-border">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <span className="text-sm text-muted-foreground">Loading posts...</span>
                   </div>
                 ) : myPosts.length === 0 ? (
-                  <div className="bg-muted/50 rounded-xl border border-border p-6 flex items-center gap-4">
-                    <span className="text-xl text-muted-foreground">No posts to show.</span>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-4">
-                    {myPosts.map(p => (
-                      <PostCard
-                        key={p.id}
-                        post={p as any}
-                        currentUser={user ? { id: user.id, role: user.role } : null}
-                      />
-                    ))}
-
-                    <div className="flex items-center justify-center">
-                      {loadingMorePosts ? (
-                        <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading...</div>
-                      ) : !hasMorePosts ? (
-                        <div className="text-xs text-muted-foreground">No more posts</div>
-                      ) : null}
+                  <div className="bg-card rounded-xl border border-border p-8">
+                    <div className="flex flex-col items-center justify-center text-center gap-4">
+                      <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                        <Activity className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-foreground mb-1">No activity yet</h3>
+                        <p className="text-sm text-muted-foreground">Your recent posts will appear here</p>
+                      </div>
                     </div>
                   </div>
+                ) : (
+                  <>
+                    <div className="space-y-4">
+                      {myPosts.map(p => (
+                        <PostCard
+                          key={p.id}
+                          post={p as any}
+                          currentUser={user ? { id: user.id, role: user.role } : null}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Load More Indicator */}
+                    <div className="flex items-center justify-center py-4">
+                      {loadingMorePosts ? (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Loading more posts...</span>
+                        </div>
+                      ) : !hasMorePosts ? (
+                        <div className="text-xs text-muted-foreground">• You're all caught up •</div>
+                      ) : null}
+                    </div>
+                  </>
                 )}
               </div>
             </div>
 
-            <div className="w-80">
+            {/* Right Column - Communities Sidebar (Takes 1/3 on large screens) */}
+            <div className="lg:col-span-1">
               <CommunityList
                 title="My Communities"
                 pageSize={7}
-                containerHeight={360}
+                containerHeight={600}
                 fetcher={(p, limit) => communityApi.getMyCommunities({ page: p, limit })}
                 onCommunityClick={(id) => navigate(`/community/${id}`)}
               />

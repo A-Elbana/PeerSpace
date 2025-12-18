@@ -3,7 +3,7 @@ import BadgeButton from '../badge/BadgeButton';
 import BadgeChips from '../badge/BadgeChips';
 import InviteToTaskModal from './InviteToTaskModal';
 import api from '../../services/api';
-import {UserPlus} from 'lucide-react'
+import { UserPlus, Mail, Award, Briefcase, GraduationCap, ExternalLink } from 'lucide-react'
 
 interface UserData {
   id: number;
@@ -49,61 +49,83 @@ const UserProfileHeader: React.FC<Props> = ({ viewedUser, viewedAvatarUrl }) => 
   const scholarHref = viewedUser?.google_scholar;
 
   return (
-    <div className="mb-10">
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-x-0 -top-16 h-40 bg-gradient-to-br from-cyan-400/25 via-teal-400/20 to-indigo-500/15 blur-3xl" />
-          <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
-        </div>
-
-        <div className="relative p-8 md:p-10 flex flex-col gap-8">
-          <div className="flex flex-col md:flex-row gap-8 md:gap-10 md:items-start">
-            <div className="flex-shrink-0">
-              <div className="relative w-32 h-32 rounded-3xl bg-gradient-to-br from-cyan-100 to-teal-100 dark:from-cyan-900 dark:to-teal-900 flex items-center justify-center overflow-hidden border-2 border-border shadow-lg">
-                {viewedUser?.avatar_file_id ? (
-                  <img src={viewedAvatarUrl || ''} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-4xl md:text-5xl font-bold text-primary">{initials}</span>
-                )}
+    <>
+      {/* Hero Banner with Gradient Background */}
+      <div className="relative mb-8 overflow-hidden rounded-xl border border-border bg-card">
+        {/* Subtle gradient background */}
+        <div className="absolute inset-0 bg-linear-to-br from-primary-100/50 via-background to-background dark:from-primary-900/20 dark:via-background dark:to-background" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,var(--color-tech-blue-500)_0%,transparent_50%)] opacity-5" />
+        
+        {/* Content */}
+        <div className="relative px-6 py-8 md:px-8">
+          <div className="flex flex-col md:flex-row gap-6 items-start">
+            {/* Avatar Section */}
+            <div className="shrink-0">
+              <div className="relative group">
+                <div className="absolute -inset-1 bg-linear-to-br from-primary/30 to-accent-teal/30 rounded-2xl blur-sm group-hover:blur-md transition-all duration-300" />
+                <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-2xl overflow-hidden border-2 border-background shadow-lg bg-linear-to-br from-primary-100 to-primary-200 dark:from-primary-800 dark:to-primary-700">
+                  {viewedUser?.avatar_file_id ? (
+                    <img src={viewedAvatarUrl || ''} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className="text-4xl md:text-5xl font-bold text-primary">{initials}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
+            {/* Info Section */}
             <div className="flex-1 min-w-0 space-y-4">
-              <div className="space-y-2">
+              {/* Name & Role */}
+              <div className="space-y-3">
                 <div className="flex flex-wrap items-center gap-3">
-                  <h1 className="text-3xl md:text-4xl font-bold text-foreground leading-tight truncate">
+                  <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
                     {viewedUser ? `${viewedUser.fname} ${viewedUser.lname}` : 'User'}
                   </h1>
-                  <span className="px-3 py-1.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/30">
-                    {viewedUser?.role?.toUpperCase()}
-                  </span>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-linear-to-r from-primary/10 to-accent-teal/10 text-primary border border-primary/20">
+                    {isStudent ? <GraduationCap className="h-3 w-3" /> : <Briefcase className="h-3 w-3" />}
+                    <span>{viewedUser?.role?.toUpperCase()}</span>
+                  </div>
                 </div>
 
+                {/* Email */}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Mail className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{viewedUser?.email}</span>
+                </div>
+
+                {/* Badge Section for Students */}
                 {isStudent && (
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3 pt-2">
                     <BadgeButton
                       to={`/profile/${viewedUser?.id}/badges`}
-                      className="px-4 py-2 rounded-lg font-medium bg-muted/70 hover:bg-muted transition-all duration-200"
+                      className=""
                     />
                     <BadgeChips userId={viewedUser?.id} />
                   </div>
                 )}
-
-                <p className="text-sm md:text-base text-muted-foreground truncate">{viewedUser?.email}</p>
               </div>
 
+              {/* Instructor Details */}
               {isInstructor && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                   {viewedUser.title && (
-                    <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/50 px-3 py-2">
-                      <span className="text-muted-foreground font-medium whitespace-nowrap">Title</span>
-                      <span className="text-foreground">{viewedUser.title}</span>
+                    <div className="flex items-center gap-3 rounded-lg border border-border bg-background/50 px-4 py-3 transition-colors hover:bg-muted/30">
+                      <Briefcase className="h-4 w-4 text-primary shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-muted-foreground">Title</p>
+                        <p className="text-sm font-medium text-foreground truncate">{viewedUser.title}</p>
+                      </div>
                     </div>
                   )}
                   {viewedUser.expertise && (
-                    <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/50 px-3 py-2">
-                      <span className="text-muted-foreground font-medium whitespace-nowrap">Expertise</span>
-                      <span className="text-foreground">{viewedUser.expertise}</span>
+                    <div className="flex items-center gap-3 rounded-lg border border-border bg-background/50 px-4 py-3 transition-colors hover:bg-muted/30">
+                      <Award className="h-4 w-4 text-accent-teal shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-muted-foreground">Expertise</p>
+                        <p className="text-sm font-medium text-foreground truncate">{viewedUser.expertise}</p>
+                      </div>
                     </div>
                   )}
                   {scholarHref && (
@@ -111,10 +133,13 @@ const UserProfileHeader: React.FC<Props> = ({ viewedUser, viewedAvatarUrl }) => 
                       href={scholarHref}
                       target="_blank"
                       rel="noreferrer"
-                      className="flex items-center gap-2 rounded-xl border border-border bg-muted/50 px-3 py-2 text-primary hover:text-primary/80 hover:border-primary/40 transition-colors"
+                      className="flex items-center gap-3 rounded-lg border border-border bg-background/50 px-4 py-3 transition-all hover:bg-muted/30 hover:border-primary/40 group"
                     >
-                      <span className="text-muted-foreground font-medium whitespace-nowrap">Scholar</span>
-                      <span className="underline decoration-dotted">Google Scholar</span>
+                      <ExternalLink className="h-4 w-4 text-info shrink-0 group-hover:text-primary transition-colors" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-muted-foreground">Scholar Profile</p>
+                        <p className="text-sm font-medium text-primary truncate group-hover:underline">Google Scholar</p>
+                      </div>
                     </a>
                   )}
                 </div>
@@ -122,17 +147,18 @@ const UserProfileHeader: React.FC<Props> = ({ viewedUser, viewedAvatarUrl }) => 
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 md:gap-4">
-            {isStudent && isOtherUser && isCurrentUserStudent && (
+          {/* Action Buttons */}
+          {isStudent && isOtherUser && isCurrentUserStudent && (
+            <div className="flex flex-wrap items-center gap-3 pt-6 mt-6 border-t border-border/50">
               <button
                 onClick={() => setInviteOpen(true)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold shadow-md hover:shadow-lg hover:bg-primary/90 transition-all duration-200"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold shadow-sm hover:shadow-md hover:bg-primary/90 transition-all duration-200"
               >
-                <UserPlus className='h-6 w-6' />
-                <span>Invite to task</span>
+                <UserPlus className="h-4 w-4" />
+                <span>Invite to Task</span>
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -142,7 +168,7 @@ const UserProfileHeader: React.FC<Props> = ({ viewedUser, viewedAvatarUrl }) => 
         invitedStudentId={viewedUser?.id ?? 0}
         invitedStudentName={viewedUser ? `${viewedUser.fname} ${viewedUser.lname}` : undefined}
       />
-    </div>
+    </>
   );
 };
 
