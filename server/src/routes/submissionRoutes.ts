@@ -281,7 +281,7 @@ router.get(
  *                           is_private:
  *                             type: boolean
  */
-router.get("/:id", authenticateToken, loadSubmission, getSubmissionById);
+router.get("/:id", authenticateToken, loadSubmission, authorizeSubmissionOwner, getSubmissionById);
 
 /**
  * @swagger

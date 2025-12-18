@@ -138,7 +138,7 @@ export const TaskTable: React.FC<Props> = ({ taskList, title, isFetching = false
 
                 <div className="w-32 flex items-center justify-center">
                   <div className={`flex items-center gap-2 text-sm ${task.completed ? 'text-muted-foreground' : 'text-foreground'}`}>
-                    <Calendar className="w-4 h-4 text-muted-foreground" />
+                    <Calendar className="w-6 h-4 text-muted-foreground" />
                     <span>{task.dueDate || '-'}</span>
                   </div>
                 </div>

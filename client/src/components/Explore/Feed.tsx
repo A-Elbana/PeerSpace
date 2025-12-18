@@ -1,27 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Sparkles, Loader2, BookOpen, Rocket, Send, X, Clock, Filter, ArrowBigUp, Search } from 'lucide-react';
+import { Sparkles, Loader2, BookOpen, Rocket, X, Clock, Filter, ArrowBigUp, Search } from 'lucide-react';
 import { instructorApi, postApi } from '../../services/api';
 import CreatePostWidget from '../../components/posts/CreatePostWidget';
 import PostCard from '../../components/posts/PostCard';
-import { MarkdownEditor } from '../../components/MarkdownEditor';
 
 interface FeedProps {
   user?: any;
   fetchPostsFromCommunities: (c: any[]) => Promise<void>;
   communities: any[];
-  isEditorOpen: boolean;
-  setIsEditorOpen: (v: boolean) => void;
-  handleCreatePost: () => Promise<void>;
-  isCreatingPost: boolean;
-  selectedCommunity: string;
-  setSelectedCommunity: (v: string) => void;
-  newPostTitle: string;
-  setNewPostTitle: (v: string) => void;
-  newPostBody: string;
-  setNewPostBody: (v: string) => void;
-  selectedTags: string[];
-  setSelectedTags: React.Dispatch<React.SetStateAction<string[]>>;
-  POST_TAGS: ReadonlyArray<any>;
   activeTab: string;
   setActiveTab: (s: string) => void;
   filterRef: React.RefObject<HTMLDivElement | null>;
@@ -37,8 +23,6 @@ interface FeedProps {
   isLoadingMore: boolean;
   hasMore: boolean;
   getCommunityName: (cid: string) => string;
-  handleEditPost: (p: any) => void;
-  handleDeletePost: (id: number) => void;
 };
 
 const Feed: React.FC<FeedProps> = (props) => {
@@ -46,19 +30,6 @@ const Feed: React.FC<FeedProps> = (props) => {
     user,
     fetchPostsFromCommunities,
     communities,
-    isEditorOpen,
-    setIsEditorOpen,
-    handleCreatePost,
-    isCreatingPost,
-    selectedCommunity,
-    setSelectedCommunity,
-    newPostTitle,
-    setNewPostTitle,
-    newPostBody,
-    setNewPostBody,
-    selectedTags,
-    setSelectedTags,
-    POST_TAGS,
     activeTab,
     setActiveTab,
     filterRef,
@@ -74,8 +45,6 @@ const Feed: React.FC<FeedProps> = (props) => {
     isLoadingMore,
 
     getCommunityName,
-    handleEditPost,
-    handleDeletePost,
   } = props;
 
   // Internal paginated state (fetch 10 posts per page)
@@ -93,12 +62,12 @@ const Feed: React.FC<FeedProps> = (props) => {
       let res: any;
       if (user?.role === 'instructor') {
         if (activeTab === 'unresolved') {
-          res = await instructorApi.getUnresolvedPosts({ page: p, limit: 10, cid: selectedCommunity || undefined });
+          res = await instructorApi.getUnresolvedPosts({ page: p, limit: 10, cid: undefined });
         } else {
-          res = await instructorApi.getFeed({ page: p, limit: 10, sort: activeTab as any, cid: selectedCommunity || undefined });
+          res = await instructorApi.getFeed({ page: p, limit: 10, sort: activeTab as any, cid: undefined });
         }
       } else {
-        res = await postApi.getAll({ page: p, limit: 10, communityId: selectedCommunity });
+        res = await postApi.getAll({ page: p, limit: 10 });
       }
 
       const newPosts = res.data || [];
@@ -120,7 +89,7 @@ const Feed: React.FC<FeedProps> = (props) => {
     setHasMoreLocal(true);
     void fetchPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, selectedCommunity]);
+  }, [activeTab, ]);
 
   // Intersection observer to load more pages
   useEffect(() => {
@@ -158,106 +127,10 @@ const Feed: React.FC<FeedProps> = (props) => {
         onCreated={() => fetchPostsFromCommunities(communities)}
       />
 
-      {isEditorOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-card w-full max-w-4xl h-[80vh] rounded-xl shadow-2xl border border-border flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-linear-to-br from-frosted-blue-500 to-turf-green-500 flex items-center justify-center text-white text-sm font-bold shadow-md">
-                  {user?.fname?.[0] || 'U'}
-                </div>
-                Create Post
-              </h3>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleCreatePost}
-                  disabled={!user || !selectedCommunity || !newPostTitle.trim() || !newPostBody.trim() || isCreatingPost}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isCreatingPost ? (
-                    <Loader2 size={16} className="animate-spin mr-2 inline" />
-                  ) : (
-                    <Send size={16} className="mr-2 inline" />
-                  )}
-                  Post
-                </button>
-                <button
-                  onClick={() => setIsEditorOpen(false)}
-                  className="p-2 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-4 space-y-4 flex-1 overflow-y-auto bg-background">
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <select
-                    value={selectedCommunity}
-                    onChange={(e) => setSelectedCommunity(e.target.value)}
-                    className="w-full px-4 py-2 bg-muted text-muted-foreground text-sm font-medium rounded-lg hover:bg-muted/80 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <option value="">Select Community</option>
-                    {communities.map((community: any) => (
-                      <option key={community.id} value={community.id}>
-                        {community.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex-1 relative">
-                  <input
-                    type="text"
-                    placeholder="Post title..."
-                    value={newPostTitle}
-                    onChange={(e) => setNewPostTitle(e.target.value)}
-                    className="w-full px-4 py-2 bg-muted/50 border border-input rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder-muted-foreground"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {POST_TAGS.map((tag: any) => {
-                  const isSelected = selectedTags.includes(tag.id);
-                  return (
-                    <button
-                      key={tag.id}
-                      onClick={() => {
-                        if (isSelected) {
-                          setSelectedTags(prev => prev.filter((t: string) => t !== tag.id));
-                        } else {
-                          setSelectedTags(prev => [...prev, tag.id]);
-                        }
-                      }}
-                      className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${isSelected
-                        ? `${tag.bgLight} ${tag.textColor} ring-1 ring-current`
-                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                        }`}
-                    >
-                      {tag.label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="border border-input rounded-lg overflow-hidden min-h-[300px]">
-                <MarkdownEditor
-                  value={newPostBody}
-                  onChange={setNewPostBody}
-                  placeholder="Write something amazing..."
-                  className="min-h-[300px]"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="flex items-center gap-4 text-sm font-medium text-muted-foreground mb-2">
         {/* 'Popular' filter removed; kept tabs: New, Top */}
         <button
-          onClick={() => { setActiveTab('new'); }}
+          onClick={() => setActiveTab('new')}
           className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${activeTab === 'new' ? 'text-primary bg-muted' : ''}`}
         >
           <Clock size={18} /> New
@@ -393,8 +266,6 @@ const Feed: React.FC<FeedProps> = (props) => {
                 communityName={getCommunityName(post.cid)}
                 onNavigate={(id?: string) => { if (id) window.location.pathname = `/community/${id}`; }}
                 currentUser={user}
-                onEdit={() => handleEditPost(post)}
-                onDelete={() => handleDeletePost(post.id)}
               />
             ))}
 

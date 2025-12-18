@@ -19,18 +19,11 @@ import { toast } from 'sonner';
 import { Sidebar } from '../components/dashboard';
 import Header from '../components/Header';
 import { useSidebar } from '../contexts/SidebarContext';
-import { Loader2 } from 'lucide-react';
 import api, { communityApi, postApi, assignmentApi, submissionApi, instructorApi, type CommunityResponse, type PostResponse, type PaginationMeta } from '../services/api';
 import { removeTokens } from '../utils/auth';
-import { PostModal } from '../components/posts';
-import { ConfirmationModal } from '../components/ui/ConfirmationModal';
 
-// Available post tags
-const POST_TAGS = [
-    { id: 'math', label: 'Math', color: 'bg-tech-blue-500', textColor: 'text-tech-blue-600', bgLight: 'bg-tech-blue-500/10' },
-    { id: 'scientific', label: 'Scientific', color: 'bg-turf-green-500', textColor: 'text-turf-green-600', bgLight: 'bg-turf-green-500/10' },
-    { id: 'puzzles', label: 'Puzzles', color: 'bg-royal-gold-500', textColor: 'text-royal-gold-600', bgLight: 'bg-royal-gold-500/10' },
-] as const;
+
+
 
 interface ExploreProps {
     onLogout: () => void;
@@ -54,6 +47,8 @@ interface CommunityWithMeta extends CommunityResponse {
 // Using shared components
 import RightSide from '../components/Explore/RightWidgets';
 import Feed from '../components/Explore/Feed';
+import FeedSkeleton from '../components/Explore/FeedSkeleton';
+import RightSideSkeleton from '../components/Explore/RightSideSkeleton';
 
 const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
     const { sidebarWidth } = useSidebar();
@@ -106,11 +101,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
     const [communities, setCommunities] = useState<CommunityWithMeta[]>([]);
     const [privateCommunities, setPrivateCommunities] = useState<CommunityWithMeta[]>([]);
     const [posts, setPosts] = useState<PostResponse[]>([]);
-    const [selectedCommunity, setSelectedCommunity] = useState<string>('');
-    const [newPostTitle, setNewPostTitle] = useState('');
-    const [newPostBody, setNewPostBody] = useState('');
-    const [selectedTags, setSelectedTags] = useState<string[]>([]);
-    const [isCreatingPost, setIsCreatingPost] = useState(false);
+
     const [joiningCommunityId, setJoiningCommunityId] = useState<string | null>(null);
     const [enrolledCommunityIds, setEnrolledCommunityIds] = useState<Set<string>>(new Set());
 
@@ -123,12 +114,6 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
     const [isLoadingPublic, setIsLoadingPublic] = useState(false);
     const [isLoadingPrivate, setIsLoadingPrivate] = useState(false);
 
-    // Edit/Delete State
-    const [editingPost, setEditingPost] = useState<PostResponse | null>(null);
-    const [showEditModal, setShowEditModal] = useState(false);
-    const [deletePostId, setDeletePostId] = useState<number | null>(null);
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
 
     // Initial load state
     const [displayedPosts, setDisplayedPosts] = useState<PostResponse[]>([]);
@@ -148,7 +133,6 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
     const [isCommunityFilterOpen, setIsCommunityFilterOpen] = useState(false);
     const filterRef = useRef<HTMLDivElement>(null);
     const communityFilterRef = useRef<HTMLDivElement>(null);
-    const [isEditorOpen, setIsEditorOpen] = useState(false);
 
     // Deadline/Submission state
     const [deadlines, setDeadlines] = useState<any[]>([]);
@@ -231,7 +215,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
             try {
                 if (user?.role === 'instructor') {
                     const sort = activeTab === 'top' ? 'top' : 'new';
-                    const res = await instructorApi.getFeed({ page: next, limit: POSTS_PER_PAGE, sort, cid: selectedCommunity || undefined });
+                    const res = await instructorApi.getFeed({ page: next, limit: POSTS_PER_PAGE, sort, cid: undefined });
                     const data = res?.data || [];
                     if (data.length > 0) {
                         const meta = res?.meta ?? null;
@@ -377,7 +361,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                 try {
                     if (normalizedUser.role === 'instructor') {
                         const sort = activeTab === 'top' ? 'top' : 'new';
-                        const res = await instructorApi.getFeed({ page: 1, limit: POSTS_PER_PAGE, sort, cid: selectedCommunity || undefined });
+                        const res = await instructorApi.getFeed({ page: 1, limit: POSTS_PER_PAGE, sort, cid: undefined });
                         const data = res?.data || [];
                         const meta = res?.meta ?? null;
                         setPosts(data as PostResponse[]);
@@ -492,7 +476,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
             try {
                 if (user?.role === 'instructor') {
                     const sort = activeTab === 'top' ? 'top' : 'new';
-                    const res = await instructorApi.getFeed({ page: 1, limit: POSTS_PER_PAGE, sort, cid: selectedCommunity || undefined });
+                    const res = await instructorApi.getFeed({ page: 1, limit: POSTS_PER_PAGE, sort, cid: undefined });
                     const data = res?.data || [];
                     const meta = res?.meta ?? null;
                     setPosts(data as PostResponse[]);
@@ -545,81 +529,11 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
         }
     };
 
-    const handleCreatePost = async () => {
-        if (!selectedCommunity || !newPostTitle.trim() || !newPostBody.trim()) return;
 
-        setIsCreatingPost(true);
-        try {
-            const newPost = await postApi.create({
-                title: newPostTitle.trim(),
-                body: newPostBody.trim(),
-                type: selectedTags.length > 0 ? selectedTags.join(',') : 'discussion',
-                cid: selectedCommunity,
-            });
 
-            // Add the new post to the top of the list
-            setPosts(prev => [{
-                ...newPost,
-                User: {
-                    id: user!.id,
-                    fname: user!.fname,
-                    lname: user!.lname,
-                    avatar_file_id: user!.avatar_file_id || null,
-                },
-                _count: { Comment: 0 },
-            }, ...prev]);
 
-            // Reset form
-            setNewPostTitle('');
-            setNewPostBody('');
-            setSelectedCommunity('');
-            setSelectedTags([]);
-            toast.success('Post created successfully!');
-        } catch (err: unknown) {
-            console.error('Failed to create post:', err);
-            const axiosError = err as { response?: { data?: { message?: string } } };
-            toast.error(axiosError.response?.data?.message || 'Failed to create post');
-        } finally {
-            setIsCreatingPost(false);
-        }
-    };
 
-    const handleDeletePost = (postId: number) => {
-        setDeletePostId(postId);
-        setShowDeleteModal(true);
-    };
 
-    const confirmDeletePost = async () => {
-        if (!deletePostId) return;
-
-        setIsDeleting(true);
-        try {
-            await postApi.delete(deletePostId);
-            setPosts(prev => prev.filter(p => p.id !== deletePostId));
-            setDisplayedPosts(prev => prev.filter(p => p.id !== deletePostId));
-            toast.success('Post deleted successfully');
-            setShowDeleteModal(false);
-        } catch (error) {
-            console.error('Failed to delete post:', error);
-            toast.error('Failed to delete post');
-        } finally {
-            setIsDeleting(false);
-            setDeletePostId(null);
-        }
-    };
-
-    const handleEditPost = (post: PostResponse) => {
-        setEditingPost(post);
-        setShowEditModal(true);
-    };
-
-    const handleEditSuccess = (updatedPost: PostResponse) => {
-        setPosts(prev => prev.map(p => p.id === updatedPost.id ? updatedPost : p));
-        setDisplayedPosts(prev => prev.map(p => p.id === updatedPost.id ? updatedPost : p));
-        setShowEditModal(false);
-        setEditingPost(null);
-        toast.success('Post updated successfully');
-    };
 
     const handleJoinCommunity = async (communityId: string) => {
         if (user?.role !== 'student') {
@@ -660,8 +574,36 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
     // Render initial loading screen while fetching user and initial data
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <div className="min-h-screen bg-background flex flex-col">
+                <Header
+                    user={null as any}
+                    onLogout={onLogout}
+                    searchValue=""
+                    onSearchChange={() => {}}
+                    searchedPosts={[]}
+                    searchedCommunities={[]}
+                    isSearching={false}
+                />
+                <div className="flex min-h-[calc(100vh-80px)] bg-background text-foreground font-sans">
+                    <Sidebar onLogout={onLogout} />
+
+                    {/* Main Content Area */}
+                    <main
+                        className="flex-1 p-4 sm:p-6 transition-all duration-300"
+                        style={{ marginLeft: `${sidebarWidth}px` }}
+                    >
+                        <div className="w-full max-w-7xl mx-auto">
+                            <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+                                <div className="flex-1 min-w-0">
+                                    <FeedSkeleton postCount={5} />
+                                </div>
+                                <div className="w-full lg:w-80 flex-shrink-0">
+                                    <RightSideSkeleton />
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+                </div>
             </div>
         );
     }
@@ -669,6 +611,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
     // Render the page
     return (
         <>
+        <div className="bg-background">
             <Header
                 user={user}
                 onLogout={onLogout}
@@ -692,19 +635,6 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                 user={user}
                                 fetchPostsFromCommunities={fetchPostsFromCommunities}
                                 communities={communities}
-                                isEditorOpen={isEditorOpen}
-                                setIsEditorOpen={setIsEditorOpen}
-                                handleCreatePost={handleCreatePost}
-                                isCreatingPost={isCreatingPost}
-                                selectedCommunity={selectedCommunity}
-                                setSelectedCommunity={setSelectedCommunity}
-                                newPostTitle={newPostTitle}
-                                setNewPostTitle={setNewPostTitle}
-                                newPostBody={newPostBody}
-                                setNewPostBody={setNewPostBody}
-                                selectedTags={selectedTags}
-                                setSelectedTags={setSelectedTags}
-                                POST_TAGS={POST_TAGS}
                                 activeTab={activeTab}
                                 setActiveTab={setActiveTab}
                                 filterRef={filterRef}
@@ -720,8 +650,6 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                                 isLoadingMore={isLoadingMore}
                                 hasMore={hasMore}
                                 getCommunityName={getCommunityName}
-                                handleEditPost={handleEditPost}
-                                handleDeletePost={handleDeletePost}
                             />
                             <RightSide
                                 user={user}
@@ -751,27 +679,7 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                 </main>
             </div>
 
-            {
-                editingPost && (
-                    <PostModal
-                        isOpen={showEditModal}
-                        onClose={() => setShowEditModal(false)}
-                        onSuccess={handleEditSuccess}
-                        post={editingPost as PostResponse}
-                    />
-                )
-            }
-
-            <ConfirmationModal
-                isOpen={showDeleteModal}
-                onClose={() => setShowDeleteModal(false)}
-                onConfirm={confirmDeletePost}
-                title="Delete Post"
-                message="Are you sure you want to delete this post? This action cannot be undone."
-                confirmText="Delete"
-                isDestructive
-                isLoading={isDeleting}
-            />
+        </div>
         </>
     );
 };

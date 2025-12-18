@@ -7,7 +7,8 @@ import api from '../../services/api';
 import { toast } from 'sonner';
 import { Button } from '../../components/ui/button';
 import { DeleteConfirmationModal } from '../../components/common/DeleteConfirmationModal';
-import TaskTable from '../../components/common/TaskTable';
+import TaskTable from '../../components/Tasks/TaskTable';
+import TasksSkeleton from '../../components/Tasks/TasksSkeleton';
 import { CreateTaskModal } from './CreateTaskModal';
 import {
     Pagination,
@@ -154,7 +155,7 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
                 }
             }
 
-            const dueDate = t.end_date ? new Date(t.end_date).toLocaleDateString() : null;
+            const dueDate = t.end_date ? new Date(t.end_date).toLocaleString() : null;
 
             const p = t.priority;
             let priority: Task['priority'] = 'low';
@@ -302,8 +303,16 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
 
     if (isLoading || !user) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-background">
-                <Loader2 className="w-10 h-10 text-primary animate-spin" />
+            <div className="flex min-h-screen bg-background text-foreground">
+                <Sidebar onLogout={onLogout || (() => { })} />
+                <main 
+                    className="flex-1 p-8 transition-all duration-300"
+                    style={{ marginLeft: `${sidebarWidth}px` }}
+                >
+                    <div className="max-w-7xl mx-auto">
+                        <TasksSkeleton count={5} />
+                    </div>
+                </main>
             </div>
         );
     }
@@ -340,7 +349,7 @@ const Tasks: React.FC<TasksProps> = ({ onLogout }) => {
                         <div className="flex flex-col md:flex-row gap-3">
                             {/* Create Task Button (Styled as requested) */}
                             <Button
-                                className="rounded-lg px-3 py-2 h-auto gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+                                className="rounded-lg px-3 py-2 h-auto gap-2 bg-primary text-primary-foreground hover:bg-primary/90 w-fit"
                                 onClick={() => setIsCreateModalOpen(true)}
                             >
                                 <Plus className="w-4 h-4" />
