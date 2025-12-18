@@ -142,6 +142,7 @@ export interface BadgeResponse {
   name: string;
   icon_url: string;
   description?: string | null;
+  rarity?: 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
   _count?: {
     StudentBadge?: number;
   };
@@ -347,36 +348,58 @@ export const communityApi = {
 };
 
 export const badgeApi = {
-  getAll: async (params?: { page?: number; limit?: number }) => {
+  // Create a new badge (Admin only)
+  create: async (data: {
+    name: string;
+    description?: string;
+    rarity?: "COMMON" | "RARE" | "EPIC" | "LEGENDARY";
+  }): Promise<{
+    message: string;
+    badge: BadgeResponse;
+  }> => {
+    const response = await api.post("/badges", data);
+    return response.data;
+  },
+
+  // Get all badges with pagination
+  getAll: async (params?: { page?: number; limit?: number }): Promise<{
+    message: string;
+    data: BadgeResponse[];
+    meta: PaginationMeta;
+  }> => {
     const cleanParams: Record<string, number> = {};
     if (params) {
       if (params.page) cleanParams.page = params.page;
       if (params.limit) cleanParams.limit = params.limit;
     }
     const response = await api.get("/badges", { params: cleanParams });
-    return response.data as {
-      message: string;
-      data: BadgeResponse[];
-      meta: PaginationMeta;
-    };
+    return response.data;
   },
-  getMine: async (params?: { page?: number; limit?: number }) => {
+
+  // Get badges earned by the authenticated student
+  getMine: async (params?: { page?: number; limit?: number }): Promise<{
+    message: string;
+    data: { Badge: BadgeResponse }[];
+    meta: PaginationMeta;
+  }> => {
     const cleanParams: Record<string, number> = {};
     if (params) {
       if (params.page) cleanParams.page = params.page;
       if (params.limit) cleanParams.limit = params.limit;
     }
     const response = await api.get("/badges/me", { params: cleanParams });
-    return response.data as {
-      message: string;
-      data: { Badge: BadgeResponse }[];
-      meta: PaginationMeta;
-    };
+    return response.data;
   },
+
+  // Get badges earned by a specific user
   getByUserId: async (
     uid: number,
     params?: { page?: number; limit?: number }
-  ) => {
+  ): Promise<{
+    message: string;
+    data: { Badge: BadgeResponse }[];
+    meta: PaginationMeta;
+  }> => {
     const cleanParams: Record<string, number> = {};
     if (params) {
       if (params.page) cleanParams.page = params.page;
@@ -385,11 +408,41 @@ export const badgeApi = {
     const response = await api.get(`/badges/user/${uid}`, {
       params: cleanParams,
     });
-    return response.data as {
-      message?: string;
-      data: { Badge: BadgeResponse }[];
-      meta: PaginationMeta;
-    };
+    return response.data;
+  },
+
+  // Get a single badge by ID
+  getById: async (id: number): Promise<{
+    message: string;
+    badge: BadgeResponse;
+  }> => {
+    const response = await api.get(`/badges/${id}`);
+    return response.data;
+  },
+
+  // Update a badge (Admin only)
+  update: async (
+    id: number,
+    data: {
+      name?: string;
+      description?: string;
+      rarity?: "COMMON" | "RARE" | "EPIC" | "LEGENDARY";
+    }
+  ): Promise<{
+    message: string;
+    badge: BadgeResponse;
+  }> => {
+    const response = await api.put(`/badges/${id}`, data);
+    return response.data;
+  },
+
+  // Delete a badge (Admin only)
+  delete: async (id: number): Promise<{
+    message: string;
+    deletedCount: number;
+  }> => {
+    const response = await api.delete(`/badges/${id}`);
+    return response.data;
   },
 };
 // Post API calls (for all post types including announcements)
