@@ -15,7 +15,9 @@ export const createBadge = async (req: Request, res: Response) => {
     });
 
     if (existingBadge) {
-      return res.status(409).json({ message: "Badge with this name already exists" });
+      return res
+        .status(409)
+        .json({ message: "Badge with this name already exists" });
     }
 
     const badge = await prisma.badge.create({
@@ -43,7 +45,8 @@ export const getAllBadges = async (req: Request, res: Response) => {
   const pageParam = parseInt(req.query.page as string);
   const limitParam = parseInt(req.query.limit as string);
   const page = !isNaN(pageParam) && pageParam > 0 ? pageParam : 1;
-  const limit = !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
+  const limit =
+    !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
   const skip = (page - 1) * limit;
 
   try {
@@ -88,7 +91,8 @@ export const getMyBadges = async (req: Request, res: Response) => {
   const pageParam = parseInt(req.query.page as string);
   const limitParam = parseInt(req.query.limit as string);
   const page = !isNaN(pageParam) && pageParam > 0 ? pageParam : 1;
-  const limit = !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
+  const limit =
+    !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
   const skip = (page - 1) * limit;
 
   if (role !== "STUDENT") {
@@ -143,14 +147,19 @@ export const getBadgesByUserId = async (req: Request, res: Response) => {
   const pageParam = parseInt(req.query.page as string);
   const limitParam = parseInt(req.query.limit as string);
   const page = !isNaN(pageParam) && pageParam > 0 ? pageParam : 1;
-  const limit = !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
+  const limit =
+    !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 50) : 10;
   const skip = (page - 1) * limit;
 
   try {
     // Ensure the user exists and is a student (badges are for students)
-    const student = await prisma.student.findUnique({ where: { uid: userIdParam } });
+    const student = await prisma.student.findUnique({
+      where: { uid: userIdParam },
+    });
     if (!student) {
-      return res.status(404).json({ message: "Student profile not found for the given user ID" });
+      return res
+        .status(404)
+        .json({ message: "Student profile not found for the given user ID" });
     }
 
     const [studentBadges, total] = await Promise.all([
@@ -264,7 +273,9 @@ export const updateBadge = async (req: Request, res: Response) => {
       });
 
       if (duplicateBadge) {
-        return res.status(409).json({ message: "Badge with this name already exists" });
+        return res
+          .status(409)
+          .json({ message: "Badge with this name already exists" });
       }
     }
 
