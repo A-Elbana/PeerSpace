@@ -104,7 +104,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
       const allPendingSubmissions = (await Promise.all(submissionPromises)).flat();
       setSubmissions(allPendingSubmissions);
 
-     
+
 
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
@@ -189,7 +189,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
   };
 
   const handleGradeSubmission = (submissionId: string) => {
-    navigate(`/submissions/${submissionId}/grade`);
+    navigate(`/submission/${submissionId}`);
   };
 
   const handleAnswerQuestion = (questionId: string) => {

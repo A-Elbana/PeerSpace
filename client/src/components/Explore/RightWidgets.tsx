@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Filter, Lock, Loader2, Search, X, ChevronLeft, ChevronRight, ClockIcon } from 'lucide-react';
+import { Users, Filter, Lock, Search, X, ChevronLeft, ChevronRight, ClockIcon } from 'lucide-react';
 import { instructorApi } from '../../services/api';
 import CommunityItem from '../../components/common/CommunityItem';
 import DeadlineItem from '../../components/common/DeadlineItem';
