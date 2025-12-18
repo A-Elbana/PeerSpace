@@ -69,6 +69,33 @@ const Header: React.FC<HeaderProps> = ({
         }
     }, [ctx]);
 
+    const [hidden, setHidden] = useState(false);
+    const lastScrollY = useRef<number>(typeof window !== 'undefined' ? window.scrollY : 0);
+    const ticking = useRef(false);
+
+    useEffect(() => {
+        const onScroll = () => {
+            if (ticking.current) return;
+            ticking.current = true;
+            requestAnimationFrame(() => {
+                const currentY = window.scrollY;
+                const delta = currentY - lastScrollY.current;
+                // If scrolling down and past threshold, hide header
+                if (delta > 5 && currentY > 50) {
+                    setHidden(true);
+                } else if (delta < -5 || currentY <= 50) {
+                    // If scrolling up or near top, show header
+                    setHidden(false);
+                }
+                lastScrollY.current = currentY;
+                ticking.current = false;
+            });
+        };
+
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
+
     // Close menus when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -102,7 +129,7 @@ const Header: React.FC<HeaderProps> = ({
     return (
         <header 
             className="sticky top-0 z-30 w-full px-3 sm:px-4 lg:pr-4 bg-transparent transition-all duration-300"
-            style={{ paddingLeft: `${sidebarWidth + 16}px` }}
+            style={{ paddingLeft: `${sidebarWidth + 16}px`, transform: hidden ? 'translateY(-110%)' : 'translateY(0)' }}
         >
             <div className="max-w-6xl mx-auto w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm px-4 sm:px-6">
                 <div className="flex items-center justify-between h-12 sm:h-14 gap-2 sm:gap-4">

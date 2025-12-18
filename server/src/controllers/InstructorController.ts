@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../config/prisma";
 import { Role } from "../generated/prisma/client";
 import { isValidUUID } from "../utils/helpers";
+import { count } from "node:console";
 
 const parsePageLimit = (req: Request) => {
   const page = Math.max(1, parseInt((req.query.page as string) || "1"));
@@ -127,7 +128,7 @@ export const getMyCommunities = async (req: Request, res: Response) => {
 export const getInstructorFeedPosts = async (req: Request, res: Response) => {
   const userId = (req as any).userId as number;
   const { page, limit, skip } = parsePageLimit(req);
-  const resolvedParam = req.query.resolved as string | undefined;
+  const resolvedParam = req.query.resolved as unknown;
   const rawCid = req.query.cid as string | string[] | undefined;
   const sort = ((req.query.sort as string | undefined) || "new").toLowerCase();
 
@@ -162,8 +163,22 @@ export const getInstructorFeedPosts = async (req: Request, res: Response) => {
     }
 
     const where: any = { cid: { in: allowedIds } };
-    if (resolvedParam === "true") where.is_resolved = true;
-    if (resolvedParam === "false") where.is_resolved = false;
+
+    // Normalize resolved query parameter which may be string or boolean
+    let resolvedFilter: boolean | undefined;
+    if (resolvedParam !== undefined && resolvedParam !== null) {
+      if (typeof resolvedParam === "boolean") {
+        resolvedFilter = resolvedParam;
+      } else {
+        const r = String(resolvedParam).toLowerCase();
+        if (r === "true") resolvedFilter = true;
+        else if (r === "false") resolvedFilter = false;
+      }
+    }
+
+    if (resolvedFilter !== undefined) {
+      where.is_resolved = resolvedFilter;
+    }
 
     const total = await prisma.post.count({ where });
 
@@ -306,8 +321,12 @@ export const getInstructorFeedPosts = async (req: Request, res: Response) => {
 };
 
 export const getUnresolvedPosts = async (req: Request, res: Response) => {
-  (req.query as any).resolved = "false";
-  return getInstructorFeedPosts(req, res);
+  // Create a shallow clone of the request with resolved forced to 'false'
+  const clonedReq = Object.assign({}, req, {
+    query: { ...(req.query as any), resolved: "false" },
+  }) as Request;
+
+  return getInstructorFeedPosts(clonedReq, res);
 };
 
 export const getManagedSubmissions = async (req: Request, res: Response) => {

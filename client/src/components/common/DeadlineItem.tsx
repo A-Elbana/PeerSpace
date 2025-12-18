@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface DeadlineItemProps {
-  course: string;
+  course?: string;
   task: string;
   due: string;
   isInstructor?: boolean;
@@ -17,8 +17,12 @@ const DeadlineItem: React.FC<DeadlineItemProps> = ({ course, task, due, isInstru
     <div className="flex-1 min-w-0">
       <div className="text-sm font-bold text-foreground truncate group-hover:text-frosted-blue-600 transition-colors">{task}</div>
       <div className="text-xs text-muted-foreground flex items-center gap-1">
-        <span className="truncate">{course}</span>
-        <span>•</span>
+        {course ? (
+          <>
+            <span className="truncate">{course}</span>
+            <span>•</span>
+          </>
+        ) : null}
         <span className={`${isInstructor ? 'text-royal-gold-600' : 'text-red-500'} font-medium`}>
           {isInstructor ? 'Pending: ' : 'Due '}{due}
         </span>

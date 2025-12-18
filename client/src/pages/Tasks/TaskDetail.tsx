@@ -16,7 +16,8 @@ import {
     Save,
     X,
     Search,
-    ChevronDown
+    ChevronDown,
+    XCircle
 } from 'lucide-react';
 import { Sidebar } from '../../components/dashboard';
 import { useSidebar } from '../../contexts/SidebarContext';
@@ -44,7 +45,7 @@ interface Assignee {
     id: number;
     fname: string;
     lname: string;
-    avatar_url?: string;
+    isAccepted: boolean;
 }
 
 interface TaskFile {
@@ -187,6 +188,7 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
     const [isLinkingSubtask, setIsLinkingSubtask] = useState(false);
     const [openingSubtaskId, setOpeningSubtaskId] = useState<string | null>(null);
     const [unlinkingSubtaskId, setUnlinkingSubtaskId] = useState<string | null>(null);
+    const [removingAssigneeId, setRemovingAssigneeId] = useState<number | null>(null);
 
     // file upload handlers removed (attachments disabled)
 
@@ -230,19 +232,13 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
         // Assignees
         let assignees: Assignee[] = [];
         if (Array.isArray(t.TaskAssignees) && t.TaskAssignees.length > 0) {
-            assignees = t.TaskAssignees.map((a: any) => ({
-                id: a.user_id ?? a.uid ?? a.User?.id ?? 0,
-                fname: a.Student?.User?.fname ?? a.User?.fname ?? a.fname ?? 'Unknown',
-                lname: a.Student?.User?.lname ?? a.User?.lname ?? a.lname ?? '',
-                avatar_url: a.Student?.User?.avatar_file_id ?? a.User?.avatar_file_id ?? null,
-            }));
-        } else if (t.Student) {
-            if (Array.isArray(t.Student)) {
-                assignees = t.Student.map((s: any) => ({ id: s.User?.id ?? 0, fname: s.User?.fname ?? 'Unknown', lname: s.User?.lname ?? '', avatar_url: s.User?.avatar_file_id ?? null }));
-            } else if (t.Student.User) {
-                assignees = [{ id: t.Student.User.id, fname: t.Student.User.fname, lname: t.Student.User.lname, avatar_url: t.Student.User.avatar_file_id ?? null }];
+                assignees = t.TaskAssignees.map((a: any) => ({
+                    id: a.Student.User?.id ?? 0,
+                    fname: a.Student.User?.fname ??'a',
+                    lname: a.Student.User.lname ?? 'a',
+                    isAccepted: a.isAccepted
+                }));
             }
-        }
 
         let assignmentRelation = null;
         let assignmentRelationId: number | null = null;
@@ -413,6 +409,22 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
         } catch (err) {
             console.error('Failed to unassign:', err);
             toast.error('Failed to remove assignment');
+        }
+    };
+
+    const removeAssignee = async (assigneeId: number) => {
+        if (!task) return;
+        setRemovingAssigneeId(assigneeId);
+        try {
+            await api.delete('/task-assignees/remove', { data: { taskId: Number(task.id), studentId: assigneeId } });
+            toast.success('Assignee removed');
+            // Update edited task to remove the assignee
+            setEditedTask(prev => prev ? { ...prev, assignees: prev.assignees.filter(a => a.id !== assigneeId) } : prev);
+        } catch (err) {
+            console.error('Failed to remove assignee:', err);
+            toast.error('Failed to remove assignee');
+        } finally {
+            setRemovingAssigneeId(null);
         }
     };
 
@@ -836,18 +848,32 @@ const TaskDetail: React.FC<TaskDetailProps> = ({ onLogout }) => {
                                 <span className="text-sm font-medium text-muted-foreground">Assignees</span>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                                {task.assignees.length > 0 ? (
-                                    task.assignees.map((assignee, index) => (
+                                {(isEditing ? editedTask?.assignees ?? [] : task.assignees ?? []).length > 0 ? (
+                                    (isEditing ? editedTask?.assignees ?? [] : task.assignees ?? []).map((assignee, index) => (
                                         <div
                                             key={assignee.id}
-                                            className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 rounded-full"
+                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${!assignee.isAccepted ? 'bg-yellow-100 dark:bg-yellow-900/30' : 'bg-muted/50'}`}
                                         >
                                             <div
                                                 className={`w-6 h-6 rounded-full ${getAvatarColor(index)} flex items-center justify-center text-white text-xs font-bold`}
                                             >
                                                 {getInitials(assignee.fname, assignee.lname)}
                                             </div>
-                                            <span className="text-sm">{assignee.fname} {assignee.lname}</span>
+                                            <span className={`text-sm ${!assignee.isAccepted ? 'text-yellow-900 dark:text-yellow-100 font-medium' : ''}`}>{assignee.fname} {assignee.lname}</span>
+                                            {isEditing && isOwner && (
+                                                <button
+                                                    onClick={() => removeAssignee(assignee.id)}
+                                                    disabled={removingAssigneeId === assignee.id}
+                                                    className="ml-1 text-muted-foreground hover:text-red-500 transition-colors disabled:opacity-50"
+                                                    title="Remove assignee"
+                                                >
+                                                    {removingAssigneeId === assignee.id ? (
+                                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                                    ) : (
+                                                        <XCircle className="w-4 h-4" />
+                                                    )}
+                                                </button>
+                                            )}
                                         </div>
                                     ))
                                 ) : (

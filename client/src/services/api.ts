@@ -478,6 +478,18 @@ export const postApi = {
     const response = await api.patch(`/posts/${id}/resolve`);
     return response.data;
   },
+
+  // Get posts by target user in common communities
+  getCommonPosts: async (
+    uid: number,
+    params?: {
+      page?: number;
+      limit?: number;
+    }
+  ): Promise<PostsListResponse> => {
+    const response = await api.get(`/posts/common/${uid}`, { params });
+    return response.data;
+  },
 };
 
 // Vote API calls
@@ -554,6 +566,82 @@ export const announcementApi = {
 
   delete: async (id: number): Promise<{ message: string }> => {
     const response = await api.delete(`/posts/${id}`);
+    return response.data;
+  },
+};
+
+// Instructor API (instructor-specific endpoints)
+export const instructorApi = {
+  // Get feed posts from managed communities (paginated, supports sort=top|new)
+  getFeed: async (params?: {
+    page?: number;
+    limit?: number;
+    resolved?: string;
+    cid?: string;
+    sort?: 'new' | 'top' | string;
+  }): Promise<PostsListResponse> => {
+    const cleanParams: any = {};
+    if (params) {
+      if (params.page) cleanParams.page = params.page;
+      if (params.limit) cleanParams.limit = params.limit;
+      if (params.resolved) cleanParams.resolved = params.resolved;
+      if (params.cid) cleanParams.cid = params.cid;
+      if (params.sort) cleanParams.sort = params.sort;
+    }
+    const response = await api.get('/instructor/feed/posts', { params: cleanParams });
+    return response.data;
+  },
+
+  // Get managed communities (paginated)
+  getManagedCommunities: async (params?: { page?: number; limit?: number; search?: string }) => {
+    const cleanParams: any = {};
+    if (params) {
+      if (params.page) cleanParams.page = params.page;
+      if (params.limit) cleanParams.limit = params.limit;
+      if (params.search && params.search.trim()) cleanParams.search = params.search.trim();
+    }
+    const response = await api.get('/instructor/communities', { params: cleanParams });
+    return response.data as { success: boolean; data: CommunityResponse[]; meta: PaginationMeta };
+  },
+
+  // Get unresolved posts across managed communities
+  getUnresolvedPosts: async (params?: { page?: number; limit?: number; cid?: string }) => {
+    const cleanParams: any = {};
+    if (params) {
+      if (params.page) cleanParams.page = params.page;
+      if (params.limit) cleanParams.limit = params.limit;
+      if (params.cid) cleanParams.cid = params.cid;
+    }
+    const response = await api.get('/instructor/posts/unresolved', { params: cleanParams });
+    return response.data as PostsListResponse;
+  },
+
+  // Get submissions across managed communities
+  getManagedSubmissions: async (params?: { page?: number; limit?: number; cid?: string; aid?: number; graded?: string; sid?: number }) => {
+    const cleanParams: any = {};
+    if (params) {
+      if (params.page) cleanParams.page = params.page;
+      if (params.limit) cleanParams.limit = params.limit;
+      if (params.cid) cleanParams.cid = params.cid;
+      if (params.aid) cleanParams.aid = params.aid;
+      if (params.graded) cleanParams.graded = params.graded;
+      if (params.sid) cleanParams.sid = params.sid;
+    }
+    const response = await api.get('/instructor/submissions', { params: cleanParams });
+    return response.data;
+  },
+
+  // Grade a submission
+  gradeSubmission: async (id: number, data: { grade: number; feedback?: string }) => {
+    const response = await api.patch(`/instructor/submissions/${id}/grade`, data);
+    return response.data;
+  },
+
+  // Get instructor insights (overview or detailed by cid)
+  getInsights: async (params?: { cid?: string }) => {
+    const cleanParams: any = {};
+    if (params && params.cid) cleanParams.cid = params.cid;
+    const response = await api.get('/instructor/insights', { params: cleanParams });
     return response.data;
   },
 };
