@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import prisma from "../config/prisma";
-import { Role } from "../generated/prisma/client";
+import { Role } from "@prisma/client";
 
 // Security constants
 const BCRYPT_ROUNDS = 12;

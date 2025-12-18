@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
-import { Role } from "../generated/prisma/client";
+import { Role } from "@prisma/client";
 import { isValidUUID } from "../utils/helpers";
 import { count } from "node:console";
 
@@ -76,19 +76,19 @@ export const getMyCommunities = async (req: Request, res: Response) => {
       .filter((id): id is string => !!id);
     const fileMap = bannerIds.length
       ? new Map(
-          (
-            await prisma.file.findMany({
-              where: { id: { in: bannerIds } },
-              select: {
-                id: true,
-                public_id: true,
-                secure_url: true,
-                resource_type: true,
-                is_private: true,
-              },
-            })
-          ).map((f) => [f.id, f] as const)
-        )
+        (
+          await prisma.file.findMany({
+            where: { id: { in: bannerIds } },
+            select: {
+              id: true,
+              public_id: true,
+              secure_url: true,
+              resource_type: true,
+              is_private: true,
+            },
+          })
+        ).map((f) => [f.id, f] as const)
+      )
       : new Map();
 
     const cloudinary = require("../config/cloudinary").default;
@@ -101,13 +101,13 @@ export const getMyCommunities = async (req: Request, res: Response) => {
         if (f) {
           banner_url = f.is_private
             ? cloudinary.utils.private_download_url(
-                f.public_id,
-                f.resource_type,
-                {
-                  expires_at: Math.floor(Date.now() / 1000) + 3600,
-                  attachment: false,
-                }
-              )
+              f.public_id,
+              f.resource_type,
+              {
+                expires_at: Math.floor(Date.now() / 1000) + 3600,
+                attachment: false,
+              }
+            )
             : f.secure_url;
         }
       }
@@ -299,21 +299,21 @@ export const getInstructorFeedPosts = async (req: Request, res: Response) => {
       }),
       userIds.length
         ? prisma.file.findMany({
-            where: {
-              id: {
-                in: posts
-                  .map((p) => p.User.avatar_file_id)
-                  .filter((id): id is string => !!id),
-              },
+          where: {
+            id: {
+              in: posts
+                .map((p) => p.User.avatar_file_id)
+                .filter((id): id is string => !!id),
             },
-            select: {
-              id: true,
-              public_id: true,
-              secure_url: true,
-              resource_type: true,
-              is_private: true,
-            },
-          })
+          },
+          select: {
+            id: true,
+            public_id: true,
+            secure_url: true,
+            resource_type: true,
+            is_private: true,
+          },
+        })
         : Promise.resolve([]),
     ]);
 
@@ -497,40 +497,40 @@ export const getManagedSubmissions = async (req: Request, res: Response) => {
 
     const avatarMap = studentAvatarIds.length
       ? new Map(
-          (
-            await prisma.file.findMany({
-              where: { id: { in: studentAvatarIds } },
-              select: {
-                id: true,
-                public_id: true,
-                secure_url: true,
-                resource_type: true,
-                is_private: true,
-              },
-            })
-          ).map((f) => [f.id, f] as const)
-        )
+        (
+          await prisma.file.findMany({
+            where: { id: { in: studentAvatarIds } },
+            select: {
+              id: true,
+              public_id: true,
+              secure_url: true,
+              resource_type: true,
+              is_private: true,
+            },
+          })
+        ).map((f) => [f.id, f] as const)
+      )
       : new Map();
 
     // Batch fetch submission file attachments
     const submissionIds = submissions.map((s) => s.id);
     const fileAttachments = submissionIds.length
       ? await prisma.submissionFileAttachment.findMany({
-          where: { subid: { in: submissionIds } },
-          select: {
-            subid: true,
-            File: {
-              select: {
-                id: true,
-                public_id: true,
-                secure_url: true,
-                resource_type: true,
-                format: true,
-                is_private: true,
-              },
+        where: { subid: { in: submissionIds } },
+        select: {
+          subid: true,
+          File: {
+            select: {
+              id: true,
+              public_id: true,
+              secure_url: true,
+              resource_type: true,
+              format: true,
+              is_private: true,
             },
           },
-        })
+        },
+      })
       : [];
 
     const attachmentsBySubId = new Map<number, typeof fileAttachments>();
@@ -618,14 +618,14 @@ export const getInstructorInsights = async (req: Request, res: Response) => {
 
       const studentUsers = sortedSids.length
         ? await prisma.user.findMany({
-            where: { id: { in: sortedSids } },
-            select: {
-              id: true,
-              fname: true,
-              lname: true,
-              avatar_file_id: true,
-            },
-          })
+          where: { id: { in: sortedSids } },
+          select: {
+            id: true,
+            fname: true,
+            lname: true,
+            avatar_file_id: true,
+          },
+        })
         : [];
       const studentMap = new Map(studentUsers.map((u) => [u.id, u] as const));
 

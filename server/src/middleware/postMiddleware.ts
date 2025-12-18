@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import prisma from "../config/prisma";
-import { Role, CommunityType } from "../generated/prisma/client";
+import { Role, CommunityType } from "@prisma/client";
 import {
   isValidUUID,
   isUserMemberOfCommunity,

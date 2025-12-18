@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
 import cloudinary from "../config/cloudinary";
-import { FileContext } from "../generated/prisma/client";
+import { FileContext } from "@prisma/client";
 
 /**
  * Create a file record after successful Cloudinary upload
