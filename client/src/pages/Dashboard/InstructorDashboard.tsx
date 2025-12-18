@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, FileText, MessageCircle, Plus } from 'lucide-react';
+import { Users, FileText, MessageCircle, Plus, Lock, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 // Dashboard Components
 import {
@@ -11,6 +12,9 @@ import {
   CreateCommunityModal,
 } from '../../components/dashboard';
 import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
+import { useSidebar } from '../../contexts/SidebarContext';
 import api, { communityApi, assignmentApi, submissionApi, type CommunityResponse } from '../../services/api';
 
 // Types
@@ -42,6 +46,11 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
   const [isLoading, setIsLoading] = useState(true);
   const [courses, setCourses] = useState<ManagedCourse[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const { sidebarWidth } = useSidebar();
+
+  // Private community enrollment state
+  const [communityCode, setCommunityCode] = useState('');
+  const [isEnrolling, setIsEnrolling] = useState(false);
 
   // Create Community Modal State
   const [isCreateCommunityOpen, setIsCreateCommunityOpen] = useState(false);
@@ -196,6 +205,35 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
     navigate(`/questions/${questionId}`);
   };
 
+  const handleEnrollInPrivateCommunity = async () => {
+    if (!communityCode.trim()) {
+      toast.error('Please enter a community ID');
+      return;
+    }
+
+    // Basic UUID validation
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(communityCode.trim())) {
+      toast.error('Invalid community ID format');
+      return;
+    }
+
+    setIsEnrolling(true);
+    try {
+      await communityApi.enroll(communityCode.trim());
+      toast.success('Successfully joined community!');
+      setCommunityCode('');
+      // Refresh the courses list
+      await fetchDashboardData();
+    } catch (error: any) {
+      console.error('Failed to join:', error);
+      const message = error.response?.data?.message || 'Failed to join community';
+      toast.error(message);
+    } finally {
+      setIsEnrolling(false);
+    }
+  };
+
   // Calculate metrics
   const totalStudents = courses.reduce((sum, c) => sum + c.studentCount, 0);
   const totalPendingSubmissions = submissions.filter(s => s.status === 'pending' || s.status === 'late').length;
@@ -215,7 +253,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
     <div className="flex min-h-screen bg-background">
       <Sidebar onLogout={onLogout} />
 
-      <main className="flex-1 ml-20 p-8 transition-all duration-300">
+      <main className="flex-1 p-8 transition-all duration-300" style={{ marginLeft: `${sidebarWidth}px` }}>
         {/* Header with Create Community Button */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -246,6 +284,52 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
             subtitle={`${totalPendingSubmissions} submissions waiting to be graded.`}
             badge={totalPendingSubmissions > 0 ? { text: `${totalPendingSubmissions} pending`, color: 'bg-royal-gold-500 text-white' } : undefined}
           />
+
+          {/* Join Private Community Card */}
+          <Card className="rounded-xl border border-border bg-card hover:shadow-lg transition-all duration-300 relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-purple-500/5 before:to-transparent before:pointer-events-none">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 ring-1 ring-purple-500/20">
+                  <Lock className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Join Community</CardTitle>
+                  <CardDescription className="text-xs">Enter private ID</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 relative z-10">
+                <Input
+                  type="text"
+                  placeholder="Enter community ID"
+                  value={communityCode}
+                  onChange={(e) => setCommunityCode(e.target.value)}
+                  className="h-9 text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleEnrollInPrivateCommunity();
+                    }
+                  }}
+                />
+                <Button
+                  onClick={handleEnrollInPrivateCommunity}
+                  disabled={isEnrolling || !communityCode.trim()}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                  size="sm"
+                >
+                  {isEnrolling ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Joining...
+                    </>
+                  ) : (
+                    'Join Now'
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Courses Management */}
