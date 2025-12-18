@@ -4,6 +4,8 @@ import {
   getUnreadCount,
   markNotificationRead,
   markAllRead,
+  deleteNotification,
+  deleteAllNotifications,
 } from "../controllers/notifications";
 import { authenticateToken } from "../middleware/authMiddleware";
 import { validateIdParam } from "../middleware/validationMiddleware";
@@ -27,5 +29,16 @@ router.post(
 
 // POST /api/notifications/mark-all-read - mark all as read
 router.post("/mark-all-read", authenticateToken, asyncHandler(markAllRead));
+
+// DELETE /api/notifications/:id - delete single notification
+router.delete(
+  "/:id",
+  authenticateToken,
+  validateIdParam("id"),
+  asyncHandler(deleteNotification)
+);
+
+// DELETE /api/notifications - delete all notifications
+router.delete("/", authenticateToken, asyncHandler(deleteAllNotifications));
 
 export default router;
