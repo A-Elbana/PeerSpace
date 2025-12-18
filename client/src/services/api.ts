@@ -478,6 +478,18 @@ export const postApi = {
     const response = await api.patch(`/posts/${id}/resolve`);
     return response.data;
   },
+
+  // Get posts by target user in common communities
+  getCommonPosts: async (
+    uid: number,
+    params?: {
+      page?: number;
+      limit?: number;
+    }
+  ): Promise<PostsListResponse> => {
+    const response = await api.get(`/posts/common/${uid}`, { params });
+    return response.data;
+  },
 };
 
 // Vote API calls

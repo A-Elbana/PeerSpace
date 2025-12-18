@@ -291,6 +291,8 @@ model Post {
   @@index([cid, post_date])
   @@index([title])
   @@index([type])
+  @@index([post_date, id])
+  @@index([is_resolved])
 }
 
 model PostFileAttachment {
@@ -298,6 +300,8 @@ model PostFileAttachment {
   fid  String @id @db.Uuid
   File File   @relation(fields: [fid], references: [id], onDelete: Cascade, onUpdate: Cascade)
   Post Post?  @relation(fields: [pid], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([pid])
 }
 
 model PostNoteAttachment {
@@ -346,6 +350,7 @@ model StudentBadge {
   Student Student @relation(fields: [sid], references: [uid], onDelete: Cascade, onUpdate: Cascade)
 
   @@id([sid, bid])
+  @@index([sid])
 }
 
 model Submission {
@@ -363,6 +368,8 @@ model Submission {
   @@index([sid])
   @@index([subm_date])
   @@index([sid, aid])
+  @@index([sid, subm_date])
+  @@index([sid, grade])
 }
 
 model SubmissionFileAttachment {

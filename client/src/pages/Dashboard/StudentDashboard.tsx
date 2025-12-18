@@ -9,7 +9,6 @@ import {
   Header,
   MetricCard,
   MyCourses,
-  RecentCourseActivity,
 } from '../../components/dashboard';
 import { useSidebar } from '../../contexts/SidebarContext';
 
@@ -19,7 +18,6 @@ import { Input } from '../../components/ui/input';
 
 // Types
 import type { Course } from '../../components/dashboard/MyCourses';
-import type { ActivityItem } from '../../components/dashboard/RecentCourseActivity';
 
 interface StudentDashboardProps {
   user: {
@@ -45,7 +43,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
   const [isLoading, setIsLoading] = useState(true);
   const [courses, setCourses] = useState<Course[]>([]);
   const [upcomingDeadlines, setUpcomingDeadlines] = useState<any[]>([]);
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
 
   // Private community enrollment state
   const [communityCode, setCommunityCode] = useState('');
@@ -113,8 +110,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
       });
 
       setUpcomingDeadlines(mergedItems.slice(0, 10)); // Top 10
-      setActivities([]);
-
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
     } finally {
@@ -254,15 +249,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
                 )}
               </div>
             </div>
-
-            {/* Recent Activity */}
-            <RecentCourseActivity
-              title="Recent Course Activity"
-              activities={activities}
-              onAddActivity={() => console.log('Add activity')}
-              showViewAll
-              onViewAll={() => navigate('/courses')}
-            />
           </div>
 
           {/* Side Column: Courses & Join */}

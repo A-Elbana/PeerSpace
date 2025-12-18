@@ -39,7 +39,6 @@ const ProfileView: React.FC<ProfileProps> = ({ onLogout }) => {
   const [mutualPostsPage, setMutualPostsPage] = useState(1);
   const [hasMoreMutualPosts, setHasMoreMutualPosts] = useState(true);
   const [loadingMoreMutualPosts, setLoadingMoreMutualPosts] = useState(false);
-  const [mutualCommunityIds, setMutualCommunityIds] = useState<string[]>([]);
 
   const viewedAvatarUrl = useResolvedFileUrl(viewedUser?.avatar_file_id);
 
@@ -85,40 +84,14 @@ const ProfileView: React.FC<ProfileProps> = ({ onLogout }) => {
 
 
   // Fetch and cache all mutual community IDs once, then fetch posts by those IDs.
-  const fetchAllMutualCommunityIds = useCallback(async (): Promise<string[]> => {
-    if (!userId) return [];
-    try {
-      const uid = Number(userId);
-      // large limit to try to fetch all mutual communities at once
-      const resp = await communityApi.getCommonCommunities(uid, { page: 1, limit: 1000 });
-      const items = resp?.data ?? [];
-      const ids = items.map(c => c.id);
-      setMutualCommunityIds(ids);
-      return ids;
-    } catch (err) {
-      console.error('Failed to fetch mutual community ids:', err);
-      setMutualCommunityIds([]);
-      return [];
-    }
-  }, [userId]);
+ 
 
   const fetchMutualPosts = useCallback(async (page = 1, limit = 4) => {
     if (!userId) return;
     try {
       setLoadingMoreMutualPosts(true);
-      // ensure we have community ids cached
-      let cids: string[] = mutualCommunityIds.length > 0 ? mutualCommunityIds : [];
-      if (!cids || cids.length === 0) {
-        const fetched = await fetchAllMutualCommunityIds();
-        cids = fetched;
-      }
-      if (cids.length === 0) {
-        if (page === 1) setMutualPosts([]);
-        setHasMoreMutualPosts(false);
-        return;
-      }
-      // fetch recent posts across these community ids
-      const postsResp = await postApi.getByCommunities(cids, { page, limit });
+      const uid = Number(userId);
+      const postsResp = await postApi.getCommonPosts(uid, { page, limit });
       const posts = postsResp?.data ?? [];
       if (page === 1) setMutualPosts(posts);
       else setMutualPosts(prev => {
@@ -133,13 +106,12 @@ const ProfileView: React.FC<ProfileProps> = ({ onLogout }) => {
     } finally {
       setLoadingMoreMutualPosts(false);
     }
-  }, [userId, mutualCommunityIds, fetchAllMutualCommunityIds]);
+  }, [userId]);
 
   // Refs for scroll handling
   const mutualPostsScrollListenerAttached = useRef(false);
-  const mutualCommunitiesDebounceRef = useRef<number | null>(null);
   const mutualPostsDebounceRef = useRef<number | null>(null);
-  const mutualPostsScrollListenerRef = useRef<() => void | null>(null);
+  const mutualPostsScrollListenerRef = useRef<(() => void) | null>(null);
   const mutualPostsScrollThreshold = 300; // px from bottom
 
   const handleWindowPostsScroll = useCallback(() => {
@@ -171,10 +143,6 @@ const ProfileView: React.FC<ProfileProps> = ({ onLogout }) => {
         mutualPostsScrollListenerAttached.current = false;
       }
       // clear any pending timers
-      if (mutualCommunitiesDebounceRef.current) {
-        window.clearTimeout(mutualCommunitiesDebounceRef.current);
-        mutualCommunitiesDebounceRef.current = null;
-      }
       if (mutualPostsDebounceRef.current) {
         window.clearTimeout(mutualPostsDebounceRef.current);
         mutualPostsDebounceRef.current = null;
