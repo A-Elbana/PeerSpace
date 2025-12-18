@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileCheck, Calendar, FileText, Loader2, Home, ChevronRight, Eye } from 'lucide-react';
+import { Button } from '../../components/ui/button';
 import { Sidebar } from '../../components/dashboard';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { removeTokens } from '../../utils/auth';
-import { submissionApi } from '../../services/api';
+import { submissionApi, instructorApi } from '../../services/api';
+import api from '../../services/api';
 import { toast } from 'sonner';
 
 interface Submission {
@@ -31,40 +33,61 @@ interface Submission {
       resource_type: string;
     };
   }>;
+  Student?: {
+    User: {
+      fname: string;
+      lname: string;
+    };
+  };
 }
 
 const Submissions: React.FC = () => {
   const navigate = useNavigate();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
   const { sidebarWidth } = useSidebar();
 
   useEffect(() => {
-    const fetchSubmissions = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true);
-        const response = await submissionApi.getMySubmissions({ limit: 100 });
+
+        // Fetch user first
+        const userRes = await api.get('/auth/me');
+        const currentUser = userRes.data;
+        setUser(currentUser);
+
+        let response;
+        if (currentUser.role === 'instructor' || currentUser.role === 'admin') {
+          // Fetch all submissions for instructor's communities
+          response = await instructorApi.getManagedSubmissions({ limit: 100 });
+        } else {
+          // Fetch student's own submissions
+          response = await submissionApi.getMySubmissions({ limit: 100 });
+        }
+
         const transformedData = response.data.map((submission: any) => ({
           ...submission,
           Assignment: {
-            id: submission.Assignment.id,
-            title: submission.Assignment.title,
-            due_date: submission.Assignment.due_date || null,
+            id: submission.Assignment?.id,
+            title: submission.Assignment?.title || 'Unknown Assignment',
+            due_date: submission.Assignment?.due_date || null,
             Community: {
-              name: submission.Assignment.Community?.name || 'Unknown Community'
+              name: submission.Assignment?.Community?.name || 'Unknown Community'
             }
           }
         }));
         setSubmissions(transformedData);
       } catch (error) {
-        console.error('Failed to fetch submissions:', error);
+        console.error('Failed to fetch data:', error);
         toast.error('Failed to load submissions');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchSubmissions();
+    fetchData();
   }, []);
 
   const handleLogout = () => {
@@ -101,7 +124,7 @@ const Submissions: React.FC = () => {
     <div className="flex min-h-screen bg-background">
       <Sidebar onLogout={handleLogout} />
 
-      <main 
+      <main
         className="flex-1 p-8 transition-all duration-300"
         style={{ marginLeft: `${sidebarWidth}px` }}
       >
@@ -116,9 +139,13 @@ const Submissions: React.FC = () => {
 
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground mb-2">My Submissions</h1>
+            <h1 className="text-3xl font-bold text-foreground mb-2">
+              {user?.role === 'instructor' || user?.role === 'admin' ? 'Submissions to Grade' : 'My Submissions'}
+            </h1>
             <p className="text-muted-foreground">
-              View and manage all your assignment submissions
+              {user?.role === 'instructor' || user?.role === 'admin'
+                ? 'Review and grade student assignment submissions'
+                : 'View and manage all your assignment submissions'}
             </p>
           </div>
 
@@ -173,9 +200,14 @@ const Submissions: React.FC = () => {
                           </div>
                           <div>
                             <p className="font-medium text-foreground">
-                              Submitted on {formatDate(submission.subm_date)}
+                              {user?.role === 'instructor' || user?.role === 'admin'
+                                ? `${submission.Student?.User?.fname} ${submission.Student?.User?.lname}`
+                                : `Submitted on ${formatDate(submission.subm_date)}`}
                             </p>
                             <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+                              {(user?.role === 'instructor' || user?.role === 'admin') && (
+                                <p className="text-xs">Submitted on {formatDate(submission.subm_date)}</p>
+                              )}
                               <div className="flex items-center gap-3">
                                 <span>{submission.SubmissionFileAttachment?.length || 0} file{(submission.SubmissionFileAttachment?.length || 0) !== 1 ? 's' : ''}</span>
                                 {submission.grade !== null && (
@@ -213,13 +245,23 @@ const Submissions: React.FC = () => {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => navigate(`/submission/${submission.id}`)}
-                            className="w-8 h-8 rounded-lg bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                            title="View submission"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
+                          {(user?.role === 'instructor' || user?.role === 'admin') ? (
+                            <Button
+                              size="sm"
+                              onClick={() => navigate(`/submission/${submission.id}`)}
+                              className="bg-frosted-blue-500 hover:bg-frosted-blue-600 text-white"
+                            >
+                              Grade
+                            </Button>
+                          ) : (
+                            <button
+                              onClick={() => navigate(`/submission/${submission.id}`)}
+                              className="w-8 h-8 rounded-lg bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                              title="View submission"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}

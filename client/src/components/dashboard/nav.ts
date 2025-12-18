@@ -35,7 +35,7 @@ export const mainNavItems: NavItem[] = [
     label: "Assignments",
     icon: ClipboardList,
     path: "/assignments",
-    roleRestriction: ["student", "instructor"],
+    roleRestriction: ["instructor", "admin"],
   },
   { id: "submissions", label: "My Submissions", icon: FileText, path: "/submissions", roleRestriction: ["student"] },
   {
