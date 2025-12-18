@@ -9,17 +9,18 @@ import {
   User,
   Trash2,
   AlertTriangle,
-  CheckCircle2,
-  XCircle,
   Mail,
   ImageIcon,
   Lock,
   Eye,
-  EyeOff
+  EyeOff,
+  Briefcase,
+  BookOpen,
+  ExternalLink
 } from 'lucide-react';
 import { Sidebar } from '../../components/dashboard';
 import { useSidebar } from '../../contexts/SidebarContext';
-import api from '../../services/api';
+import api, { userApi, type UserDetail } from '../../services/api';
 import { removeTokens } from '../../utils/auth';
 
 // shadcn/ui components
@@ -35,21 +36,13 @@ import { useResolvedFileUrl } from '@/hooks/useResolvedFileUrl';
 
 type UserRole = 'student' | 'instructor' | 'admin';
 
-interface UserData {
-  id: number;
-  email: string;
-  fname: string;
-  lname: string;
-  role: UserRole;
-  avatar_file_id?: string;
-}
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { sidebarWidth } = useSidebar();
 
-  const [user, setUser] = useState<UserData | null>(null);
+  const [user, setUser] = useState<UserDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Set page title
@@ -60,7 +53,7 @@ const Settings: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  
 
   // Form state
   const [fname, setFname] = useState('');
@@ -70,6 +63,11 @@ const Settings: React.FC = () => {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  
+  // Instructor-specific fields
+  const [title, setTitle] = useState('');
+  const [areaOfExpertise, setAreaOfExpertise] = useState('');
+  const [googleScholarLink, setGoogleScholarLink] = useState('');
 
   // Password state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -85,16 +83,18 @@ const Settings: React.FC = () => {
   const fetchUserData = async () => {
     try {
       const { data } = await api.get('/auth/me');
-      const normalizedUser: UserData = {
-        ...data,
-        role: data.role?.toLowerCase() as UserRole
-      };
-      setUser(normalizedUser);
+      
       setFname(data.fname || '');
       setLname(data.lname || '');
       setEmail(data.email || '');
       // Backend may return either `avatar_file_id` (file record id) or `avatar_url` (direct URL)
       setAvatarUrl(data.avatar_file_id ?? data.avatar_url ?? '');
+      // Instructor fields (if present)
+      const instData = await userApi.getById(data.id);
+      setUser(instData);
+      setTitle(instData.Instructor?.title ?? '');
+      setAreaOfExpertise(instData.Instructor?.area_of_expertise ?? '');
+      setGoogleScholarLink(instData.Instructor?.google_scholar_link ?? '');
     } catch (error) {
       console.error('Failed to fetch user data:', error);
       removeTokens();
@@ -127,10 +127,9 @@ const Settings: React.FC = () => {
       const url = URL.createObjectURL(file);
       setAvatarPreview(url);
       setAvatarFile(file);
-      setMessage(null);
     } catch (err) {
       console.error('Failed to preview avatar file', err);
-      setMessage({ type: 'error', text: 'Failed to preview selected image' });
+      toast.error('Failed to preview selected image');
     }
   };
 
@@ -139,16 +138,23 @@ const Settings: React.FC = () => {
     if (!user) return;
 
     setIsSaving(true);
-    setMessage(null);
 
     try {
-      const updateData: { fname?: string; lname?: string } = {};
+      const updateData: { fname?: string; lname?: string; avatar_file_id?: string; title?: string; area_of_expertise?: string; google_scholar_link?: string } = {};
 
       if (fname && fname !== user.fname) updateData.fname = fname;
       if (lname && lname !== user.lname) updateData.lname = lname;
 
+      // Instructor-specific updates
+      if ((user as any).role.toLowerCase() === 'instructor') {
+        const prevInstr = (user as any).Instructor || {};
+        if (title && title !== prevInstr.title) updateData.title = title;
+        if (areaOfExpertise && areaOfExpertise !== prevInstr.area_of_expertise) updateData.area_of_expertise = areaOfExpertise;
+        if (googleScholarLink && googleScholarLink !== prevInstr.google_scholar_link) updateData.google_scholar_link = googleScholarLink;
+      }
+
       if (Object.keys(updateData).length === 0 && !avatarFile) {
-        setMessage({ type: 'error', text: 'No changes to save' });
+        toast.error('No changes to save');
         setIsSaving(false);
         return;
       }
@@ -198,7 +204,7 @@ const Settings: React.FC = () => {
           (updateData as any).avatar_file_id = fileRecord.id;
         } catch (err: any) {
           console.error('Failed to upload avatar during save:', err);
-          setMessage({ type: 'error', text: err.response?.data?.message || err.message || 'Failed to upload avatar' });
+          toast.error(err.response?.data?.message || err.message || 'Failed to upload avatar');
           setIsUploadingAvatar(false);
           setIsSaving(false);
           return;
@@ -216,7 +222,11 @@ const Settings: React.FC = () => {
       // If avatar was uploaded, clear pending file and preview
       setAvatarFile(null);
       setAvatarPreview(null);
-      setMessage({ type: 'success', text: 'Profile updated successfully!' });
+      // Sync instructor fields after save
+      setTitle(data.user.Instructor?.title ?? title);
+      setAreaOfExpertise(data.user.Instructor?.area_of_expertise ?? areaOfExpertise);
+      setGoogleScholarLink(data.user.Instructor?.google_scholar_link ?? googleScholarLink);
+      toast.success('Profile updated successfully!');
 
       // Show toast for avatar update if avatar_file_id was set
       if ((updateData as any).avatar_file_id) {
@@ -225,10 +235,7 @@ const Settings: React.FC = () => {
     } catch (error: unknown) {
       console.error('Failed to update profile:', error);
       const axiosError = error as { response?: { data?: { message?: string } } };
-      setMessage({
-        type: 'error',
-        text: axiosError.response?.data?.message || 'Failed to update profile'
-      });
+      toast.error(axiosError.response?.data?.message || 'Failed to update profile');
     } finally {
       setIsSaving(false);
     }
@@ -280,7 +287,6 @@ const Settings: React.FC = () => {
     if (!user || deleteConfirmText !== 'DELETE') return;
 
     setIsDeleting(true);
-    setMessage(null);
 
     try {
       await api.delete(`/users/${user.id}`);
@@ -291,10 +297,7 @@ const Settings: React.FC = () => {
     } catch (error: unknown) {
       console.error('Failed to delete account:', error);
       const axiosError = error as { response?: { data?: { message?: string } } };
-      setMessage({
-        type: 'error',
-        text: axiosError.response?.data?.message || 'Failed to delete account'
-      });
+      toast.error(axiosError.response?.data?.message || 'Failed to delete account');
       setIsDeleting(false);
     }
   };
@@ -303,8 +306,8 @@ const Settings: React.FC = () => {
     return `${fname.charAt(0)}${lname.charAt(0)}`.toUpperCase();
   };
 
-  const getRoleBadgeVariant = (role: UserRole) => {
-    switch (role) {
+  const getRoleBadgeVariant = (role: string) => {
+    switch (role.toLowerCase()) {
       case 'admin': return 'destructive';
       case 'instructor': return 'default';
       default: return 'secondary';
@@ -357,17 +360,7 @@ const Settings: React.FC = () => {
         {/* Content */}
         <div className="max-w-4xl mx-auto px-8 py-8 space-y-6">
 
-          {/* Message Alert */}
-          {message && (
-            <Alert variant={message.type === 'success' ? 'success' : 'destructive'}>
-              {message.type === 'success' ? (
-                <CheckCircle2 className="h-4 w-4" />
-              ) : (
-                <XCircle className="h-4 w-4" />
-              )}
-              <AlertDescription className="ml-2">{message.text}</AlertDescription>
-            </Alert>
-          )}
+          {/* Messages shown via toasts */}
 
           {/* Profile Card */}
           <Card>
@@ -471,6 +464,55 @@ const Settings: React.FC = () => {
                 {/* Avatar URL removed: preview only, upload on Save */}
 
                 <Separator />
+                  {/* Instructor fields */}
+                  {user?.role.toLowerCase() === 'instructor' && (
+                    <div className="space-y-4 pt-4 border-t border-border">
+                      <h3 className="text-sm font-medium text-foreground">Instructor Profile</h3>
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="title" className="text-foreground flex items-center gap-2">
+                            <Briefcase className="w-4 h-4" />
+                            Title
+                          </Label>
+                          <Input
+                            id="title"
+                            type="text"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            placeholder="e.g., Lecturer, Assistant Professor"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="area" className="text-foreground flex items-center gap-2">
+                            <BookOpen className="w-4 h-4" />
+                            Area of Expertise
+                          </Label>
+                          <Input
+                            id="area"
+                            type="text"
+                            value={areaOfExpertise}
+                            onChange={(e) => setAreaOfExpertise(e.target.value)}
+                            placeholder="e.g., Machine Learning, Databases"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="googleScholar" className="text-foreground flex items-center gap-2">
+                            <ExternalLink className="w-4 h-4" />
+                            Google Scholar Link
+                          </Label>
+                          <Input
+                            id="googleScholar"
+                            type="text"
+                            value={googleScholarLink}
+                            onChange={(e) => setGoogleScholarLink(e.target.value)}
+                            placeholder="https://scholar.google.com/..."
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                 {/* Submit Button */}
                 <div className="flex justify-end">

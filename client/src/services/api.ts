@@ -200,6 +200,22 @@ export interface PostsListResponse {
   meta: PaginationMeta;
 }
 
+export interface UserDetail {
+  id: number;
+  email: string;
+  fname: string;
+  lname: string;
+  role: string;
+  avatar_file_id?: string | null;
+  activated?: boolean;
+  Instructor?: {
+    uid: number;
+    title?: string | null;
+    area_of_expertise?: string | null;
+    google_scholar_link?: string | null;
+  } | null;
+}
+
 // Community API calls
 export const communityApi = {
   create: async (data: {
@@ -920,15 +936,7 @@ export const userApi = {
 
   getById: async (
     id: string
-  ): Promise<{
-    id: number;
-    email: string;
-    fname: string;
-    lname: string;
-    role: string;
-    avatar_file_id?: string;
-    activated: boolean;
-  }> => {
+  ): Promise<UserDetail> => {
     const response = await api.get(`/users/${id}`);
     return response.data;
   },
@@ -941,10 +949,15 @@ export const userApi = {
       email?: string;
       role?: string;
       password?: string;
+      currentPassword?: string;
+      title?: string;
+      area_of_expertise?: string;
+      google_scholar_link?: string;
+      avatar_file_id?: string | null;
     }
   ): Promise<{
-    success: boolean;
     message: string;
+    user: UserDetail;
   }> => {
     const response = await api.put(`/users/${id}`, data);
     return response.data;
