@@ -11,11 +11,11 @@ interface DeadlineItemProps {
 const DeadlineItem: React.FC<DeadlineItemProps> = ({ course, task, due, isInstructor, onClick }) => (
   <div
     onClick={onClick}
-    className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-all duration-200 cursor-pointer group"
+    className="flex items-start gap-3 p-2 rounded-lg hover:bg-accent/50 transition-all duration-200 cursor-pointer group"
   >
-    <div className={`w-1.5 h-12 ${isInstructor ? 'bg-royal-gold-500' : 'bg-red-500'} rounded-full flex-shrink-0 group-hover:scale-110 transition-transform`} />
+    <div className={`w-1.5 h-12 ${isInstructor ? 'bg-chart-3' : 'bg-destructive'} rounded-full flex-shrink-0 group-hover:scale-110 transition-transform shadow-sm`} />
     <div className="flex-1 min-w-0">
-      <div className="text-sm font-bold text-foreground truncate group-hover:text-frosted-blue-600 transition-colors">{task}</div>
+      <div className="text-sm font-bold text-foreground truncate group-hover:text-primary transition-colors">{task}</div>
       <div className="text-xs text-muted-foreground flex items-center gap-1">
         {course ? (
           <>
@@ -23,7 +23,7 @@ const DeadlineItem: React.FC<DeadlineItemProps> = ({ course, task, due, isInstru
             <span>•</span>
           </>
         ) : null}
-        <span className={`${isInstructor ? 'text-royal-gold-600' : 'text-red-500'} font-medium`}>
+        <span className={`${isInstructor ? 'text-chart-3' : 'text-destructive'} font-semibold`}>
           {isInstructor ? 'Pending: ' : 'Due '}{due}
         </span>
       </div>

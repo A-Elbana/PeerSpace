@@ -200,7 +200,7 @@ export const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, post, onS
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
                                 placeholder="Title"
-                                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-frosted-blue-500"
+                                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                             />
                         </div>
 
@@ -278,7 +278,7 @@ export const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, post, onS
                                                 <button
                                                     type="button"
                                                     onClick={() => removeFile(idx)}
-                                                    className="absolute top-1 right-1 p-1 rounded-full bg-red-500/90 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                                                    className="absolute top-1 right-1 p-1 rounded-full bg-destructive/90 text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive"
                                                     aria-label="Remove file"
                                                 >
                                                     <X className="w-3 h-3" />
@@ -338,7 +338,7 @@ export const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, post, onS
                     <Button
                         onClick={handleSubmit as any}
                         disabled={isLoading}
-                        className={`gap-2 bg-turf-green-500 hover:bg-turf-green-600`}
+                        className={`gap-2 bg-primary hover:bg-primary/90`}
                     >
                         {isLoading ? (
                             <>

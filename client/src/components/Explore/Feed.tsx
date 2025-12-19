@@ -64,7 +64,7 @@ const Feed: React.FC<FeedProps> = (props) => {
         res = await studentApi.getFeed({ page: p, limit: 10, sort: activeTab as any });
       } else {
         res = await postApi.getAll({ page: p, limit: 10 });
-        
+
       }
 
       const newPosts = res.data || [];
@@ -111,13 +111,13 @@ const Feed: React.FC<FeedProps> = (props) => {
   return (
     <div className="flex-1 min-w-0 space-y-4 lg:max-w-2xl lg:mx-auto">
       <div className="mb-4 relative">
-        <div className="absolute -top-4 -left-4 w-24 h-24 bg-frosted-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute -top-4 -left-4 w-24 h-24 bg-primary/10 rounded-full blur-2xl pointer-events-none" />
         <div className="relative">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-linear-to-r from-frosted-blue-500 to-turf-green-500">
+            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-chart-2">
               Welcome back, {user?.fname || 'User'}!
             </h1>
-            <Sparkles className="w-5 h-5 text-royal-gold-500 animate-pulse" />
+            <Sparkles className="w-5 h-5 text-chart-3 animate-pulse" />
           </div>
           <p className="text-muted-foreground text-sm">Explore public communities and join the conversation.</p>
         </div>
@@ -133,13 +133,13 @@ const Feed: React.FC<FeedProps> = (props) => {
           <>
             <button
               onClick={() => setActiveTab('new')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${activeTab === 'new' ? 'text-primary bg-muted' : ''}`}
+              className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-accent transition-colors ${activeTab === 'new' ? 'text-primary bg-accent' : ''}`}
             >
               <Clock size={18} /> New
             </button>
             <button
               onClick={() => { setActiveTab('top'); }}
-              className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${activeTab === 'top' ? 'text-primary bg-muted' : ''}`}
+              className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-accent transition-colors ${activeTab === 'top' ? 'text-primary bg-accent' : ''}`}
             >
               <ArrowBigUp size={18} /> Top
             </button>
@@ -154,7 +154,7 @@ const Feed: React.FC<FeedProps> = (props) => {
               setHasMoreLocal(true);
               void fetchPage(1);
             }}
-            className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${activeTab === 'unresolved' ? 'text-primary bg-muted' : ''}`}
+            className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-accent transition-colors ${activeTab === 'unresolved' ? 'text-primary bg-accent' : ''}`}
           >
             Unresolved
           </button>
@@ -163,7 +163,7 @@ const Feed: React.FC<FeedProps> = (props) => {
         <div className="relative ml-auto" ref={filterRef}>
           <button
             onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-muted transition-colors ${postTitleSearch ? 'text-primary bg-muted' : ''}`}
+            className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-accent transition-colors ${postTitleSearch ? 'text-primary bg-accent' : ''}`}
           >
             <Filter size={18} />
             {postTitleSearch && (
@@ -185,7 +185,7 @@ const Feed: React.FC<FeedProps> = (props) => {
                       setFilterSearch(e.target.value);
                       setPostTitleSearch(e.target.value);
                     }}
-                    className="w-full pl-9 pr-3 py-2 bg-muted/50 border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder-muted-foreground"
+                    className="w-full pl-9 pr-3 py-2 bg-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground placeholder-muted-foreground"
                     autoFocus
                   />
                 </div>
@@ -195,7 +195,7 @@ const Feed: React.FC<FeedProps> = (props) => {
                       setPostTitleSearch('');
                       setFilterSearch('');
                     }}
-                    className="mt-2 w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors flex items-center gap-2 text-destructive rounded-lg"
+                    className="mt-2 w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center gap-2 text-destructive rounded-lg font-medium"
                   >
                     <X size={16} />
                     Clear search
@@ -228,19 +228,19 @@ const Feed: React.FC<FeedProps> = (props) => {
       {(postTitleSearch ? postsList.filter((p: any) => p.title.toLowerCase().includes(postTitleSearch.toLowerCase())).length === 0 : postsList.length === 0) ? (
         <div className="bg-card rounded-xl border border-border p-12 text-center relative overflow-hidden">
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-linear-to-br from-frosted-blue-500/10 to-turf-green-500/10 rounded-full blur-3xl" />
-            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-linear-to-tr from-turf-green-500/10 to-frosted-blue-500/10 rounded-full blur-3xl" />
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-primary/10 to-chart-2/10 rounded-full blur-3xl opacity-50" />
+            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-gradient-to-tr from-chart-2/10 to-primary/10 rounded-full blur-3xl opacity-50" />
           </div>
 
           <div className="relative mb-6">
-            <div className="w-24 h-24 mx-auto bg-tech-blue-500/10 rounded-full flex items-center justify-center">
-              <Rocket className="w-12 h-12 text-tech-blue-600" />
+            <div className="w-24 h-24 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
+              <Rocket className="w-12 h-12 text-primary" />
             </div>
             <div className="absolute top-0 right-1/3 animate-pulse">
-              <Sparkles className="w-6 h-6 text-royal-gold-500" />
+              <Sparkles className="w-6 h-6 text-chart-3" />
             </div>
             <div className="absolute bottom-0 left-1/3 animate-pulse delay-300">
-              <Sparkles className="w-4 h-4 text-frosted-blue-500" />
+              <Sparkles className="w-4 h-4 text-primary" />
             </div>
           </div>
 
@@ -274,14 +274,14 @@ const Feed: React.FC<FeedProps> = (props) => {
           <div ref={sentinelRef as any} className="py-4">
             {(isLoadingPage) && (
               <div className="flex items-center justify-center gap-3">
-                <Loader2 className="w-5 h-5 text-frosted-blue-500 animate-spin" />
+                <Loader2 className="w-5 h-5 text-primary animate-spin" />
                 <span className="text-sm text-muted-foreground">Loading more posts...</span>
               </div>
             )}
             {!hasMoreLocal && postsList.length > 0 && (
               <div className="text-center py-4">
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-muted/50 rounded-full">
-                  <Sparkles className="w-4 h-4 text-frosted-blue-500" />
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-accent/50 rounded-full">
+                  <Sparkles className="w-4 h-4 text-primary" />
                   <span className="text-sm text-muted-foreground">You've seen all posts!</span>
                 </div>
               </div>

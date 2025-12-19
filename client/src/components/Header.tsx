@@ -18,7 +18,7 @@ const Avatar: React.FC<{ user?: UserInfo; size?: number }> = ({ user, size = 32 
     return (
         <div
             style={{ width: size, height: size }}
-                className="shrink-0 rounded-full bg-linear-to-br from-frosted-blue-500 to-turf-green-500 text-white font-semibold flex items-center justify-center overflow-hidden"
+            className="shrink-0 rounded-full bg-gradient-to-br from-primary to-chart-2 text-white font-semibold flex items-center justify-center overflow-hidden shadow-sm"
         >
             {resolvedUrl ? (
                 <img src={resolvedUrl} alt="avatar" className="w-full h-full object-cover" />
@@ -40,13 +40,13 @@ interface HeaderProps {
     unreadCount?: number;
 }
 
-const Header: React.FC<HeaderProps> = ({ 
-    user, 
-    onLogout, 
-    searchValue, 
-    onSearchChange, 
-    searchedPosts = [], 
-    searchedCommunities = [], 
+const Header: React.FC<HeaderProps> = ({
+    user,
+    onLogout,
+    searchValue,
+    onSearchChange,
+    searchedPosts = [],
+    searchedCommunities = [],
     isSearching,
     unreadCount = 0,
 }) => {
@@ -64,8 +64,7 @@ const Header: React.FC<HeaderProps> = ({
     // Ensure notifications are fetched when header mounts so badge is populated
     useEffect(() => {
         if (ctx && typeof ctx.fetchNotifications === 'function') {
-            // don't await here, just trigger
-            ctx.fetchNotifications().catch(() => {});
+            ctx.fetchNotifications().catch(() => { });
         }
     }, [ctx]);
 
@@ -80,11 +79,9 @@ const Header: React.FC<HeaderProps> = ({
             requestAnimationFrame(() => {
                 const currentY = window.scrollY;
                 const delta = currentY - lastScrollY.current;
-                // If scrolling down and past threshold, hide header
                 if (delta > 5 && currentY > 50) {
                     setHidden(true);
                 } else if (delta < -5 || currentY <= 50) {
-                    // If scrolling up or near top, show header
                     setHidden(false);
                 }
                 lastScrollY.current = currentY;
@@ -96,7 +93,6 @@ const Header: React.FC<HeaderProps> = ({
         return () => window.removeEventListener('scroll', onScroll);
     }, []);
 
-    // Close menus when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
@@ -111,7 +107,6 @@ const Header: React.FC<HeaderProps> = ({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Focus search when user presses '/'
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if (e.key === '/' && (document.activeElement?.tagName ?? '') !== 'INPUT' && (document.activeElement?.tagName ?? '') !== 'TEXTAREA') {
@@ -127,31 +122,31 @@ const Header: React.FC<HeaderProps> = ({
     const showSearchResults = isFocused && searchValue && (searchedPosts?.length > 0 || searchedCommunities?.length > 0 || isSearching);
 
     return (
-        <header 
+        <header
             className="sticky top-0 z-30 w-full px-3 sm:px-4 lg:pr-4 bg-transparent transition-all duration-300"
             style={{ paddingLeft: `${sidebarWidth + 16}px`, transform: hidden ? 'translateY(-110%)' : 'translateY(0)' }}
         >
-            <div className="max-w-6xl mx-auto w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm px-4 sm:px-6">
+            <div className="max-w-6xl mx-auto w-full bg-card border border-border rounded-2xl shadow-sm px-4 sm:px-6">
                 <div className="flex items-center justify-between h-12 sm:h-14 gap-2 sm:gap-4">
                     {/* Left Section - Logo & Nav */}
                     <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
                         {/* Mobile Menu Toggle */}
-                        <button 
+                        <button
                             onClick={() => setShowMobileMenu(!showMobileMenu)}
-                            className="md:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                            className="md:hidden p-2 rounded-md hover:bg-accent transition-colors"
                         >
-                            <Menu className="w-5 h-5" />
+                            <Menu className="w-5 h-5 text-foreground" />
                         </button>
 
                         {/* Logo */}
-                        <button 
-                            onClick={() => navigate('/')} 
+                        <button
+                            onClick={() => navigate('/')}
                             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                         >
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-frosted-blue-500 to-turf-green-500 flex items-center justify-center text-white font-bold text-sm">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-chart-2 flex items-center justify-center text-white font-bold text-sm shadow-sm">
                                 PS
                             </div>
-                            <span className="hidden sm:block text-lg font-bold bg-gradient-to-r from-frosted-blue-600 to-turf-green-600 bg-clip-text text-transparent">
+                            <span className="hidden sm:block text-lg font-bold bg-gradient-to-r from-primary to-chart-2 bg-clip-text text-transparent">
                                 PeerSpace
                             </span>
                         </button>
@@ -161,7 +156,7 @@ const Header: React.FC<HeaderProps> = ({
                     <div className="flex-1 max-w-2xl" ref={searchRef}>
                         <div className="relative">
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                 <input
                                     ref={inputRef}
                                     value={searchValue ?? ''}
@@ -174,40 +169,40 @@ const Header: React.FC<HeaderProps> = ({
                                         }
                                     }}
                                     placeholder="Search PeerSpace (press /)"
-                                    className="w-full h-9 sm:h-10 pl-10 pr-10 rounded-full border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm placeholder-gray-500 focus:outline-none focus:border-frosted-blue-500 focus:bg-white dark:focus:bg-gray-900 transition-all"
+                                    className="w-full h-9 sm:h-10 pl-10 pr-10 rounded-full border border-input bg-background/50 focus:bg-background text-sm placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-foreground"
                                 />
                                 {searchValue && (
-                                    <button 
+                                    <button
                                         onClick={() => {
                                             onSearchChange?.('');
                                             setIsFocused(false);
                                         }}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-accent"
                                     >
-                                        <X className="w-3.5 h-3.5 text-gray-500" />
+                                        <X className="w-3.5 h-3.5 text-muted-foreground" />
                                     </button>
                                 )}
                             </div>
 
                             {/* Search Results Dropdown */}
                             {showSearchResults && (
-                                <div className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl overflow-hidden max-h-[70vh] overflow-y-auto">
+                                <div className="absolute left-0 right-0 top-full mt-2 bg-card border border-border rounded-2xl shadow-2xl overflow-hidden max-h-[70vh] overflow-y-auto no-scrollbar">
                                     {isSearching && (
-                                        <div className="px-4 py-8 text-center text-gray-500">
-                                            <div className="inline-block w-5 h-5 border-2 border-gray-300 border-t-frosted-blue-500 rounded-full animate-spin"></div>
+                                        <div className="px-4 py-8 text-center text-muted-foreground">
+                                            <div className="inline-block w-5 h-5 border-2 border-muted border-t-primary rounded-full animate-spin"></div>
                                             <p className="mt-2 text-sm">Searching...</p>
                                         </div>
                                     )}
 
                                     {!isSearching && searchedPosts.length === 0 && searchedCommunities.length === 0 && (
-                                        <div className="px-4 py-8 text-center text-gray-500 text-sm">
+                                        <div className="px-4 py-8 text-center text-muted-foreground text-sm">
                                             No results found for "{searchValue}"
                                         </div>
                                     )}
 
                                     {searchedCommunities && searchedCommunities.length > 0 && (
-                                        <div className="border-b border-gray-200 dark:border-gray-800">
-                                            <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                        <div className="border-b border-border">
+                                            <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                                                 Communities
                                             </div>
                                             {searchedCommunities.map((comm: any) => (
@@ -217,13 +212,13 @@ const Header: React.FC<HeaderProps> = ({
                                                         navigate(`/community/${comm.id}`);
                                                         setIsFocused(false);
                                                     }}
-                                                    className="w-full px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-3"
+                                                    className="w-full px-4 py-3 hover:bg-accent transition-colors flex items-center gap-3"
                                                 >
-                                                    <Users className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                                                    <Users className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                                                     <div className="flex-1 text-left">
-                                                        <div className="font-medium text-sm truncate">{comm.name}</div>
+                                                        <div className="font-medium text-sm truncate text-foreground">{comm.name}</div>
                                                         {comm.description && (
-                                                            <div className="text-xs text-gray-500 truncate">{comm.description}</div>
+                                                            <div className="text-xs text-muted-foreground truncate">{comm.description}</div>
                                                         )}
                                                     </div>
                                                 </button>
@@ -233,7 +228,7 @@ const Header: React.FC<HeaderProps> = ({
 
                                     {searchedPosts && searchedPosts.length > 0 && (
                                         <div>
-                                            <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                            <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                                                 Posts
                                             </div>
                                             {searchedPosts.map((post: any) => (
@@ -243,12 +238,12 @@ const Header: React.FC<HeaderProps> = ({
                                                         navigate(`/community/${post.cid}/post/${post.id}`);
                                                         setIsFocused(false);
                                                     }}
-                                                    className="w-full px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-start gap-3"
+                                                    className="w-full px-4 py-3 hover:bg-accent transition-colors flex items-start gap-3"
                                                 >
-                                                    <MessageSquare className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
+                                                    <MessageSquare className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
                                                     <div className="flex-1 text-left">
-                                                        <div className="font-medium text-sm line-clamp-2">{post.title}</div>
-                                                        <div className="text-xs text-gray-500 mt-1">
+                                                        <div className="font-medium text-sm line-clamp-2 text-foreground">{post.title}</div>
+                                                        <div className="text-xs text-muted-foreground mt-1">
                                                             {post.User && `${post.User.fname} ${post.User.lname}`}
                                                             {post.User && ' • '}
                                                             {new Date(post.post_date).toLocaleDateString()}
@@ -268,13 +263,13 @@ const Header: React.FC<HeaderProps> = ({
                         {/* Notifications */}
                         <button
                             onClick={() => navigate('/notifications')}
-                            className="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                            className="relative p-2 rounded-full hover:bg-accent transition-colors group"
                             title="Notifications"
                             aria-label="Notifications"
                         >
-                            <Bell className="w-5 h-5" />
+                            <Bell className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
                             {effectiveUnread > 0 && (
-                                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[18px] h-4 px-1.5 text-[11px] font-semibold rounded-full bg-red-600 text-white">
+                                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[18px] h-4 px-1.5 text-[11px] font-semibold rounded-full bg-destructive text-destructive-foreground">
                                     {effectiveUnread > 99 ? '99+' : effectiveUnread}
                                 </span>
                             )}
@@ -284,37 +279,37 @@ const Header: React.FC<HeaderProps> = ({
                         <div className="relative" ref={userMenuRef}>
                             <button
                                 onClick={() => setShowUserMenu(!showUserMenu)}
-                                className="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                className="flex items-center gap-2 p-1 rounded-full hover:bg-accent transition-colors"
                             >
                                 <Avatar user={user ?? undefined} size={32} />
                             </button>
 
                             {/* User Dropdown Menu */}
                             {showUserMenu && (
-                                <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-2xl overflow-hidden">
+                                <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
                                     {/* User Info */}
-                                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+                                    <div className="px-4 py-3 border-b border-border">
                                         <div className="flex items-center gap-3">
                                             <Avatar user={user ?? undefined} size={40} />
                                             <div className="flex-1 min-w-0">
-                                                <div className="font-semibold text-sm truncate">
+                                                <div className="font-semibold text-sm truncate text-foreground">
                                                     {user?.fname} {user?.lname}
                                                 </div>
-                                                <div className="text-xs text-gray-500">View Profile</div>
+                                                <div className="text-xs text-muted-foreground">View Profile</div>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Menu Items */}
-                                    <div className="py-2">
+                                    <div className="py-1">
                                         <button
                                             onClick={() => {
                                                 navigate(user?.id ? `/profile/${user.id}` : '/profile');
                                                 setShowUserMenu(false);
                                             }}
-                                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-3"
+                                            className="w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center gap-3 text-foreground"
                                         >
-                                            <Home className="w-4 h-4 text-gray-500" />
+                                            <Home className="w-4 h-4 text-muted-foreground" />
                                             <span>My Profile</span>
                                         </button>
                                         <button
@@ -322,21 +317,21 @@ const Header: React.FC<HeaderProps> = ({
                                                 navigate('/dashboard');
                                                 setShowUserMenu(false);
                                             }}
-                                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-3"
+                                            className="w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center gap-3 text-foreground"
                                         >
-                                            <TrendingUp className="w-4 h-4 text-gray-500" />
+                                            <TrendingUp className="w-4 h-4 text-muted-foreground" />
                                             <span>Dashboard</span>
                                         </button>
                                     </div>
 
                                     {/* Logout */}
-                                    <div className="border-t border-gray-200 dark:border-gray-800 py-2">
+                                    <div className="border-t border-border py-1">
                                         <button
                                             onClick={() => {
                                                 onLogout?.();
                                                 setShowUserMenu(false);
                                             }}
-                                            className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-3"
+                                            className="w-full px-4 py-2 text-left text-sm text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-3"
                                         >
                                             <LogOut className="w-4 h-4" />
                                             <span>Logout</span>
@@ -350,7 +345,8 @@ const Header: React.FC<HeaderProps> = ({
 
                 {/* Mobile Menu Overlay */}
                 {showMobileMenu && (
-                    <div className="md:hidden border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 rounded-b-2xl">
+                    <div className="md:hidden border-t border-border bg-card rounded-b-2xl">
+                        {/* Mobile specific nav could go here */}
                     </div>
                 )}
             </div>

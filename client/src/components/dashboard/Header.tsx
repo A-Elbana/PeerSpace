@@ -29,7 +29,8 @@ const Header: React.FC<HeaderProps> = ({
           <NotificationDropdown />
           <Button
             onClick={onNewTask}
-            className="flex items-center gap-2 bg-frosted-blue-500 hover:bg-frosted-blue-600 text-white"
+            variant="default"
+            className="flex items-center gap-2"
           >
             <Plus size={18} />
             <span>New Task</span>

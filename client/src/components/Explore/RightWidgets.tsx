@@ -156,20 +156,20 @@ const RightSide: React.FC<RightSideProps> = ({
   return (
     <div className="hidden lg:block lg:w-80 xl:w-96 space-y-6 overflow-y-auto scrollbar-hide no-scrollbar max-h-[calc(100vh-3rem)] sticky top-6">
       {user?.role === 'instructor' && (
-        <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-linear-to-bl from-frosted-blue-500/10 to-transparent rounded-bl-full" />
+        <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden shadow-sm">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-primary/10 to-transparent rounded-bl-full" />
 
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-foreground text-sm uppercase tracking-wider flex items-center gap-2">
-              <Users className="w-4 h-4 text-frosted-blue-500" />
+            <h3 className="font-bold text-foreground text-xs uppercase tracking-wider flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" />
               My Communities
             </h3>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {managedCommunities.length === 0 ? (
               <div className="text-center py-6">
-                <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-frosted-blue-500/20 to-turf-green-500/20 rounded-full flex items-center justify-center">
+                <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-primary/10 to-chart-2/10 rounded-full flex items-center justify-center">
                   <Users className="w-8 h-8 text-muted-foreground" />
                 </div>
                 <p className="text-sm text-muted-foreground">You don't manage any communities yet.</p>
@@ -181,7 +181,7 @@ const RightSide: React.FC<RightSideProps> = ({
                   communityId={community.id}
                   name={community.name}
                   description={community.description || 'No description'}
-                  color={['bg-tech-blue-500', 'bg-turf-green-500', 'bg-destructive', 'bg-royal-gold-500', 'bg-frosted-blue-500'][index % 5]}
+                  color={['bg-primary', 'bg-chart-2', 'bg-destructive', 'bg-chart-3', 'bg-primary/80'][index % 5]}
                   isJoining={joiningCommunityId === community.id}
                   onJoin={() => onJoinCommunity(community.id)}
                   isStudent={user?.role === 'student'}
@@ -198,17 +198,17 @@ const RightSide: React.FC<RightSideProps> = ({
               disabled={isLoadingManaged || managedPage <= 1}
               aria-label="Previous page"
               title="Previous page"
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground disabled:opacity-50"
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-accent text-sm font-medium hover:bg-accent/80 transition-colors text-foreground disabled:opacity-50"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <div className="text-sm text-muted-foreground px-2">Page {managedPage}{managedMeta ? ` of ${managedMeta.totalPages}` : ''}</div>
+            <div className="text-xs text-muted-foreground px-2">Page {managedPage}{managedMeta ? ` of ${managedMeta.totalPages}` : ''}</div>
             <button
               onClick={() => fetchManaged(managedPage + 1)}
               disabled={isLoadingManaged || (managedMeta ? managedPage >= managedMeta.totalPages : !hasMoreManaged)}
               aria-label="Next page"
               title="Next page"
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground disabled:opacity-50"
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-accent text-sm font-medium hover:bg-accent/80 transition-colors text-foreground disabled:opacity-50"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
@@ -217,19 +217,19 @@ const RightSide: React.FC<RightSideProps> = ({
       )}
 
       {user?.role !== 'instructor' && (
-        <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-linear-to-bl from-frosted-blue-500/10 to-transparent rounded-bl-full" />
+        <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden shadow-sm">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-primary/10 to-transparent rounded-bl-full" />
 
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-foreground text-sm uppercase tracking-wider flex items-center gap-2">
-              <Users className="w-4 h-4 text-frosted-blue-500" />
+            <h3 className="font-bold text-foreground text-xs uppercase tracking-wider flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" />
               Public Communities
             </h3>
 
             <div className="relative" ref={communityFilterRef}>
               <button
                 onClick={() => setIsCommunityFilterOpen(!isCommunityFilterOpen)}
-                className={`p-1.5 rounded-lg hover:bg-muted transition-colors ${communityFilterSearch ? 'text-primary bg-muted' : 'text-muted-foreground'}`}
+                className={`p-1.5 rounded-lg hover:bg-accent transition-colors ${communityFilterSearch ? 'text-primary bg-accent' : 'text-muted-foreground'}`}
               >
                 <Filter size={14} />
               </button>
@@ -244,14 +244,14 @@ const RightSide: React.FC<RightSideProps> = ({
                         placeholder="Search communities..."
                         value={communityFilterSearch}
                         onChange={(e) => setCommunityFilterSearch ? setCommunityFilterSearch(e.target.value) : undefined}
-                        className="w-full pl-9 pr-3 py-2 bg-muted/50 border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder-muted-foreground"
+                        className="w-full pl-9 pr-3 py-2 bg-background border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground placeholder-muted-foreground"
                         autoFocus
                       />
                     </div>
                     {communityFilterSearch && setCommunityFilterSearch && (
                       <button
                         onClick={() => setCommunityFilterSearch('')}
-                        className="mt-2 w-full px-3 py-1.5 text-left text-xs hover:bg-muted transition-colors flex items-center gap-2 text-destructive rounded-lg"
+                        className="mt-2 w-full px-3 py-1.5 text-left text-xs hover:bg-accent transition-colors flex items-center gap-2 text-destructive rounded-lg font-medium"
                       >
                         <X size={14} />
                         Clear search
@@ -263,10 +263,10 @@ const RightSide: React.FC<RightSideProps> = ({
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {communities.filter((c: any) => c.name.toLowerCase().includes(communityFilterSearch.toLowerCase())).length === 0 ? (
               <div className="text-center py-6">
-                <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-frosted-blue-500/20 to-turf-green-500/20 rounded-full flex items-center justify-center">
+                <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-primary/10 to-chart-2/10 rounded-full flex items-center justify-center">
                   <Users className="w-8 h-8 text-muted-foreground" />
                 </div>
                 <p className="text-sm text-muted-foreground">
@@ -282,7 +282,7 @@ const RightSide: React.FC<RightSideProps> = ({
                     communityId={community.id}
                     name={community.name}
                     description={community.description || 'No description'}
-                    color={['bg-tech-blue-500', 'bg-turf-green-500', 'bg-destructive', 'bg-royal-gold-500', 'bg-frosted-blue-500'][index % 5]}
+                    color={['bg-primary', 'bg-chart-2', 'bg-destructive', 'bg-chart-3', 'bg-primary/80'][index % 5]}
                     isJoining={joiningCommunityId === community.id}
                     onJoin={() => onJoinCommunity(community.id)}
                     isStudent={user?.role === 'student'}
@@ -298,17 +298,17 @@ const RightSide: React.FC<RightSideProps> = ({
               disabled={isLoadingPublic || publicPage <= 1}
               aria-label="Previous page"
               title="Previous page"
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground disabled:opacity-50"
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-accent text-sm font-medium hover:bg-accent/80 transition-colors text-foreground disabled:opacity-50"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <div className="text-sm text-muted-foreground px-2">Page {publicPage}{publicMeta ? ` of ${publicMeta.totalPages}` : ''}</div>
+            <div className="text-xs text-muted-foreground px-2">Page {publicPage}{publicMeta ? ` of ${publicMeta.totalPages}` : ''}</div>
             <button
               onClick={() => handlePageChangePublic(publicPage + 1)}
               disabled={isLoadingPublic || (publicMeta ? publicPage >= publicMeta.totalPages : communities.length < 5)}
               aria-label="Next page"
               title="Next page"
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground disabled:opacity-50"
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-accent text-sm font-medium hover:bg-accent/80 transition-colors text-foreground disabled:opacity-50"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
@@ -317,17 +317,17 @@ const RightSide: React.FC<RightSideProps> = ({
       )}
 
       {user?.role !== 'instructor' && (
-        <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-linear-to-bl from-frosted-blue-500/10 to-transparent rounded-bl-full" />
+        <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden shadow-sm">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-primary/10 to-transparent rounded-bl-full" />
 
           <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider flex items-center gap-2">
-            <Lock className="w-4 h-4 text-frosted-blue-500" />
+            <Lock className="w-4 h-4 text-primary" />
             Private Communities
           </h3>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {privateCommunities.length === 0 ? (
               <div className="text-center py-6">
-                <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-frosted-blue-500/20 to-tech-blue-500/20 rounded-full flex items-center justify-center">
+                <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-primary/10 to-chart-2/10 rounded-full flex items-center justify-center">
                   <Lock className="w-8 h-8 text-muted-foreground" />
                 </div>
                 <p className="text-sm text-muted-foreground">No private communities yet.</p>
@@ -340,7 +340,7 @@ const RightSide: React.FC<RightSideProps> = ({
                   communityId={community.id}
                   name={community.name}
                   description={community.description || 'No description'}
-                  color={['bg-frosted-blue-500', 'bg-royal-gold-500', 'bg-tech-blue-500', 'bg-turf-green-500', 'bg-destructive'][index % 5]}
+                  color={['bg-primary', 'bg-chart-3', 'bg-chart-2', 'bg-primary/80', 'bg-destructive'][index % 5]}
                   isJoining={joiningCommunityId === community.id}
                   onJoin={() => onJoinCommunity(community.id)}
                   isStudent={user?.role === 'student'}
@@ -357,17 +357,17 @@ const RightSide: React.FC<RightSideProps> = ({
               disabled={isLoadingPrivate || privatePage <= 1}
               aria-label="Previous page"
               title="Previous page"
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground disabled:opacity-50"
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-accent text-sm font-medium hover:bg-accent/80 transition-colors text-foreground disabled:opacity-50"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <div className="text-sm text-muted-foreground px-2">Page {privatePage}{privateMeta ? ` of ${privateMeta.totalPages}` : ''}</div>
+            <div className="text-xs text-muted-foreground px-2">Page {privatePage}{privateMeta ? ` of ${privateMeta.totalPages}` : ''}</div>
             <button
               onClick={() => handlePageChangePrivate(privatePage + 1)}
               disabled={isLoadingPrivate || (privateMeta ? privatePage >= privateMeta.totalPages : privateCommunities.length < 5)}
               aria-label="Next page"
               title="Next page"
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground disabled:opacity-50"
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-accent text-sm font-medium hover:bg-accent/80 transition-colors text-foreground disabled:opacity-50"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
@@ -376,11 +376,11 @@ const RightSide: React.FC<RightSideProps> = ({
       )}
 
       {user?.role !== 'admin' && (
-        <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden">
-          <div className="absolute bottom-0 left-0 w-full h-1 bg-linear-to-r from-frosted-blue-500 via-turf-green-500 to-royal-gold-500 opacity-50" />
+        <div className="bg-card rounded-xl border border-border p-4 relative overflow-hidden shadow-sm">
+          <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-chart-2 to-chart-3 opacity-50" />
 
-          <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider flex items-center gap-2">
-            <ClockIcon className="w-4 h-4 text-frosted-blue-500" />
+          <h3 className="font-bold text-foreground mb-4 text-xs uppercase tracking-wider flex items-center gap-2">
+            <ClockIcon className="w-4 h-4 text-primary" />
             {user?.role === 'instructor' ? 'Pending Actions' : 'Upcoming Deadlines'}
           </h3>
           <div className="space-y-3">
@@ -408,17 +408,17 @@ const RightSide: React.FC<RightSideProps> = ({
                     disabled={isLoadingPending || pendingPage <= 1}
                     aria-label="Previous pending page"
                     title="Previous"
-                    className="w-10 h-10 flex items-center justify-center rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground disabled:opacity-50"
+                    className="w-9 h-9 flex items-center justify-center rounded-full bg-accent text-sm font-medium hover:bg-accent/80 transition-colors text-foreground disabled:opacity-50"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
-                  <div className="text-sm text-muted-foreground px-2">Page {pendingPage}{pendingMeta ? ` of ${pendingMeta.totalPages}` : ''}</div>
+                  <div className="text-xs text-muted-foreground px-2">Page {pendingPage}{pendingMeta ? ` of ${pendingMeta.totalPages}` : ''}</div>
                   <button
                     onClick={() => fetchPending(pendingPage + 1)}
                     disabled={isLoadingPending || (pendingMeta ? pendingPage >= pendingMeta.totalPages : !hasMorePending)}
                     aria-label="Next pending page"
                     title="Next"
-                    className="w-10 h-10 flex items-center justify-center rounded-full bg-muted text-sm font-medium hover:bg-muted/80 transition-colors text-foreground disabled:opacity-50"
+                    className="w-9 h-9 flex items-center justify-center rounded-full bg-accent text-sm font-medium hover:bg-accent/80 transition-colors text-foreground disabled:opacity-50"
                   >
                     <ChevronRight className="w-5 h-5" />
                   </button>
