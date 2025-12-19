@@ -27,7 +27,7 @@ interface CreatePostWidgetProps {
 
 const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaultCommunityId, onCreated, defaultPostType }) => {
   const [expanded, setExpanded] = useState(false);
-  const [postType, setPostType] = useState<PostType>(defaultPostType || 'discussion');
+  const [postType, setPostType] = useState<PostType>(defaultPostType || 'DISCUSSION');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [tagsArr, setTagsArr] = useState<string[]>([]);
@@ -188,7 +188,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
       } as any);
 
       // Reset form
-      setPostType('discussion');
+      setPostType('DISCUSSION');
       setTitle('');
       setBody('');
       setTagsArr([]);

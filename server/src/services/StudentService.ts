@@ -94,7 +94,7 @@ class StudentService {
     const page = Math.max(parseInt(params.page) || 1, 1);
     const skip = (page - 1) * limit;
     const sort = (params.sort || "new").toString();
-    const category = (params.type || params.category)?.toString();
+    const category = (params.type || params.category)?.toString().toUpperCase();
     const tags = params.tags
       ? params.tags
         .toString()

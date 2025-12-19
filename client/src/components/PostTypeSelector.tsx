@@ -2,7 +2,7 @@ import React from 'react';
 import { FileText, MessageSquare, Megaphone } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-export type PostType = 'material' | 'discussion' | 'announcement';
+export type PostType = 'MATERIAL' | 'DISCUSSION' | 'ANNOUNCEMENT';
 
 interface PostTypeOption {
   value: PostType;
@@ -14,21 +14,21 @@ interface PostTypeOption {
 
 const POST_TYPE_OPTIONS: PostTypeOption[] = [
   {
-    value: 'material',
+    value: 'MATERIAL',
     label: 'Material',
     icon: FileText,
     description: 'Share resources, notes, or study materials',
     roleRequired: 'student',
   },
   {
-    value: 'discussion',
+    value: 'DISCUSSION',
     label: 'Discussion',
     icon: MessageSquare,
     description: 'Start a conversation or ask questions',
     roleRequired: 'student',
   },
   {
-    value: 'announcement',
+    value: 'ANNOUNCEMENT',
     label: 'Announcement',
     icon: Megaphone,
     description: 'Make an important announcement (Instructor only)',

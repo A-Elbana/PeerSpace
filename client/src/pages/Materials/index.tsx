@@ -28,7 +28,7 @@ const MaterialsPage: React.FC = () => {
                         <Feed
                             user={user}
                             communities={communities}
-                            postType="material"
+                            postType="MATERIAL"
                         />
                     </div>
                 </div>

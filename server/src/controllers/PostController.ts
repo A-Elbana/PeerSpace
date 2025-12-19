@@ -260,7 +260,7 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
         });
     }
 
-    const type = req.query.type as string | undefined;
+    const type = (req.query.type as string | undefined)?.toUpperCase();
     const where: any = { cid: { in: allowedIds } };
     if (type) where.type = type;
 
@@ -565,7 +565,7 @@ export const getAllPosts = async (req: Request, res: Response) => {
       whereClause.cid = communityId.trim();
     }
 
-    const type = req.query.type as string | undefined;
+    const type = (req.query.type as string | undefined)?.toUpperCase();
     if (type) whereClause.type = type;
 
     console.log(

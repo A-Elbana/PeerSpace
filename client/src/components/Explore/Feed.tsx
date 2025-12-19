@@ -127,13 +127,13 @@ const Feed: React.FC<FeedProps> = (props) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [filterRef, setIsFilterOpen, propFilterRef]);
 
-  // Load first page when activeTab or selectedCommunity changes
+  // Load first page when activeTab, user, or postType changes
   useEffect(() => {
     pageRef.current = 1;
     setHasMoreLocal(true);
     void fetchPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, user, postType]);
 
   // Intersection observer to load more pages
   useEffect(() => {

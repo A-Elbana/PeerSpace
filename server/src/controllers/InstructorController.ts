@@ -223,8 +223,7 @@ export const getInstructorFeedPosts = async (req: Request, res: Response) => {
     }
 
     const where: any = { cid: { in: allowedIds } };
-
-    const type = req.query.type as string | undefined;
+    const type = (req.query.type as string | undefined)?.toUpperCase();
     if (type) where.type = type;
 
     // Normalize resolved query parameter which may be string or boolean
