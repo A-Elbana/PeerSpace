@@ -45,7 +45,7 @@ const router = express.Router();
  *       500:
  *         description: Server error
  */
-router.get("/", authenticateToken, authorizeRole(["ADMIN"]), getAllUsers);
+router.get("/", authenticateToken, getAllUsers);
 
 /**
  * @swagger

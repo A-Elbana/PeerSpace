@@ -30,9 +30,11 @@ export const getAllUsers = async (req: Request, res: Response) => {
     const skip = (page - 1) * limit;
     const search = req.query.search as string | undefined;
     const roleFilter = req.query.role as string | undefined;
+    const mutualWithMe = req.query.mutualWithMe === 'true';
+    const currentUserId = (req as any).userId;
 
     // Build where clause
-    const whereClause: any = {};
+    const whereClause: any = { AND: [] };
 
     // Search by ID, name, or email
     if (search && search.trim()) {
@@ -40,35 +42,54 @@ export const getAllUsers = async (req: Request, res: Response) => {
       const searchId = parseInt(searchTerm);
 
       if (!isNaN(searchId)) {
-        // If search is a number, search by ID
-        whereClause.id = searchId;
+        whereClause.AND.push({ id: searchId });
       } else {
-        // Otherwise search by name or email
-        whereClause.OR = [
-          { fname: { contains: searchTerm, mode: "insensitive" } },
-          { lname: { contains: searchTerm, mode: "insensitive" } },
-          { email: { contains: searchTerm, mode: "insensitive" } },
-        ];
+        whereClause.AND.push({
+          OR: [
+            { fname: { contains: searchTerm, mode: "insensitive" } },
+            { lname: { contains: searchTerm, mode: "insensitive" } },
+            { email: { contains: searchTerm, mode: "insensitive" } },
+          ],
+        });
       }
+    }
+
+    // Filter by mutual communities
+    if (mutualWithMe && currentUserId) {
+      const myEnrollments = await prisma.enrollment.findMany({
+        where: { sid: currentUserId },
+        select: { cid: true },
+      });
+      const myCids = myEnrollments.map((e) => e.cid);
+
+      whereClause.AND.push({
+        OR: [
+          { Student: { Enrollment: { some: { cid: { in: myCids } } } } },
+          { Instructor: { Manages: { some: { cid: { in: myCids } } } } },
+        ],
+      });
     }
 
     // Filter by role
     if (roleFilter && roleFilter !== "all") {
       const roleUpper = roleFilter.toUpperCase() as Role;
       if (Object.values(Role).includes(roleUpper)) {
-        whereClause.role = roleUpper;
+        whereClause.AND.push({ role: roleUpper });
       }
     }
 
+    // If no filters applied, remove the empty AND to avoid Prisma errors if it doesn't like empty AND
+    const finalWhere = whereClause.AND.length > 0 ? whereClause : {};
+
     const users = await prisma.user.findMany({
-      where: whereClause,
+      where: finalWhere,
       skip,
       take: limit,
       select: userSelect,
       orderBy: { id: "asc" },
     });
 
-    const total = await prisma.user.count({ where: whereClause });
+    const total = await prisma.user.count({ where: finalWhere });
 
     res.status(200).json({
       data: users,

@@ -24,6 +24,14 @@ interface SearchedPost {
     body?: string;
 }
 
+interface SearchedUser {
+    id: number;
+    fname: string;
+    lname: string;
+    role: string;
+    avatar_file_id?: string;
+}
+
 interface ExploreProps {
     onLogout: () => void;
 }
@@ -58,48 +66,8 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
         handlePageChangePrivate,
     } = useExploreData();
 
-    // Search state
-    const [exploreSearch, setExploreSearch] = useState('');
-    const [searchedPosts, setSearchedPosts] = useState<SearchedPost[]>([]);
-    const [searchedCommunities, setSearchedCommunities] = useState<SearchedCommunity[]>([]);
-    const [isSearching, setIsSearching] = useState(false);
+    // Search state is now managed inside Header component via useExploreSearch hook
 
-    // Debounced search effect
-    useEffect(() => {
-        if (!exploreSearch.trim()) {
-            setSearchedPosts([]);
-            setSearchedCommunities([]);
-            setIsSearching(false);
-            return;
-        }
-        setIsSearching(true);
-        const timeout = setTimeout(async () => {
-            try {
-                const [postsRes, commRes] = await Promise.all([
-                    postApi.getAll({ search: exploreSearch, limit: 5 }),
-                    communityApi.getAll({ search: exploreSearch, limit: 5 })
-                ]);
-                setSearchedPosts(
-                    (postsRes.data || []).map((post: any) => ({
-                        ...post,
-                        body: post.body ?? undefined,
-                    }))
-                );
-                setSearchedCommunities(
-                    (commRes.data || []).map((comm: any) => ({
-                        ...comm,
-                        description: comm.description ?? undefined,
-                    }))
-                );
-            } catch (err) {
-                setSearchedPosts([]);
-                setSearchedCommunities([]);
-            } finally {
-                setIsSearching(false);
-            }
-        }, 300);
-        return () => clearTimeout(timeout);
-    }, [exploreSearch]);
 
     const [activeTab, setActiveTab] = useState('new');
     const [joiningCommunityId, setJoiningCommunityId] = useState<string | null>(null);
@@ -169,11 +137,6 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
                 <Header
                     user={null as any}
                     onLogout={onLogout}
-                    searchValue=""
-                    onSearchChange={() => { }}
-                    searchedPosts={[]}
-                    searchedCommunities={[]}
-                    isSearching={false}
                 />
                 <div className="flex min-h-[calc(100vh-80px)] bg-background text-foreground font-sans">
                     <Sidebar onLogout={onLogout} />
@@ -202,11 +165,6 @@ const Explore: React.FC<ExploreProps> = ({ onLogout }) => {
             <Header
                 user={user}
                 onLogout={onLogout}
-                searchValue={exploreSearch}
-                onSearchChange={setExploreSearch}
-                searchedPosts={searchedPosts}
-                searchedCommunities={searchedCommunities}
-                isSearching={isSearching}
             />
             <div className="flex min-h-screen bg-background text-foreground font-sans">
                 <Sidebar onLogout={onLogout} />

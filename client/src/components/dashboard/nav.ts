@@ -31,6 +31,12 @@ export const mainNavItems: NavItem[] = [
     path: "/dashboard",
   },
   {
+    id: "explore",
+    label: "Explore",
+    icon: Compass,
+    path: "/",
+  },
+  {
     id: "announcements",
     label: "Announcements",
     icon: Megaphone,

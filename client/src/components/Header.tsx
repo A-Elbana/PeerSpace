@@ -4,6 +4,7 @@ import { Bell, LogOut, Search, X, Menu, MessageSquare, TrendingUp, Users, Home }
 import NotificationContext from '../contexts/NotificationContext';
 import { useResolvedFileUrl } from '../hooks/useResolvedFileUrl';
 import { useSidebar } from '../contexts/SidebarContext';
+import { useExploreSearch } from '../hooks/useExploreSearch';
 
 interface UserInfo {
     id?: number | string;
@@ -36,6 +37,7 @@ interface HeaderProps {
     onSearchChange?: (v: string) => void;
     searchedPosts?: Array<any>;
     searchedCommunities?: Array<any>;
+    searchedUsers?: Array<any>;
     isSearching?: boolean;
     unreadCount?: number;
 }
@@ -43,15 +45,33 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({
     user,
     onLogout,
-    searchValue,
-    onSearchChange,
-    searchedPosts = [],
-    searchedCommunities = [],
-    isSearching,
+    searchValue: externalSearchValue,
+    onSearchChange: externalOnSearchChange,
+    searchedPosts: externalSearchedPosts,
+    searchedCommunities: externalSearchedCommunities,
+    searchedUsers: externalSearchedUsers,
+    isSearching: externalIsSearching,
     unreadCount = 0,
 }) => {
     const navigate = useNavigate();
     const { sidebarWidth } = useSidebar();
+
+    // Use the custom search hook
+    const {
+        query: localQuery,
+        setQuery: setLocalQuery,
+        results,
+        loading: localLoading
+    } = useExploreSearch(externalSearchValue || '');
+
+    // Synchronize with external search if provided
+    const searchValue = externalOnSearchChange ? externalSearchValue : localQuery;
+    const onSearchChange = externalOnSearchChange || setLocalQuery;
+    const searchedPosts = externalOnSearchChange ? externalSearchedPosts || [] : results.posts;
+    const searchedCommunities = externalOnSearchChange ? externalSearchedCommunities || [] : results.communities;
+    const searchedUsers = externalOnSearchChange ? externalSearchedUsers || [] : results.users;
+    const isSearching = externalOnSearchChange ? externalIsSearching : localLoading;
+
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [showMobileMenu, setShowMobileMenu] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
@@ -119,7 +139,7 @@ const Header: React.FC<HeaderProps> = ({
         return () => window.removeEventListener('keydown', onKey);
     }, []);
 
-    const showSearchResults = isFocused && searchValue && (searchedPosts?.length > 0 || searchedCommunities?.length > 0 || isSearching);
+    const showSearchResults = isFocused && searchValue && (searchedPosts?.length > 0 || searchedCommunities?.length > 0 || searchedUsers?.length > 0 || isSearching);
 
     return (
         <header
@@ -194,7 +214,7 @@ const Header: React.FC<HeaderProps> = ({
                                         </div>
                                     )}
 
-                                    {!isSearching && searchedPosts.length === 0 && searchedCommunities.length === 0 && (
+                                    {!isSearching && searchedPosts.length === 0 && searchedCommunities.length === 0 && (searchedUsers?.length === 0) && (
                                         <div className="px-4 py-8 text-center text-muted-foreground text-sm">
                                             No results found for "{searchValue}"
                                         </div>
@@ -220,6 +240,30 @@ const Header: React.FC<HeaderProps> = ({
                                                         {comm.description && (
                                                             <div className="text-xs text-muted-foreground truncate">{comm.description}</div>
                                                         )}
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {searchedUsers && searchedUsers.length > 0 && (
+                                        <div className="border-b border-border">
+                                            <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                                Users
+                                            </div>
+                                            {searchedUsers.map((u: any) => (
+                                                <button
+                                                    key={u.id}
+                                                    onClick={() => {
+                                                        navigate(`/profile/${u.id}`);
+                                                        setIsFocused(false);
+                                                    }}
+                                                    className="w-full px-4 py-3 hover:bg-accent transition-colors flex items-center gap-3"
+                                                >
+                                                    <Avatar user={u} size={32} />
+                                                    <div className="flex-1 text-left text-sm">
+                                                        <div className="font-medium text-foreground">{u.fname} {u.lname}</div>
+                                                        <div className="text-xs text-muted-foreground">{u.role}</div>
                                                     </div>
                                                 </button>
                                             ))}

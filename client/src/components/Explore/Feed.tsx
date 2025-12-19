@@ -19,6 +19,7 @@ interface FeedProps {
   loadMoreRef?: React.RefObject<HTMLDivElement | null>;
   getCommunityName?: (cid: string) => string;
   postType?: string;
+  hideCreateWidget?: boolean;
 };
 
 const Feed: React.FC<FeedProps> = (props) => {
@@ -37,6 +38,7 @@ const Feed: React.FC<FeedProps> = (props) => {
     loadMoreRef,
     getCommunityName: propGetCommunityName,
     postType,
+    hideCreateWidget,
   } = props;
 
   // Internal state for optional props
@@ -170,11 +172,13 @@ const Feed: React.FC<FeedProps> = (props) => {
         </div>
       </div>
 
-      <CreatePostWidget
-        currentUser={user || undefined}
-        onCreated={() => void fetchPage(1)}
-        defaultPostType={postType as any}
-      />
+      {!hideCreateWidget && (
+        <CreatePostWidget
+          currentUser={user || undefined}
+          onCreated={() => void fetchPage(1)}
+          defaultPostType={postType as any}
+        />
+      )}
 
       <div className="flex items-center gap-4 text-sm font-medium text-muted-foreground mb-2">
         {user?.role !== 'admin' && (

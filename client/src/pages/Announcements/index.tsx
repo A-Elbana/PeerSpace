@@ -29,6 +29,7 @@ const AnnouncementsPage: React.FC = () => {
               user={user}
               communities={communities}
               postType="announcement"
+              hideCreateWidget={user?.role === 'student'}
             />
           </div>
         </div>

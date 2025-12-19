@@ -94,21 +94,21 @@ class StudentService {
     const page = Math.max(parseInt(params.page) || 1, 1);
     const skip = (page - 1) * limit;
     const sort = (params.sort || "new").toString();
-    const category = params.category ? params.category.toString() : undefined;
+    const category = (params.type || params.category)?.toString();
     const tags = params.tags
       ? params.tags
-          .toString()
-          .split(",")
-          .map((t: string) => t.trim())
-          .filter(Boolean)
+        .toString()
+        .split(",")
+        .map((t: string) => t.trim())
+        .filter(Boolean)
       : undefined;
 
     // Fetch enrolled communities for the user
     const enrolledCommunities = userId
       ? await prisma.enrollment.findMany({
-          where: { sid: userId },
-          select: { cid: true },
-        })
+        where: { sid: userId },
+        select: { cid: true },
+      })
       : [];
     const enrolledCids = enrolledCommunities.map((e) => e.cid);
 

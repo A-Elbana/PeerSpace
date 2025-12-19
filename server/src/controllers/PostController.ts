@@ -260,8 +260,11 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
         });
     }
 
+    const type = req.query.type as string | undefined;
+    const where: any = { cid: { in: allowedIds } };
+    if (type) where.type = type;
+
     const posts = await prisma.post.findMany({
-      where: { cid: { in: allowedIds } },
       skip,
       take: limit,
       orderBy: { post_date: "desc" },
@@ -339,7 +342,7 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
     });
 
     const total = await prisma.post.count({
-      where: { cid: { in: allowedIds } },
+      where,
     });
 
     res.status(200).json({
@@ -561,6 +564,9 @@ export const getAllPosts = async (req: Request, res: Response) => {
     if (communityId && communityId.trim()) {
       whereClause.cid = communityId.trim();
     }
+
+    const type = req.query.type as string | undefined;
+    if (type) whereClause.type = type;
 
     console.log(
       "[getAllPosts] Where clause:",

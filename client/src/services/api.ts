@@ -1081,6 +1081,7 @@ export const userApi = {
     limit?: number;
     search?: string;
     role?: string;
+    mutualWithMe?: boolean;
   }): Promise<{
     data: Array<{
       id: number;
@@ -1101,6 +1102,7 @@ export const userApi = {
       if (params.search && params.search.trim())
         cleanParams.search = params.search.trim();
       if (params.role && params.role !== "all") cleanParams.role = params.role;
+      if (params.mutualWithMe) cleanParams.mutualWithMe = true;
     }
     const response = await api.get("/users", { params: cleanParams });
     return response.data;
@@ -1407,6 +1409,39 @@ export const submissionApi = {
     });
     return response.data;
   },
+};
+
+// Search API
+export interface SearchResults {
+  posts: PostResponse[];
+  communities: CommunityResponse[];
+  users: Array<{
+    id: number;
+    email: string;
+    fname: string;
+    lname: string;
+    role: string;
+    avatar_file_id?: string;
+  }>;
+}
+
+export const searchApi = {
+  searchAll: async (query: string, options?: { limit?: number; mutualWithMe?: boolean }): Promise<SearchResults> => {
+    const limit = options?.limit || 5;
+    const mutualWithMe = options?.mutualWithMe ?? true;
+
+    const results = await Promise.allSettled([
+      postApi.getAll({ search: query, limit }),
+      communityApi.getAll({ search: query, limit }),
+      userApi.getAll({ search: query, limit, ...(mutualWithMe ? { mutualWithMe: true } : {}) })
+    ]);
+
+    return {
+      posts: results[0].status === 'fulfilled' ? results[0].value.data : [],
+      communities: results[1].status === 'fulfilled' ? ((results[1].value as any).data || []) : [],
+      users: results[2].status === 'fulfilled' ? results[2].value.data : []
+    };
+  }
 };
 
 export default api;
