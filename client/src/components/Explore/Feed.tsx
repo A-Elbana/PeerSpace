@@ -20,6 +20,11 @@ interface FeedProps {
   getCommunityName?: (cid: string) => string;
   postType?: string;
   hideCreateWidget?: boolean;
+  externalFetch?: boolean;
+  posts?: any[];
+  isLoading?: boolean;
+  hasMore?: boolean;
+  onFetchPage?: (page: number) => Promise<void>;
 };
 
 const Feed: React.FC<FeedProps> = (props) => {
@@ -39,6 +44,11 @@ const Feed: React.FC<FeedProps> = (props) => {
     getCommunityName: propGetCommunityName,
     postType,
     hideCreateWidget,
+    externalFetch,
+    posts: externalPosts,
+    isLoading: externalIsLoading,
+    hasMore: externalHasMore,
+    onFetchPage,
   } = props;
 
   // Internal state for optional props
@@ -68,20 +78,29 @@ const Feed: React.FC<FeedProps> = (props) => {
   }, [communities, propGetCommunityName]);
 
   // Internal paginated state (fetch 10 posts per page)
-  const [postsList, setPostsList] = useState<any[]>([]);
-  const [isLoadingPage, setIsLoadingPage] = useState<boolean>(false);
-  const [hasMoreLocal, setHasMoreLocal] = useState<boolean>(true);
+  const [internalPostsList, setInternalPostsList] = useState<any[]>([]);
+  const [internalIsLoadingPage, setInternalIsLoadingPage] = useState<boolean>(false);
+  const [internalHasMoreLocal, setInternalHasMoreLocal] = useState<boolean>(true);
   const internalLoadRef = useRef<HTMLDivElement | null>(null);
   const pageRef = useRef<number>(1);
   const fetchingRef = useRef<boolean>(false);
 
+  // Determine which state/fetching to use
+  const postsList = externalFetch ? (externalPosts || []) : internalPostsList;
+  const isLoadingPage = externalFetch ? (externalIsLoading || false) : internalIsLoadingPage;
+  const hasMoreLocal = externalFetch ? (externalHasMore ?? false) : internalHasMoreLocal;
   const sentinelRef = loadMoreRef ?? internalLoadRef;
 
   const fetchPage = async (p: number) => {
+    if (externalFetch) {
+      if (onFetchPage) await onFetchPage(p);
+      return;
+    }
+
     if (fetchingRef.current) return;
     fetchingRef.current = true;
     try {
-      setIsLoadingPage(true);
+      setInternalIsLoadingPage(true);
       let res: any;
       if (user?.role === 'instructor') {
         if (activeTab === 'unresolved') {
@@ -98,17 +117,17 @@ const Feed: React.FC<FeedProps> = (props) => {
 
       const newPosts = res.data || [];
       const meta = res.meta || { totalPages: 1 } as any;
-      if (p === 1) setPostsList(newPosts);
-      else setPostsList(prev => [...prev, ...newPosts]);
+      if (p === 1) setInternalPostsList(newPosts);
+      else setInternalPostsList(prev => [...prev, ...newPosts]);
 
       const totalPages = meta.totalPages || 1;
-      setHasMoreLocal(p < totalPages);
+      setInternalHasMoreLocal(p < totalPages);
       pageRef.current = p + 1;
     } catch (err) {
       console.error('Failed to load posts page', err);
-      setHasMoreLocal(false);
+      setInternalHasMoreLocal(false);
     } finally {
-      setIsLoadingPage(false);
+      setInternalIsLoadingPage(false);
       fetchingRef.current = false;
     }
   };
@@ -129,11 +148,14 @@ const Feed: React.FC<FeedProps> = (props) => {
 
   // Load first page when activeTab, user, or postType changes
   useEffect(() => {
-    pageRef.current = 1;
-    setHasMoreLocal(true);
-    void fetchPage(1);
+    if (externalFetch) return;    // Reset pagination and refresh if needed
+    if (!externalFetch) {
+      pageRef.current = 1;
+      setInternalHasMoreLocal(true);
+      void fetchPage(1);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, user, postType]);
+  }, [activeTab, user, postType, externalFetch]);
 
   // Intersection observer to load more pages
   useEffect(() => {
@@ -203,7 +225,7 @@ const Feed: React.FC<FeedProps> = (props) => {
             onClick={() => {
               setActiveTab('unresolved');
               pageRef.current = 1;
-              setHasMoreLocal(true);
+              setInternalHasMoreLocal(true);
               void fetchPage(1);
             }}
             className={`flex items-center gap-2 px-3 py-2 rounded-full hover:bg-accent transition-colors ${activeTab === 'unresolved' ? 'text-primary bg-accent' : ''}`}
