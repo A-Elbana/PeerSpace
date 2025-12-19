@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, FileText, MessageCircle, Plus, Lock, Loader2 } from 'lucide-react';
+import { Users, FileText, Plus, Lock, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Dashboard Components
@@ -15,13 +15,12 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { useSidebar } from '../../contexts/SidebarContext';
-import api, { communityApi, assignmentApi, submissionApi, type CommunityResponse } from '../../services/api';
+import api, { communityApi } from '../../services/api';
 
 // Types
 import type { ManagedCourse } from '../../components/dashboard/ManageCourses';
-import type { Submission } from '../../components/dashboard/PendingSubmissions';
-
 import type { CreateCommunityData } from '../../components/dashboard/CreateCommunityModal';
+import { useInstructorDashboard } from '../../hooks/useInstructorDashboard';
 
 interface InstructorDashboardProps {
   user: {
@@ -35,18 +34,39 @@ interface InstructorDashboardProps {
   onLogout: () => void;
 }
 
-/**
- * Instructor Dashboard
- * Dashboard view for instructors showing managed courses, submissions to grade, and student questions
- */
 const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogout }) => {
   const navigate = useNavigate();
-
-  // State
-  const [isLoading, setIsLoading] = useState(true);
-  const [courses, setCourses] = useState<ManagedCourse[]>([]);
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
   const { sidebarWidth } = useSidebar();
+
+  // Use our new parallel data fetching hook
+  const {
+    stats,
+    courses: rawCourses,
+    pendingGrading,
+    isLoading,
+    refresh: refreshDashboard,
+    error: dashboardError
+  } = useInstructorDashboard();
+
+  // Map communities to ManagedCourse format for UI
+  const courses: ManagedCourse[] = rawCourses.map((community: any) => ({
+    id: community.id,
+    name: community.name,
+    studentCount: community._count?.Enrollment || 0,
+    pendingSubmissions: 0, // Could be enriched if needed, but keeping basic for now
+    pendingQuestions: 0,
+    status: 'active' as const,
+  }));
+
+  // Map pending grading for UI
+  const submissions = pendingGrading.map((sub: any) => ({
+    id: sub.id.toString(),
+    studentName: `${sub.Student?.User?.fname || 'Student'} ${sub.Student?.User?.lname || ''}`,
+    assignmentTitle: sub.Assignment?.title || 'Unknown Assignment',
+    courseName: sub.Assignment?.Community?.name || 'Unknown Community',
+    submittedAt: sub.subm_date,
+    status: 'pending' as const,
+  }));
 
   // Private community enrollment state
   const [communityCode, setCommunityCode] = useState('');
@@ -56,78 +76,9 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
   const [isCreateCommunityOpen, setIsCreateCommunityOpen] = useState(false);
   const [isCreatingCommunity, setIsCreatingCommunity] = useState(false);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
-    try {
-      setIsLoading(true);
-
-      // Fetch communities managed by the instructor
-      const communitiesResponse = await communityApi.getMyCommunities({ limit: 50 });
-
-      // Map communities to ManagedCourse format
-      const managedCourses: ManagedCourse[] = communitiesResponse.data.map((community: CommunityResponse) => ({
-        id: community.id,
-        name: community.name,
-        studentCount: community._count?.Enrollment || 0,
-        pendingSubmissions: 0,
-        pendingQuestions: 0,
-        status: 'active' as const,
-      }));
-
-      setCourses(managedCourses);
-
-      // Fetch assignments for all communities
-      const assignmentPromises = communitiesResponse.data.map(async (community: CommunityResponse) => {
-        try {
-          const assignmentsResponse = await assignmentApi.getByCommunity(community.id, { limit: 50 });
-          return assignmentsResponse.data;
-        } catch {
-          return [];
-        }
-      });
-
-      const allAssignments = (await Promise.all(assignmentPromises)).flat();
-
-      // Fetch submissions for each assignment to find ungraded ones
-      const submissionPromises = allAssignments.map(async (assignment) => {
-        try {
-          const submissionsResponse = await submissionApi.getByAssignment(assignment.id, { limit: 100 });
-          return submissionsResponse.data
-            .filter(sub => sub.grade === null) // Only ungraded submissions
-            .map(sub => ({
-              id: sub.id.toString(),
-              studentName: `${sub.Student.User.fname} ${sub.Student.User.lname}`,
-              assignmentTitle: assignment.title,
-              courseName: communitiesResponse.data.find(c => c.id === assignment.cid)?.name || 'Unknown',
-              submittedAt: sub.subm_date,
-              status: 'pending' as const,
-            }));
-        } catch {
-          return [];
-        }
-      });
-
-      const allPendingSubmissions = (await Promise.all(submissionPromises)).flat();
-      setSubmissions(allPendingSubmissions);
-
-
-
-    } catch (error) {
-      console.error('Failed to fetch dashboard data:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-
-
   const handleCreateCommunity = async (data: CreateCommunityData) => {
     setIsCreatingCommunity(true);
     try {
-      // Create community first without banner
       const response = await communityApi.create({
         name: data.name,
         description: data.description,
@@ -136,10 +87,8 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
 
       const communityId = response.data.id;
 
-      // If there's a banner file, upload it with the correct community ID
       if (data.bannerFile) {
         try {
-          // Step 1: Get upload signature
           const signResponse = await api.post('/uploads/sign', {
             context: 'COMMUNITY_BANNER',
             context_id: communityId,
@@ -149,7 +98,6 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
 
           const { timestamp, signature, folder, cloudName, apiKey } = signResponse.data;
 
-          // Step 2: Upload to Cloudinary
           const formData = new FormData();
           formData.append('file', data.bannerFile);
           formData.append('timestamp', timestamp.toString());
@@ -165,8 +113,6 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
 
           if (uploadResponse.ok) {
             const cloudinaryData = await uploadResponse.json();
-
-            // Step 3: Save file record in backend
             const fileResponse = await api.post('/files', {
               public_id: cloudinaryData.public_id,
               secure_url: cloudinaryData.secure_url,
@@ -178,31 +124,21 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
             });
 
             const fileRecord = fileResponse.data.data;
-
-            // Step 4: Update community with banner_file_id (store File.id, not URL)
             await communityApi.update(communityId, {
               banner_file_id: fileRecord.id,
             });
           }
         } catch (uploadError) {
           console.error('Failed to upload banner:', uploadError);
-          // Community is created, but banner upload failed - non-critical
         }
       }
 
-      // Optionally refresh the dashboard data or show success message
-      await fetchDashboardData();
+      toast.success('Community created successfully!');
+      setIsCreateCommunityOpen(false);
+      refreshDashboard();
     } finally {
       setIsCreatingCommunity(false);
     }
-  };
-
-  const handleGradeSubmission = (submissionId: string) => {
-    navigate(`/submission/${submissionId}`);
-  };
-
-  const handleAnswerQuestion = (questionId: string) => {
-    navigate(`/questions/${questionId}`);
   };
 
   const handleEnrollInPrivateCommunity = async () => {
@@ -211,9 +147,10 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
       return;
     }
 
-    // Basic UUID validation
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(communityCode.trim())) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i; // Corrected slightly
+    // Let's use the one from StudentDashboard for consistency
+    const strictUuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!strictUuidRegex.test(communityCode.trim())) {
       toast.error('Invalid community ID format');
       return;
     }
@@ -223,8 +160,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
       await communityApi.enroll(communityCode.trim());
       toast.success('Successfully joined community!');
       setCommunityCode('');
-      // Refresh the courses list
-      await fetchDashboardData();
+      refreshDashboard();
     } catch (error: any) {
       console.error('Failed to join:', error);
       const message = error.response?.data?.message || 'Failed to join community';
@@ -234,9 +170,8 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
     }
   };
 
-  // Calculate metrics
-  const totalStudents = courses.reduce((sum, c) => sum + c.studentCount, 0);
-  const totalPendingSubmissions = submissions.filter(s => s.status === 'pending' || s.status === 'late').length;
+  const totalStudents = stats?.totalStudents || courses.reduce((sum, c) => sum + c.studentCount, 0);
+  const totalPendingSubmissions = submissions.length;
 
   if (isLoading) {
     return (
@@ -254,7 +189,6 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
       <Sidebar onLogout={onLogout} />
 
       <main className="flex-1 p-8 transition-all duration-300" style={{ marginLeft: `${sidebarWidth}px` }}>
-        {/* Header with Create Community Button */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Instructor Dashboard</h1>
@@ -269,7 +203,12 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
           </Button>
         </div>
 
-        {/* Metric Cards Row */}
+        {dashboardError && (
+          <div className="bg-red-500/10 border border-red-500/20 text-red-500 px-4 py-2 rounded-lg mb-6">
+            {dashboardError}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <MetricCard
             icon={Users}
@@ -285,7 +224,6 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
             badge={totalPendingSubmissions > 0 ? { text: `${totalPendingSubmissions} pending`, color: 'bg-royal-gold-500 text-white' } : undefined}
           />
 
-          {/* Join Private Community Card */}
           <Card className="rounded-xl border border-border bg-card hover:shadow-lg transition-all duration-300 relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-purple-500/5 before:to-transparent before:pointer-events-none">
             <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
               <div className="flex items-center gap-3">
@@ -332,7 +270,6 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
           </Card>
         </div>
 
-        {/* Courses Management */}
         <div className="mb-8">
           <ManageCourses
             title="My Communities"
@@ -342,20 +279,17 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ user, onLogou
           />
         </div>
 
-        {/* Two Columns: Submissions & Questions */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <PendingSubmissions
             title="Pending Submissions"
             submissions={submissions}
-            onGradeSubmission={handleGradeSubmission}
+            onGradeSubmission={(id) => navigate(`/submission/${id}`)}
             showViewAll
             onViewAll={() => navigate('/submissions')}
           />
-
         </div>
       </main>
 
-      {/* Create Community Modal */}
       <CreateCommunityModal
         isOpen={isCreateCommunityOpen}
         onClose={() => setIsCreateCommunityOpen(false)}

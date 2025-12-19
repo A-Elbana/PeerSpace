@@ -9,14 +9,13 @@ import { useSidebar } from '../../contexts/SidebarContext';
 
 import {
   communityApi,
-  type CommunityResponse,
   assignmentApi,
   submissionApi,
-  type PaginationMeta,
 } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
+import { useStudentDashboard } from '../../hooks/useStudentDashboard';
 
 interface StudentDashboardProps {
   user: {
@@ -30,81 +29,78 @@ interface StudentDashboardProps {
   onLogout: () => void;
 }
 
-/**
- * Student Dashboard
- * Dashboard view for students showing enrolled courses, assignments, and progress
- */
 const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) => {
   const navigate = useNavigate();
   const { sidebarWidth } = useSidebar();
 
-  // State
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Communities (server-side paginated)
-  const [communities, setCommunities] = useState<CommunityResponse[]>([]);
-  const [communitiesMeta, setCommunitiesMeta] = useState<PaginationMeta | null>(null);
-  const [communitiesPage, setCommunitiesPage] = useState(1);
-  const communitiesLimit = 10;
-
-  // Assignments (server-side paginated, filtered by selected community)
+  // State for manual assignment fetching (community-specific)
   const [selectedCommunityId, setSelectedCommunityId] = useState<string>('');
   const [assignments, setAssignments] = useState<Array<any>>([]);
-  const [assignmentsMeta, setAssignmentsMeta] = useState<PaginationMeta | null>(null);
+  const [assignmentsMeta, setAssignmentsMeta] = useState<any>(null);
   const [assignmentsPage, setAssignmentsPage] = useState(1);
+  const [isAssignmentsLoading, setIsAssignmentsLoading] = useState(false);
   const assignmentsLimit = 10;
 
   // Submissions for status mapping
   const [submittedAssignmentIds, setSubmittedAssignmentIds] = useState<Set<number>>(new Set());
 
-  // Private community enrollment state
-  const [communityCode, setCommunityCode] = useState('');
-  const [isEnrolling, setIsEnrolling] = useState(false);
+  // Use our new parallel data fetching hook
+  const {
+    courses: communities,
+    coursesMeta: communitiesMeta,
+    isLoading: isPrimaryLoading,
+    refresh: refreshDashboard,
+    error: dashboardError
+  } = useStudentDashboard({ coursesLimit: 10 });
 
+  // Initial data sync for selected community and submissions
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    if (!isPrimaryLoading) {
+      if (!selectedCommunityId && communities.length > 0) {
+        setSelectedCommunityId(communities[0].id);
+      }
+      fetchSubmissions();
+    }
+  }, [isPrimaryLoading, communities]);
 
-  const fetchDashboardData = async () => {
+  // Fetch submissions separately to keep things clean
+  const fetchSubmissions = async () => {
     try {
-      setIsLoading(true);
-
-      // Communities (paginated)
-      const communitiesResponse = await communityApi.getMyCommunities({ page: communitiesPage, limit: communitiesLimit });
-      setCommunities(communitiesResponse.data);
-      setCommunitiesMeta(communitiesResponse.meta);
-
-      // Default selection to first community if none selected
-      const defaultCid = selectedCommunityId || communitiesResponse.data[0]?.id || '';
-      setSelectedCommunityId(prev => prev || defaultCid);
-
-      // Submissions for status
-      try {
-        const mySubmissions = await submissionApi.getMySubmissions({ page: 1, limit: 200 });
-        setSubmittedAssignmentIds(new Set(mySubmissions.data.map(sub => sub.aid)));
-      } catch (error) {
-        console.error('Failed to fetch submissions:', error);
-      }
-
-      // Assignments for selected community (paginated)
-      if (defaultCid) {
-        const assignmentsResp = await assignmentApi.getByCommunity(defaultCid, { page: assignmentsPage, limit: assignmentsLimit });
-        const enriched = assignmentsResp.data.map((a: any) => ({
-          ...a,
-          submitted: submittedAssignmentIds.has(a.id),
-        }));
-        setAssignments(enriched);
-        setAssignmentsMeta(assignmentsResp.meta);
-      } else {
-        setAssignments([]);
-        setAssignmentsMeta({ total: 0, page: 1, limit: assignmentsLimit, totalPages: 1 });
-      }
+      const mySubmissions = await submissionApi.getMySubmissions({ page: 1, limit: 200 });
+      setSubmittedAssignmentIds(new Set(mySubmissions.data.map(sub => sub.aid)));
     } catch (error) {
-      console.error('Failed to fetch dashboard data:', error);
-    } finally {
-      setIsLoading(false);
+      console.error('Failed to fetch submissions:', error);
     }
   };
+
+  // Fetch assignments when selected community or page changes
+  useEffect(() => {
+    if (selectedCommunityId) {
+      fetchCommunityAssignments(selectedCommunityId, assignmentsPage);
+    }
+  }, [selectedCommunityId, assignmentsPage]);
+
+  const fetchCommunityAssignments = async (cid: string, page: number) => {
+    setIsAssignmentsLoading(true);
+    try {
+      const resp = await assignmentApi.getByCommunity(cid, { page, limit: assignmentsLimit });
+      const enriched = resp.data.map((a: any) => ({
+        ...a,
+        submitted: submittedAssignmentIds.has(a.id),
+      }));
+      setAssignments(enriched);
+      setAssignmentsMeta(resp.meta);
+    } catch (err) {
+      console.error('Failed to fetch assignments:', err);
+      setAssignments([]);
+    } finally {
+      setIsAssignmentsLoading(false);
+    }
+  };
+
+  // Private community enrollment
+  const [communityCode, setCommunityCode] = useState('');
+  const [isEnrolling, setIsEnrolling] = useState(false);
 
   const handleEnrollInPrivateCommunity = async () => {
     if (!communityCode.trim()) {
@@ -112,7 +108,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
       return;
     }
 
-    // Basic UUID validation
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(communityCode.trim())) {
       toast.error('Invalid community ID format');
@@ -124,17 +119,16 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
       await communityApi.enroll(communityCode.trim());
       toast.success('Successfully enrolled in community!');
       setCommunityCode('');
-      // Refresh the courses list
-      await fetchDashboardData();
-    } catch (error: unknown) {
+      refreshDashboard();
+    } catch (error: any) {
       console.error('Failed to enroll:', error);
-      const axiosError = error as { response?: { data?: { message?: string } } };
-      const message = axiosError.response?.data?.message || 'Failed to enroll in community';
+      const message = error.response?.data?.message || 'Failed to enroll in community';
       toast.error(message);
     } finally {
       setIsEnrolling(false);
     }
   };
+
   const nextDue = useMemo(() => {
     const now = new Date();
     const upcoming = assignments
@@ -143,7 +137,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
     return upcoming[0];
   }, [assignments]);
 
-  if (isLoading) {
+  if (isPrimaryLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -158,7 +152,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
     <div className="flex min-h-screen bg-background">
       <Sidebar onLogout={onLogout} />
 
-      <main 
+      <main
         className="flex-1 p-8 transition-all duration-300"
         style={{ marginLeft: `${sidebarWidth}px` }}
       >
@@ -167,7 +161,14 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
           subtitle={`Welcome back, ${user.fname}!`}
           showNewTaskButton={false}
         />
-        {/* Metric Cards Row (Admin-style Cards) */}
+
+        {dashboardError && (
+          <div className="bg-red-500/10 border border-red-500/20 text-red-500 px-4 py-2 rounded-lg mb-6">
+            {dashboardError}
+          </div>
+        )}
+
+        {/* Metric Cards Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {/* Next Assignment Card */}
           <Card className="rounded-xl border border-border bg-card hover:shadow-lg transition-all duration-300 relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-blue-500/5 before:to-transparent before:pointer-events-none">
@@ -218,7 +219,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
             </CardContent>
           </Card>
 
-          {/* Join Private Community Card (moved from sidebar) */}
+          {/* Join Private Community Card */}
           <Card className="rounded-xl border border-border bg-card hover:shadow-lg transition-all duration-300 relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-purple-500/5 before:to-transparent before:pointer-events-none">
             <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
               <div className="flex items-center gap-3">
@@ -266,36 +267,22 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-          {/* Main Column: Upcoming Assignments (Admin-style Table) */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="bg-card border border-border rounded-xl shadow-sm">
+            <div className="bg-card border border-border rounded-xl shadow-sm relative">
+              {isAssignmentsLoading && (
+                <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] flex items-center justify-center z-20 rounded-xl">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              )}
               <div className="p-6 border-b border-border flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <h2 className="text-lg font-semibold">Upcoming Assignments</h2>
                   <select
                     className="text-sm bg-muted/40 border border-border rounded-md px-2 py-1"
                     value={selectedCommunityId}
-                    onChange={async (e) => {
-                      const cid = e.target.value;
-                      setSelectedCommunityId(cid);
+                    onChange={(e) => {
+                      setSelectedCommunityId(e.target.value);
                       setAssignmentsPage(1);
-                      setIsLoading(true);
-                      try {
-                        if (cid) {
-                          const resp = await assignmentApi.getByCommunity(cid, { page: 1, limit: assignmentsLimit });
-                          const enriched = resp.data.map((a: any) => ({ ...a, submitted: submittedAssignmentIds.has(a.id) }));
-                          setAssignments(enriched);
-                          setAssignmentsMeta(resp.meta);
-                        } else {
-                          setAssignments([]);
-                          setAssignmentsMeta({ total: 0, page: 1, limit: assignmentsLimit, totalPages: 1 });
-                        }
-                      } catch (err) {
-                        console.error('Failed to fetch assignments for community', err);
-                        setAssignments([]);
-                      } finally {
-                        setIsLoading(false);
-                      }
                     }}
                   >
                     {communities.length === 0 ? (
@@ -310,7 +297,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
                 <Button variant="ghost" size="sm" onClick={() => navigate('/schedule')}>View Schedule</Button>
               </div>
 
-              {/* Table Header */}
               <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-6 py-4 bg-muted/30 border-b border-border text-sm font-medium text-muted-foreground">
                 <div>Title</div>
                 <div className="w-40 text-center">Due date</div>
@@ -319,7 +305,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
                 <div className="w-28 text-center">Status</div>
               </div>
 
-              {/* Table Rows */}
               <div className="divide-y divide-border">
                 {assignments.filter(a => a.due_date && !a.submitted).length === 0 ? (
                   <div className="px-6 py-8 text-center text-muted-foreground">No upcoming or overdue assignments found.</div>
@@ -327,71 +312,63 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
                   assignments
                     .filter(a => a.due_date && !a.submitted)
                     .map((a) => {
-                    const now = new Date();
-                    const dueDate = a.due_date ? new Date(a.due_date) : null;
-                    const isOverdue = dueDate && dueDate < now && !a.submitted;
-                    const isSubmitted = a.submitted;
-                    let statusText = 'Pending';
-                    let statusClass = 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400';
-                    if (isSubmitted) { statusText = 'Submitted'; statusClass = 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'; }
-                    else if (isOverdue) { statusText = 'Overdue'; statusClass = 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'; }
-                    return (
-                      <div key={a.id} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-6 py-4 hover:bg-muted/20 transition-colors cursor-pointer" onClick={() => navigate(`/community/${a.cid}/assignment/${a.id}`)}>
-                        <div className="flex flex-col min-w-0">
-                          <div className={`font-medium truncate ${isSubmitted ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{a.title}</div>
-                          <div className="text-xs text-muted-foreground mt-1">Community • {a.Community?.name || '—'}</div>
+                      const now = new Date();
+                      const dueDate = a.due_date ? new Date(a.due_date) : null;
+                      const isOverdue = dueDate && dueDate < now && !a.submitted;
+                      const isSubmitted = a.submitted;
+                      let statusText = 'Pending';
+                      let statusClass = 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400';
+                      if (isSubmitted) { statusText = 'Submitted'; statusClass = 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'; }
+                      else if (isOverdue) { statusText = 'Overdue'; statusClass = 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'; }
+                      return (
+                        <div key={a.id} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-6 py-4 hover:bg-muted/20 transition-colors cursor-pointer" onClick={() => navigate(`/community/${a.cid}/assignment/${a.id}`)}>
+                          <div className="flex flex-col min-w-0">
+                            <div className={`font-medium truncate ${isSubmitted ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{a.title}</div>
+                            <div className="text-xs text-muted-foreground mt-1">Community • {a.Community?.name || '—'}</div>
+                          </div>
+                          <div className="w-40 text-center text-sm">{a.due_date ? new Date(a.due_date).toLocaleDateString() : '-'}</div>
+                          <div className="w-28 text-center text-sm">{a.max_points ?? '-'}</div>
+                          <div className="w-28 text-center text-sm">{a._count?.Submission ?? 0}</div>
+                          <div className="w-28 flex items-center justify-center"><span className={`text-xs px-2 py-1 rounded ${statusClass}`}>{statusText}</span></div>
                         </div>
-                        <div className="w-40 text-center text-sm">{a.due_date ? new Date(a.due_date).toLocaleDateString() : '-'}</div>
-                        <div className="w-28 text-center text-sm">{a.max_points ?? '-'}</div>
-                        <div className="w-28 text-center text-sm">{a._count?.Submission ?? 0}</div>
-                        <div className="w-28 flex items-center justify-center"><span className={`text-xs px-2 py-1 rounded ${statusClass}`}>{statusText}</span></div>
-                      </div>
-                    );
-                  })
+                      );
+                    })
                 )}
               </div>
 
-              {/* Pagination */}
               <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-muted/20">
                 <div className="text-xs text-muted-foreground">Page {assignmentsMeta?.page ?? assignmentsPage} of {assignmentsMeta?.totalPages ?? 1}</div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" disabled={(assignmentsMeta?.page ?? assignmentsPage) <= 1} onClick={async () => {
-                    const next = (assignmentsMeta?.page ?? assignmentsPage) - 1;
-                    setAssignmentsPage(next);
-                    if (selectedCommunityId) {
-                      const resp = await assignmentApi.getByCommunity(selectedCommunityId, { page: next, limit: assignmentsLimit });
-                      const enriched = resp.data.map((a: any) => ({ ...a, submitted: submittedAssignmentIds.has(a.id) }));
-                      setAssignments(enriched);
-                      setAssignmentsMeta(resp.meta);
-                    }
-                  }}>Previous</Button>
-                  <Button variant="outline" size="sm" disabled={(assignmentsMeta?.page ?? 1) >= (assignmentsMeta?.totalPages ?? 1)} onClick={async () => {
-                    const next = (assignmentsMeta?.page ?? assignmentsPage) + 1;
-                    setAssignmentsPage(next);
-                    if (selectedCommunityId) {
-                      const resp = await assignmentApi.getByCommunity(selectedCommunityId, { page: next, limit: assignmentsLimit });
-                      const enriched = resp.data.map((a: any) => ({ ...a, submitted: submittedAssignmentIds.has(a.id) }));
-                      setAssignments(enriched);
-                      setAssignmentsMeta(resp.meta);
-                    }
-                  }}>Next</Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={(assignmentsMeta?.page ?? assignmentsPage) <= 1}
+                    onClick={() => setAssignmentsPage(prev => prev - 1)}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={(assignmentsMeta?.page ?? 1) >= (assignmentsMeta?.totalPages ?? 1)}
+                    onClick={() => setAssignmentsPage(prev => prev + 1)}
+                  >
+                    Next
+                  </Button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Side Column: Communities & Join */}
           <div className="space-y-6">
-            {/* My Communities (Admin-style Table) */}
             <div className="bg-card rounded-xl border border-border shadow-sm">
               <div className="p-6 border-b border-border flex items-center justify-between">
                 <h3 className="text-lg font-semibold">My Communities</h3>
                 <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => fetchDashboardData()}>Refresh</Button>
+                  <Button variant="ghost" size="sm" onClick={() => refreshDashboard()}>Refresh</Button>
                 </div>
               </div>
 
-              {/* Table Header */}
               <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-6 py-4 bg-muted/30 border-b border-border text-sm font-medium text-muted-foreground">
                 <div>Name</div>
                 <div className="w-24 text-center">Type</div>
@@ -399,7 +376,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
                 <div className="w-24 text-center">Actions</div>
               </div>
 
-              {/* Table Rows */}
               <div className="divide-y divide-border">
                 {communities.length === 0 ? (
                   <div className="px-6 py-8 text-center text-muted-foreground">No communities enrolled.</div>
@@ -420,24 +396,11 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout }) =
                 )}
               </div>
 
-              {/* Pagination */}
               <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-muted/20">
-                <div className="text-xs text-muted-foreground">Page {communitiesMeta?.page ?? communitiesPage} of {communitiesMeta?.totalPages ?? 1}</div>
+                <div className="text-xs text-muted-foreground">Page {communitiesMeta?.page ?? 1} of {communitiesMeta?.totalPages ?? 1}</div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" disabled={(communitiesMeta?.page ?? communitiesPage) <= 1} onClick={async () => {
-                    const next = (communitiesMeta?.page ?? communitiesPage) - 1;
-                    setCommunitiesPage(next);
-                    const resp = await communityApi.getMyCommunities({ page: next, limit: communitiesLimit });
-                    setCommunities(resp.data);
-                    setCommunitiesMeta(resp.meta);
-                  }}>Previous</Button>
-                  <Button variant="outline" size="sm" disabled={(communitiesMeta?.page ?? 1) >= (communitiesMeta?.totalPages ?? 1)} onClick={async () => {
-                    const next = (communitiesMeta?.page ?? communitiesPage) + 1;
-                    setCommunitiesPage(next);
-                    const resp = await communityApi.getMyCommunities({ page: next, limit: communitiesLimit });
-                    setCommunities(resp.data);
-                    setCommunitiesMeta(resp.meta);
-                  }}>Next</Button>
+                  <Button variant="outline" size="sm" disabled={(communitiesMeta?.page || 1) <= 1} onClick={() => refreshDashboard()}>Previous</Button>
+                  <Button variant="outline" size="sm" disabled={(communitiesMeta?.page || 1) >= (communitiesMeta?.totalPages || 1)} onClick={() => refreshDashboard()}>Next</Button>
                 </div>
               </div>
             </div>

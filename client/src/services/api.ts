@@ -821,6 +821,12 @@ export const instructorApi = {
       meta: PaginationMeta;
     };
   },
+
+  // Semantic wrappers for dashboard
+  getStats: (params?: { cid?: string }) => instructorApi.getInsights(params),
+  getActiveCourses: (params?: { page?: number; limit?: number; search?: string }) => instructorApi.getManagedCommunities(params),
+  getPendingGrading: (params?: { page?: number; limit?: number }) => instructorApi.getManagedSubmissions({ graded: 'false', ...params }),
+  getEngagementData: (params?: { cid?: string }) => instructorApi.getInsights(params),
 };
 
 // Student API (student-specific endpoints)
@@ -850,6 +856,12 @@ export const studentApi = {
     const response = await api.get('/student/dashboard');
     return response.data;
   },
+
+  // Semantic wrappers for dashboard
+  getProfile: () => api.get('/auth/me').then(res => res.data),
+  getEnrolledCourses: (params?: { page?: number; limit?: number }) => communityApi.getMyCommunities(params),
+  getUpcomingDeadlines: () => studentApi.getDashboard().then(res => res.data.upcomingTasks || []),
+  getRecentActivity: (params?: { page?: number; limit?: number }) => postApi.getMyPosts(params),
 };
 
 // Comment API
