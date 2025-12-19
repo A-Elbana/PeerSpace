@@ -11,7 +11,7 @@ export function initSocket(server: HttpServer) {
 
   io = new IOServer(server, {
     cors: {
-      origin: true,
+      origin: process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map(o => o.trim()) : true,
       methods: ["GET", "POST"],
       credentials: true,
     },

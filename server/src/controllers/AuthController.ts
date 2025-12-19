@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 const jwt = require("jsonwebtoken");
 import prisma from "../config/prisma";
-import { Role } from "../generated/prisma/client";
+import { Role } from "@prisma/client";
 import ActivityLogService from "../services/ActivityLogService";
 import { ActivityActionType } from "../services/ActivityLogService";
 

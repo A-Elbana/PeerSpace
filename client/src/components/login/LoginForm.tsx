@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, LogIn, Eye, EyeOff } from 'lucide-react';
+import axios, { AxiosError } from 'axios';
 import api from '../../services/api';
 import { setTokens } from '../../utils/auth';
 import { isValidEmail } from '../../utils/validation';
@@ -63,33 +64,42 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
             navigate('/explore');
             onLoginSuccess();
         } catch (err: unknown) {
-            console.error('Login failed', err);
-            const axiosError = err as { response?: { status?: number; data?: { message?: string } } };
-            console.error('Status:', axiosError.response?.status);
-            console.error('Message:', axiosError.response?.data?.message);
+            console.error('Login failed:', err);
 
-            // Extract detailed error message from response
-            const errorMessage = axiosError.response?.data?.message;
-            const statusCode = axiosError.response?.status;
+            let errorMessage = 'Login failed. Please try again.';
+            let statusCode: number | undefined;
 
-            // Provide user-friendly error messages based on status code
-            if (statusCode === 401) {
-                // Unauthorized - Invalid credentials
-                setError('Invalid email or password. Please try again.');
-            } else if (statusCode === 403) {
-                // Forbidden - Account not activated
-                setError('Your account is not activated. Please check your email.');
-            } else if (statusCode === 400) {
-                // Bad Request - Missing fields
-                setError(errorMessage || 'Please fill in all required fields.');
-            } else if (statusCode === 500) {
-                setError('Server error. Please try again later.');
-            } else if (!axiosError.response) {
-                setError('Network error. Please check your internet connection.');
+            if (axios.isAxiosError(err)) {
+                const axiosError = err as AxiosError<{ message?: string }>;
+                statusCode = axiosError.response?.status;
+
+                console.group('Login Error Details');
+                console.error('Status:', statusCode);
+                console.error('Response Data:', axiosError.response?.data);
+                console.error('Request URL:', axiosError.config?.url);
+                console.error('Request Method:', axiosError.config?.method?.toUpperCase());
+                console.groupEnd();
+
+                if (statusCode === 401) {
+                    errorMessage = 'Invalid email or password. Please try again.';
+                } else if (statusCode === 403) {
+                    errorMessage = 'Your account is not activated. Please check your email.';
+                } else if (statusCode === 400) {
+                    errorMessage = axiosError.response?.data?.message || 'Please fill in all required fields.';
+                } else if (statusCode === 405) {
+                    errorMessage = 'Server error: Method Not Allowed (405). Please contact support.';
+                } else if (statusCode === 500) {
+                    errorMessage = 'Server error. Please try again later.';
+                } else if (!axiosError.response) {
+                    errorMessage = 'Network error. Please check your internet connection.';
+                } else {
+                    errorMessage = axiosError.response?.data?.message || `Login failed (${statusCode}). Please try again.`;
+                }
             } else {
-                // Show the actual error message for debugging
-                setError(errorMessage || `Login failed (${statusCode}). Please try again.`);
+                console.error('Non-Axios error:', err);
             }
+
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }

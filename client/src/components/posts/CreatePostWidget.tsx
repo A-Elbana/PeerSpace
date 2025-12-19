@@ -22,11 +22,12 @@ interface CreatePostWidgetProps {
   currentUser?: CurrentUser | null;
   defaultCommunityId?: string;
   onCreated?: (newPost?: any) => void; // callback receives created post when available
+  defaultPostType?: PostType;
 }
 
-const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaultCommunityId, onCreated }) => {
+const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaultCommunityId, onCreated, defaultPostType }) => {
   const [expanded, setExpanded] = useState(false);
-  const [postType, setPostType] = useState<PostType>('discussion');
+  const [postType, setPostType] = useState<PostType>(defaultPostType || 'DISCUSSION');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [tagsArr, setTagsArr] = useState<string[]>([]);
@@ -187,7 +188,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
       } as any);
 
       // Reset form
-      setPostType('discussion');
+      setPostType('DISCUSSION');
       setTitle('');
       setBody('');
       setTagsArr([]);
@@ -206,14 +207,14 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
   };
 
   return (
-    <div className="bg-white dark:bg-card border border-border rounded-lg shadow-sm p-4 transition-all">
+    <div className="bg-card border border-border rounded-lg shadow-sm p-4 transition-all">
       {/* Collapsed */}
       {!expanded && (
         <div
           className="flex items-center gap-3 cursor-text"
           onClick={() => setExpanded(true)}
         >
-          <div className="w-10 h-10 rounded-full bg-linear-to-br from-frosted-blue-500 to-turf-green-500 text-white flex items-center justify-center overflow-hidden">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-chart-2 text-primary-foreground flex items-center justify-center overflow-hidden">
             {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
@@ -226,7 +227,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
           <input
             readOnly
             placeholder="What's on your mind?"
-            className="flex-1 h-11 px-4 rounded-full bg-muted/50 border border-input text-sm focus:outline-none"
+            className="flex-1 h-11 px-4 rounded-full bg-accent text-sm focus:outline-none placeholder:text-muted-foreground text-foreground border border-input shadow-inner"
           />
         </div>
       )}
@@ -236,7 +237,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
         <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
           {/* Header */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-linear-to-br from-frosted-blue-500 to-turf-green-500 text-white flex items-center justify-center overflow-hidden">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-chart-2 text-primary-foreground flex items-center justify-center overflow-hidden">
               {avatarUrl ? (
                 <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
               ) : (
@@ -254,7 +255,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
                     if (!showCommunityDropdown) setSearchQuery('');
                     setDisplayedCount(15);
                   }}
-                  className="w-full px-3 py-2 text-sm bg-muted/50 border border-input rounded-md text-left flex items-center justify-between hover:bg-muted transition-colors"
+                  className="w-full px-3 py-2 text-sm bg-accent/50 border border-input rounded-md text-left flex items-center justify-between hover:bg-accent transition-colors shadow-sm"
                 >
                   <span className="text-foreground font-medium">
                     {selectedCommunity ? selectedCommunity.name : 'Select community'}
@@ -268,7 +269,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
                 </button>
 
                 {showCommunityDropdown && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-input rounded-md shadow-lg z-50 max-h-80 overflow-hidden flex flex-col">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-md shadow-lg z-50 max-h-80 overflow-hidden flex flex-col">
                     {/* Search box */}
                     <div className="sticky top-0 p-2 bg-background border-b border-border">
                       <div className="relative">
@@ -281,7 +282,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
                             setSearchQuery(e.target.value);
                             setDisplayedCount(15);
                           }}
-                          className="w-full pl-8 pr-3 py-1.5 text-sm border border-input rounded-md bg-muted/50 focus:outline-none focus:ring-1 focus:ring-frosted-blue-500"
+                          className="w-full pl-8 pr-3 py-1.5 text-sm border border-input rounded-md bg-accent/50 focus:outline-none focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground"
                           autoFocus
                         />
                       </div>
@@ -304,13 +305,13 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
                                 setShowCommunityDropdown(false);
                                 setSearchQuery('');
                               }}
-                              className={`w-full text-left px-3 py-2 text-sm transition-colors border-b border-border last:border-b-0 hover:bg-muted ${communityId === community.id ? 'bg-turf-green-500/10 text-turf-green-600' : 'text-foreground'
+                              className={`w-full text-left px-3 py-2 text-sm transition-colors border-b border-border last:border-b-0 hover:bg-accent ${communityId === community.id ? 'bg-chart-2/10 text-chart-2' : 'text-foreground'
                                 }`}
                             >
                               <div className="flex items-center justify-between">
                                 <span className="font-medium truncate">{community.name}</span>
                                 {community.isEnrolled && (
-                                  <span className="text-xs bg-turf-green-500/20 text-turf-green-600 px-2 py-1 rounded-full shrink-0 ml-2">Enrolled</span>
+                                  <span className="text-[10px] bg-chart-2/20 text-chart-2 px-1.5 py-0.5 rounded-full shrink-0 ml-2 font-bold uppercase tracking-wider">Enrolled</span>
                                 )}
                               </div>
                               {(community.memberCount || community.postCount) && (
@@ -328,7 +329,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
                             <button
                               type="button"
                               onClick={() => setDisplayedCount(prev => prev + 15)}
-                              className="w-full px-3 py-2 text-xs text-center text-frosted-blue-600 hover:bg-muted transition-colors border-t border-border font-medium"
+                              className="w-full px-3 py-2 text-xs text-center text-primary hover:bg-accent transition-colors border-t border-border font-medium"
                             >
                               Load {Math.min(15, filteredCommunities.length - displayedCount)} more
                             </button>
@@ -339,7 +340,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
 
                     {/* Info footer */}
                     {filteredCommunities.length > 0 && (
-                      <div className="sticky bottom-0 px-3 py-1 bg-muted/50 border-t border-border text-xs text-muted-foreground">
+                      <div className="sticky bottom-0 px-3 py-1 bg-accent/50 border-t border-border text-xs text-muted-foreground">
                         Showing {Math.min(displayedCount, filteredCommunities.length)} of {filteredCommunities.length}
                       </div>
                     )}
@@ -349,40 +350,42 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
             )}
           </div>
 
-          {/* Post Type Selector */}
-          {currentUser?.role && (
-            <PostTypeSelector
-              value={postType}
-              onChange={setPostType}
-              userRole={currentUser.role}
-            />
+          {/* Post Type Selector - only show if no default is provided */}
+          {!defaultPostType && (
+            <div className="mb-4">
+              <PostTypeSelector
+                value={postType}
+                onChange={setPostType}
+                userRole={currentUser?.role || 'student'}
+              />
+            </div>
           )}
 
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Title"
-            className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-frosted-blue-500"
+            className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground shadow-sm"
           />
 
           <MarkdownEditor
             value={body}
             onChange={setBody}
             placeholder="Write something..."
-            className="min-h-50"
+            className="min-h-[200px]"
           />
 
           <div>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {tagsArr.map((t) => (
-                  <TagChip
-                    key={t}
-                    label={t}
-                    removable
-                    onRemove={() => setTagsArr(prev => prev.filter(x => x !== t))}
-                  />
-                ))}
-              </div>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {tagsArr.map((t) => (
+                <TagChip
+                  key={t}
+                  label={t}
+                  removable
+                  onRemove={() => setTagsArr(prev => prev.filter(x => x !== t))}
+                />
+              ))}
+            </div>
             <input
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
@@ -397,13 +400,13 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
                 }
               }}
               placeholder="Press space to add tag"
-              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none"
+              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none placeholder:text-muted-foreground text-foreground shadow-sm"
             />
           </div>
 
           {/* Attachments preview */}
           {files.length > 0 && (
-            <div className="space-y-2 rounded-md border border-dashed border-border p-3 bg-muted/20">
+            <div className="space-y-2 rounded-md border border-dashed border-border p-3 bg-accent/10">
               <div className="text-xs font-medium text-muted-foreground mb-2">
                 Attachments ({files.length})
               </div>
@@ -416,7 +419,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
                   return (
                     <div
                       key={`${key}-${idx}`}
-                      className="relative group rounded-lg overflow-hidden bg-background border border-border hover:border-frosted-blue-500 transition-all"
+                      className="relative group rounded-lg overflow-hidden bg-background border border-border hover:border-primary transition-all shadow-sm"
                     >
                       {isImage && preview ? (
                         <img
@@ -425,7 +428,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
                           className="w-full h-20 object-cover"
                         />
                       ) : (
-                        <div className="w-full h-20 flex flex-col items-center justify-center bg-muted/50">
+                        <div className="w-full h-20 flex flex-col items-center justify-center bg-accent/30">
                           <FileIcon size={20} className="text-muted-foreground mb-1" />
                           <span className="text-xs text-muted-foreground truncate px-1 text-center">
                             {file.name.length > 12 ? `${file.name.slice(0, 12)}...` : file.name}
@@ -436,13 +439,13 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
                       <button
                         type="button"
                         onClick={() => removeFile(idx)}
-                        className="absolute top-1 right-1 p-1 rounded-full bg-red-500/90 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                        className="absolute top-1 right-1 p-1 rounded-full bg-destructive/90 text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive shadow-sm"
                         aria-label="Remove file"
                       >
                         <X className="w-3 h-3" />
                       </button>
 
-                      <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5 bg-black/40 text-white text-xs truncate">
+                      <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5 bg-black/60 text-white text-[10px] truncate">
                         {formatFileSize(file.size)}
                       </div>
                     </div>
@@ -454,15 +457,15 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
 
           {/* Footer */}
           <div className="flex items-center justify-between pt-1">
-            <label className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-muted cursor-pointer text-sm text-muted-foreground">
+            <label className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-accent cursor-pointer text-sm text-muted-foreground transition-colors">
               <input type="file" className="hidden" onChange={onPickFile} multiple />
-              <ImageIcon className="w-4 h-4" /> Image / File
+              <ImageIcon className="w-4 h-4 text-primary" /> Image / File
             </label>
 
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                className="px-3 py-2 text-sm rounded-md hover:bg-muted"
+                className="px-4 py-2 text-sm rounded-md hover:bg-accent text-foreground transition-colors"
                 onClick={() => setExpanded(false)}
                 disabled={submitting}
               >
@@ -472,7 +475,7 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
                 type="button"
                 onClick={submit}
                 disabled={!canSubmit || submitting}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-white text-sm transition-colors ${canSubmit && !submitting ? 'bg-turf-green-600 hover:bg-turf-green-700' : 'bg-muted text-muted-foreground cursor-not-allowed'}`}
+                className={`inline-flex items-center gap-2 px-6 py-2 rounded-md text-primary-foreground text-sm font-semibold transition-all shadow-sm ${canSubmit && !submitting ? 'bg-primary hover:bg-primary/90' : 'bg-muted text-muted-foreground cursor-not-allowed'}`}
               >
                 <Send className="w-4 h-4" />
                 {submitting ? 'Posting...' : 'Post'}

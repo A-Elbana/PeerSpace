@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
-import { Role } from "../generated/prisma/client";
+import { Role } from "@prisma/client";
 import ActivityLogService, {
   ActivityActionType,
 } from "../services/ActivityLogService";

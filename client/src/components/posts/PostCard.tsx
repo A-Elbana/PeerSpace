@@ -153,7 +153,7 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
   const [userVote, setUserVote] = useState<boolean | null>(null);
 
   useEffect(() => {
-    
+
     let mounted = true;
     (async () => {
       try {
@@ -207,23 +207,23 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
   }
 
   const VoteControls: FC<VoteControlsProps> = ({ score, userVote, onUp, onDown, readOnly = false }) => (
-    <div className="w-12 bg-muted/30 flex flex-col items-center py-3 gap-1">
+    <div className="w-12 bg-accent/30 flex flex-col items-center py-3 gap-1">
       <button
         onClick={(e) => { e.stopPropagation(); if (!readOnly) void onUp(); }}
-        className={`transition-colors flex items-center justify-center ${userVote === true ? 'bg-turf-green-600 text-white w-8 h-8 rounded-full' : 'text-turf-green-600 hover:text-turf-green-700'} ${readOnly ? 'opacity-60 pointer-events-none' : ''}`}
+        className={`transition-all flex items-center justify-center ${userVote === true ? 'bg-primary text-primary-foreground w-8 h-8 rounded-full shadow-sm' : 'text-primary hover:text-primary/80'} ${readOnly ? 'opacity-60 pointer-events-none' : 'cursor-pointer'}`}
         aria-pressed={userVote === true}
         aria-disabled={readOnly}
       >
-        <ArrowBigUp size={20} />
+        <ArrowBigUp size={22} />
       </button>
       <span className="text-sm font-bold text-foreground">{score}</span>
       <button
         onClick={(e) => { e.stopPropagation(); if (!readOnly) void onDown(); }}
-        className={`transition-colors flex items-center justify-center ${userVote === false ? 'bg-red-600 text-white w-8 h-8 rounded-full' : 'text-red-600 hover:text-red-700'} ${readOnly ? 'opacity-60 pointer-events-none' : ''}`}
+        className={`transition-all flex items-center justify-center ${userVote === false ? 'bg-destructive text-destructive-foreground w-8 h-8 rounded-full shadow-sm' : 'text-destructive hover:text-destructive/80'} ${readOnly ? 'opacity-60 pointer-events-none' : 'cursor-pointer'}`}
         aria-pressed={userVote === false}
         aria-disabled={readOnly}
       >
-        <ArrowBigDown size={20} />
+        <ArrowBigDown size={22} />
       </button>
     </div>
   );
@@ -279,7 +279,7 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
         if (isEditOpen || showImageModal) return;
         goToPreview();
       }}
-      className={`relative ${isResolvedState && typeConfig.showResolved ? 'bg-turf-green-100/50 dark:bg-turf-green-600/70' : typeConfig.cardBg} border rounded-xl overflow-visible ${clickable ? 'hover:border-frosted-blue-500/50 hover:shadow-md cursor-pointer' : ''} transition-all duration-200 ${typeConfig.cardBorder}`}
+      className={`relative ${isResolvedState && typeConfig.showResolved ? 'bg-chart-2/10 dark:bg-chart-2/20' : typeConfig.cardBg} border rounded-xl overflow-visible ${clickable ? 'hover:border-primary/50 hover:shadow-md cursor-pointer' : ''} transition-all duration-200 border-border shadow-sm group/card`}
     >
       <div className="flex">
         <PostTypeSidebar config={typeConfig}>
@@ -325,15 +325,15 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
               {canModify && (
                 <div className="relative" ref={menuRef}>
                   <button
-                    className="p-1 hover:bg-muted rounded-full text-muted-foreground transition-colors"
+                    className="p-1.5 hover:bg-accent rounded-full text-muted-foreground transition-colors"
                     onClick={(e) => { e.stopPropagation(); setIsMenuOpen(prev => !prev); }}
                     aria-expanded={isMenuOpen}
                     aria-haspopup="menu"
                   >
-                    <MoreHorizontal size={16} />
+                    <MoreHorizontal size={18} />
                   </button>
                   {isMenuOpen && (
-                    <div className="absolute right-0 top-full mt-1 w-32 bg-card border border-border rounded-lg shadow-xl z-10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="absolute right-0 top-full mt-1 w-36 bg-card border border-border rounded-lg shadow-xl z-10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                       {canEdit && (<button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -344,9 +344,9 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
                             setIsEditOpen(true);
                           }
                         }}
-                        className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 text-foreground transition-colors"
+                        className="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-accent flex items-center gap-2 text-foreground transition-colors"
                       >
-                        <PenSquare size={14} /> Edit
+                        <PenSquare size={14} className="text-primary" /> Edit
                       </button>)}
                       <button
                         onClick={(e) => {
@@ -354,7 +354,7 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
                           setIsMenuOpen(false);
                           onDelete?.(post.id);
                         }}
-                        className="w-full text-left px-3 py-2 text-xs hover:bg-red-500/10 text-red-500 flex items-center gap-2 transition-colors"
+                        className="w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-destructive/10 text-destructive flex items-center gap-2 transition-colors border-t border-border"
                       >
                         <Trash2 size={14} /> Delete
                       </button>
@@ -365,15 +365,15 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
             </div>
           </div>
 
-          <h3 className={`font-semibold mb-2 text-base ${typeConfig.titleColor}`}>{post.title}</h3>
-          {post.body && <MarkdownPreview content={post.body} className="text-sm mb-3" />}
+          <h3 className={`font-bold mb-2 text-base group-hover/card:text-primary transition-colors ${typeConfig.titleColor}`}>{post.title}</h3>
+          {post.body && <MarkdownPreview content={post.body} className="text-sm mb-3 prose dark:prose-invert max-w-none" />}
 
           {/* Image Gallery */}
           {images.length > 0 && (
             <>
               {/* Smart responsive grid for multiple images */}
               {images.length === 1 ? (
-                <div className="mb-3 rounded-lg overflow-hidden bg-muted/30 border border-border cursor-pointer group"
+                <div className="mb-3 rounded-lg overflow-hidden bg-accent/30 border border-border cursor-pointer group/img shadow-inner"
                   onClick={(e: any) => { e.stopPropagation(); setShowImageModal(true); }}>
                   <div className="relative bg-black/5 aspect-video flex items-center justify-center">
                     <img
@@ -381,32 +381,32 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
                       alt={getFileName(images[0].File)}
                       className="w-full h-full object-contain"
                     />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all" />
+                    <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/5 transition-all" />
                   </div>
                 </div>
               ) : (
-                <div className="mb-3 rounded-lg overflow-hidden bg-muted/30 border border-border">
-                  <div className="relative bg-black/5 aspect-video flex items-center justify-center cursor-pointer group overflow-hidden"
+                <div className="mb-3 rounded-lg overflow-hidden bg-accent/30 border border-border shadow-inner">
+                  <div className="relative bg-black/5 aspect-video flex items-center justify-center cursor-pointer group/carousel overflow-hidden"
                     onClick={(e: any) => { e.stopPropagation(); setShowImageModal(true); }}>
                     <img
                       src={images[currentImageIndex].File?.secure_url}
                       alt={getFileName(images[currentImageIndex].File)}
-                      className="w-full h-full object-contain transition-opacity group-hover:opacity-90"
+                      className="w-full h-full object-contain transition-opacity group-hover/carousel:opacity-95"
                     />
-                    <div className="absolute inset-0 flex items-center justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={(e: any) => { e.stopPropagation(); goToPrevImage(); }} className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70"><ChevronLeft size={20} /></button>
-                      <button onClick={(e: any) => { e.stopPropagation(); goToNextImage(); }} className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70"><ChevronRight size={20} /></button>
+                    <div className="absolute inset-0 flex items-center justify-between px-2 opacity-0 group-hover/carousel:opacity-100 transition-opacity">
+                      <button onClick={(e: any) => { e.stopPropagation(); goToPrevImage(); }} className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70 backdrop-blur-sm"><ChevronLeft size={20} /></button>
+                      <button onClick={(e: any) => { e.stopPropagation(); goToNextImage(); }} className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70 backdrop-blur-sm"><ChevronRight size={20} /></button>
                     </div>
                   </div>
                   {/* Counter */}
-                  <div className="flex items-center justify-between px-3 py-2 bg-background border-t border-border text-xs font-medium text-muted-foreground">
+                  <div className="flex items-center justify-between px-3 py-2 bg-card border-t border-border text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                     <span>{currentImageIndex + 1} / {images.length}</span>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1.5">
                       {images.map((_, idx) => (
                         <button
                           key={idx}
                           onClick={(e: any) => { e.stopPropagation(); setCurrentImageIndex(idx); }}
-                          className={`w-1.5 h-1.5 rounded-full transition-all ${idx === currentImageIndex ? 'bg-frosted-blue-500 w-4' : 'bg-border hover:bg-muted-foreground'
+                          className={`w-1.5 h-1.5 rounded-full transition-all ${idx === currentImageIndex ? 'bg-primary w-4' : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'
                             }`}
                         />
                       ))}
@@ -436,34 +436,34 @@ export default function PostCard({ post, currentUser, onDelete, clickable = true
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e: any) => e.stopPropagation()}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted border border-border transition-colors group"
+                  className="flex items-center gap-3 p-3 rounded-lg bg-accent/50 hover:bg-accent border border-border transition-all group/file shadow-sm"
                 >
-                  <div className="shrink-0 w-8 h-8 rounded flex items-center justify-center bg-background">
-                    <FileIcon size={16} className="text-muted-foreground group-hover:text-foreground" />
+                  <div className="shrink-0 w-8 h-8 rounded flex items-center justify-center bg-card shadow-inner border border-border">
+                    <FileIcon size={16} className="text-muted-foreground group-hover/file:text-primary transition-colors" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-foreground truncate group-hover:text-frosted-blue-600">
+                    <div className="text-sm font-semibold text-foreground truncate group-hover/file:text-primary">
                       {getFileName(attachment.File)}
                     </div>
                     {attachment.File?.size && (
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-[10px] uppercase font-bold text-muted-foreground/80 tracking-wider">
                         {formatFileSize(attachment.File.size)}
                       </div>
                     )}
                   </div>
-                  <Download size={16} className="shrink-0 text-muted-foreground group-hover:text-frosted-blue-600" />
+                  <Download size={16} className="shrink-0 text-muted-foreground group-hover/file:text-primary transition-colors" />
                 </a>
               ))}
             </div>
           )}
 
-          <div className="flex items-center gap-4 text-xs text-muted-foreground pt-3 border-t border-border">
-            <div className="flex items-center gap-1">
-              <MessageSquare className="w-3 h-3" />
+          <div className="flex items-center gap-4 text-[11px] font-bold uppercase tracking-wider text-muted-foreground pt-3 border-t border-border mt-1">
+            <div className="flex items-center gap-1.5">
+              <MessageSquare className="w-3.5 h-3.5" />
               <span>{post._count?.Comment || 0} comments</span>
             </div>
             {typeConfig.showResolved && post.is_resolved !== null && (
-              <span className={`px-2 py-0.5 rounded text-xs ${post.is_resolved ? 'bg-turf-green-500/10 text-turf-green-600' : 'bg-royal-gold-500/10 text-royal-gold-600'}`}>{post.is_resolved ? 'Resolved' : 'Open'}</span>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-black tracking-widest uppercase ${post.is_resolved ? 'bg-chart-2/20 text-chart-2 border border-chart-2/30' : 'bg-chart-3/20 text-chart-3 border border-chart-3/30'}`}>{post.is_resolved ? 'Resolved' : 'Open'}</span>
             )}
           </div>
 

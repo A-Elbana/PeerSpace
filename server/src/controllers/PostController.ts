@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
-import { CommunityType } from "../generated/prisma/client";
+import { CommunityType } from "@prisma/client";
 import { isValidUUID, isUserMemberOfCommunity } from "../utils/helpers";
 import ActivityLogService from "../services/ActivityLogService";
 
@@ -260,8 +260,11 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
         });
     }
 
+    const type = (req.query.type as string | undefined)?.toUpperCase();
+    const where: any = { cid: { in: allowedIds } };
+    if (type) where.type = type;
+
     const posts = await prisma.post.findMany({
-      where: { cid: { in: allowedIds } },
       skip,
       take: limit,
       orderBy: { post_date: "desc" },
@@ -297,7 +300,7 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
 
     // Get vote counts for all posts - OPTIMIZED: batch query instead of N+1
     const postIds = posts.map(p => p.id);
-    
+
     // Batch fetch all votes for all posts at once
     const allVotes = await prisma.voted.findMany({
       where: { pid: { in: postIds } },
@@ -306,7 +309,7 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
 
     // Group votes by post ID
     const votesByPost = new Map<number, { upvotes: number, downvotes: number, userVote: boolean | null }>();
-    
+
     postIds.forEach(pid => {
       votesByPost.set(pid, { upvotes: 0, downvotes: 0, userVote: null });
     });
@@ -339,7 +342,7 @@ export const getPostsByCommunity = async (req: Request, res: Response) => {
     });
 
     const total = await prisma.post.count({
-      where: { cid: { in: allowedIds } },
+      where,
     });
 
     res.status(200).json({
@@ -503,8 +506,7 @@ export const togglePostResolved = async (req: PostRequest, res: Response) => {
     await ActivityLogService.logPostResolved(
       (req as any).userId,
       req.post.cid,
-      `${updatedPost.is_resolved ? "Marked" : "Unmarked"} post "${
-        updatedPost.title
+      `${updatedPost.is_resolved ? "Marked" : "Unmarked"} post "${updatedPost.title
       }" as resolved`
     );
 
@@ -562,6 +564,9 @@ export const getAllPosts = async (req: Request, res: Response) => {
     if (communityId && communityId.trim()) {
       whereClause.cid = communityId.trim();
     }
+
+    const type = (req.query.type as string | undefined)?.toUpperCase();
+    if (type) whereClause.type = type;
 
     console.log(
       "[getAllPosts] Where clause:",
@@ -928,7 +933,7 @@ export const getCommonPostsOfUser = async (req: Request, res: Response) => {
         .json({ message: "Admins don't have posts" });
     }
 
-  
+
     // Helper to get communities a user is associated with (enrollment or manages)
     const getUserCommunityIds = async (uid: number) => {
       const enrollments = await prisma.enrollment.findMany({

@@ -10,6 +10,7 @@ import CommunityCard from '../components/common/CommunityCard';
 import { toast } from 'sonner';
 import api, * as apiServices from '../services/api';
 import type { PostResponse, CommunityResponse } from '../services/api';
+import ConfirmationModal from '../components/common/ConfirmationModal';
 
 const { postApi, communityApi, commentApi, fileApi } = apiServices;
 
@@ -60,6 +61,8 @@ const PostPreview: React.FC<{}> = () => {
   const [replyText, setReplyText] = useState(''); // kept for backward-compat but replies use local state now
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [expandedCommentIds, setExpandedCommentIds] = useState<Set<number>>(new Set());
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [commentToDelete, setCommentToDelete] = useState<number | null>(null);
 
   const toggleExpand = (id: number) => {
     // toggle and when expanding, load replies for the comment if needed
@@ -153,7 +156,7 @@ const PostPreview: React.FC<{}> = () => {
           setCurrentUser({ id: me.data?.id, role: normalizedRole });
         } catch (e) {
           console.log(e);
-          
+
         }
         // load post and community when available (keep errors silent for demo)
         try {
@@ -183,9 +186,9 @@ const PostPreview: React.FC<{}> = () => {
               setCommunity(normalized as any);
             }
           } catch (e) {
-           console.log(e);
+            console.log(e);
           }
-          
+
         }
 
         // Fetch first-level comments only; replies are loaded on demand
@@ -260,14 +263,21 @@ const PostPreview: React.FC<{}> = () => {
 
   const handleDeleteComment = async (commentId: number) => {
     if (!commentId) return;
-    if (!window.confirm('Delete this comment? This action cannot be undone.')) return;
+    setCommentToDelete(commentId);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!commentToDelete) return;
     try {
-      await commentApi.delete(commentId);
-      setComments(prev => removeCommentFromTree(prev, commentId));
+      await commentApi.delete(commentToDelete);
+      setComments(prev => removeCommentFromTree(prev, commentToDelete));
       toast.success('Comment deleted');
     } catch (err) {
       console.error('Failed to delete comment', err);
       toast.error('Failed to delete comment');
+    } finally {
+      setCommentToDelete(null);
     }
   };
 
@@ -499,7 +509,7 @@ const PostPreview: React.FC<{}> = () => {
                     toggleExpand={toggleExpand}
                     currentUser={currentUser}
                     postOwnerId={(post as any)?.owner_uid}
-                    
+
                     handleDelete={handleDeleteComment}
                   />
                 ))}
@@ -533,6 +543,18 @@ const PostPreview: React.FC<{}> = () => {
           </aside>
         </div>
       </main>
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete Comment"
+        message="Are you sure you want to delete this comment? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 };

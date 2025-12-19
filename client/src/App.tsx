@@ -15,6 +15,7 @@ import Explore from './pages/Explore';
 import Settings from './pages/Settings';
 import Notifications from './pages/Notifications';
 import Announcements from './pages/Announcements';
+import MaterialsPage from './pages/Materials';
 import Community from './pages/Community';
 import PostPreview from './pages/PostPreview.tsx';
 import ManageCommunity from './pages/ManageCommunity';
@@ -44,209 +45,217 @@ function App() {
           <Toaster {...TOASTER_CONFIG} />
           <Router>
             <Routes>
-          <Route path="/" element={<LandingPage />} />
+              <Route path="/" element={<LandingPage />} />
 
-          {/* Public routes - redirect to dashboard if already authenticated */}
-          <Route
-            path="/login"
-            element={
-              <PublicRoute>
-                <Login />
-              </PublicRoute>
-            }
-          />
-          <Route
-            path="/signup"
-            element={
-              <PublicRoute>
-                <Signup />
-              </PublicRoute>
-            }
-          />
+              {/* Public routes - redirect to dashboard if already authenticated */}
+              <Route
+                path="/login"
+                element={
+                  <PublicRoute>
+                    <Login />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/signup"
+                element={
+                  <PublicRoute>
+                    <Signup />
+                  </PublicRoute>
+                }
+              />
 
-          {/* Protected routes - require authentication */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
+              {/* Protected routes - require authentication */}
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/explore"
-            element={
-              <ProtectedRoute>
-                <Explore onLogout={redirectToLogout} />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/explore"
+                element={
+                  <ProtectedRoute>
+                    <Explore onLogout={redirectToLogout} />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/settings"
-            element={
-              <ProtectedRoute>
-                <Settings />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/notes"
-            element={
-              <ProtectedRoute>
-                <Notes />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/notes"
+                element={
+                  <ProtectedRoute>
+                    <Notes />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/tasks"
-            element={
-              <ProtectedRoute>
-                <Tasks onLogout={() => window.location.href = '/logout'} />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/tasks"
+                element={
+                  <ProtectedRoute>
+                    <Tasks onLogout={() => window.location.href = '/logout'} />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/tasks/:taskId"
-            element={
-              <ProtectedRoute>
-                <TaskDetail onLogout={() => window.location.href = '/logout'} />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/tasks/:taskId"
+                element={
+                  <ProtectedRoute>
+                    <TaskDetail onLogout={() => window.location.href = '/logout'} />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/assignments"
-            element={
-              <ProtectedRoute>
-                <Assignments />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/assignments"
+                element={
+                  <ProtectedRoute>
+                    <Assignments />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/submissions"
-            element={
-              <ProtectedRoute>
-                <Submissions />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/submissions"
+                element={
+                  <ProtectedRoute>
+                    <Submissions />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/submission/:submissionId"
-            element={
-              <ProtectedRoute>
-                <SubmissionDetail />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/submission/:submissionId"
+                element={
+                  <ProtectedRoute>
+                    <SubmissionDetail />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/notifications"
-            element={
-              <ProtectedRoute>
-                <Notifications />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/notifications"
+                element={
+                  <ProtectedRoute>
+                    <Notifications />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/announcements"
-            element={
-              <ProtectedRoute>
-                <Announcements />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/announcements"
+                element={
+                  <ProtectedRoute>
+                    <Announcements />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/materials"
+                element={
+                  <ProtectedRoute>
+                    <MaterialsPage />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/community/:communityId"
-            element={
-              <ProtectedRoute>
-                <Community />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/community/:communityId"
+                element={
+                  <ProtectedRoute>
+                    <Community />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/community/:communityId/post/:postId"
-            element={
-              <ProtectedRoute>
-                <PostPreview />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/community/:communityId/post/:postId"
+                element={
+                  <ProtectedRoute>
+                    <PostPreview />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/community/:communityId/assignment/:assignmentId"
-            element={
-              <ProtectedRoute>
-                <AssignmentDetails />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/community/:communityId/assignment/:assignmentId"
+                element={
+                  <ProtectedRoute>
+                    <AssignmentDetails />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/schedule"
-            element={
-              <ProtectedRoute>
-                <Schedule />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile/:userId/badges"
-            element={
-              <ProtectedRoute>
-                <BadgesPage onLogout={redirectToLogout} />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <MyProfile onLogout={redirectToLogout} />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile/:userId"
-            element={
-              <ProtectedRoute>
-                <ProfileView onLogout={redirectToLogout} />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/community/:communityId/manage"
-            element={
-              <ProtectedRoute>
-                <ManageCommunity />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/schedule"
+                element={
+                  <ProtectedRoute>
+                    <Schedule />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile/:userId/badges"
+                element={
+                  <ProtectedRoute>
+                    <BadgesPage onLogout={redirectToLogout} />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <MyProfile onLogout={redirectToLogout} />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile/:userId"
+                element={
+                  <ProtectedRoute>
+                    <ProfileView onLogout={redirectToLogout} />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/community/:communityId/manage"
+                element={
+                  <ProtectedRoute>
+                    <ManageCommunity />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/file-test"
-            element={
-              <ProtectedRoute>
-                <FileAttachmentTest />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/file-test"
+                element={
+                  <ProtectedRoute>
+                    <FileAttachmentTest />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route path="/logout" element={<Logout />} />
+              <Route path="/logout" element={<Logout />} />
 
-          {/* Fallback route for 404 */}
-          <Route path="*" element={<LandingPage />} />
-        </Routes>
-        </Router>
+              {/* Fallback route for 404 */}
+              <Route path="*" element={<LandingPage />} />
+            </Routes>
+          </Router>
         </SidebarProvider>
       </NotificationProvider>
     </ErrorBoundary>

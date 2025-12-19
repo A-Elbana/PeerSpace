@@ -14,6 +14,7 @@ export interface Comment {
   replies?: Comment[];
   hasReplies?: boolean;
   avatarUrl?: string | null;
+  isDeleted?: boolean;
 }
 
 const formatDate = (dateInput: string | number | Date | undefined | null) => {
@@ -101,7 +102,7 @@ export const CommentItem: React.FC<Props> = ({
     return () => { mounted = false; };
   }, [comment.id]);
 
-const urlRegex = /(https?:\/\/[^\s)\]>\]]+|www\.[^\n\s)\]>\]]+)/gi;
+  const urlRegex = /(https?:\/\/[^\s)\]>\]]+|www\.[^\n\s)\]>\]]+)/gi;
 
   const renderContentWithLinks = (text: string) => {
     if (!text) return null;
@@ -125,10 +126,12 @@ const urlRegex = /(https?:\/\/[^\s)\]>\]]+|www\.[^\n\s)\]>\]]+)/gi;
     return nodes;
   };
 
+  const isDeleted = Boolean(comment.isDeleted);
+
   return (
     <div style={{ marginLeft: depth * 10 }}>
-      <div className="flex gap-3 items-start">
-        <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+      <div className={`flex gap-3 items-start ${isDeleted ? 'bg-muted/40 dark:bg-muted/20 rounded-lg p-3 -m-3' : ''}`}>
+        <div className={`w-10 h-10 rounded-full overflow-hidden flex-shrink-0 ${isDeleted ? 'opacity-40 grayscale' : ''}`}>
           {comment.avatarUrl ? (
             <img src={comment.avatarUrl} alt="avatar" className="w-10 h-10 object-cover rounded-full" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
           ) : (
@@ -152,13 +155,18 @@ const urlRegex = /(https?:\/\/[^\s)\]>\]]+|www\.[^\n\s)\]>\]]+)/gi;
             </div>
           ) : (
             <>
-              <p className="text-sm text-foreground whitespace-pre-wrap break-words">{renderContentWithLinks(comment.content)}</p>
+              <p className={`text-sm whitespace-pre-wrap break-words ${isDeleted
+                  ? 'text-muted-foreground italic'
+                  : 'text-foreground'
+                }`}>
+                {isDeleted ? 'Comment deleted' : renderContentWithLinks(comment.content)}
+              </p>
 
-                <div className="mt-2 flex items-center gap-3 text-xs">
+              <div className="mt-2 flex items-center gap-3 text-xs">
                 <button onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)} className="text-muted-foreground hover:text-foreground">Reply</button>
                 {/* Approval buttons: original-poster approval (left) and instructor approval (right) */}
                 <div className="flex items-center gap-2">
-                  {!isInstructor || currentUser?.id != postOwnerId? <ApprovalButton
+                  {!isInstructor || currentUser?.id != postOwnerId ? <ApprovalButton
                     approved={approvedByOp}
                     color="#10B981"
                     tooltip={approvedByOp && approvedAtOp ? `Approved by Original Poster at ${new Date(approvedAtOp).toLocaleString()}` : ''}
@@ -204,11 +212,12 @@ const urlRegex = /(https?:\/\/[^\s)\]>\]]+|www\.[^\n\s)\]>\]]+)/gi;
                     }}
                   />
                 </div>
-                {canEdit && (
+                {canEdit && !isDeleted && (
                   <button onClick={() => { setEditingCommentId(comment.id); }} className="text-muted-foreground hover:text-foreground">Edit</button>
                 )}
                 {(() => {
-                  const canDelete = currentUser && (currentUser.id === comment.User.id || (currentUser.role || '').toLowerCase() === 'admin' || isInstructor);
+                  // Strict permission: only the comment owner can delete, and only if not already deleted
+                  const canDelete = currentUser && currentUser.id === comment.User.id && !isDeleted;
                   if (!canDelete) return null;
                   return (
                     <button className="text-destructive" onClick={() => { if (handleDelete) void handleDelete(comment.id); }}>Delete</button>

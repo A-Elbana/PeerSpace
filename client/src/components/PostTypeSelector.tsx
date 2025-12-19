@@ -2,7 +2,7 @@ import React from 'react';
 import { FileText, MessageSquare, Megaphone } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-export type PostType = 'material' | 'discussion' | 'announcement';
+export type PostType = 'MATERIAL' | 'DISCUSSION' | 'ANNOUNCEMENT';
 
 interface PostTypeOption {
   value: PostType;
@@ -14,21 +14,21 @@ interface PostTypeOption {
 
 const POST_TYPE_OPTIONS: PostTypeOption[] = [
   {
-    value: 'material',
+    value: 'MATERIAL',
     label: 'Material',
     icon: FileText,
     description: 'Share resources, notes, or study materials',
     roleRequired: 'student',
   },
   {
-    value: 'discussion',
+    value: 'DISCUSSION',
     label: 'Discussion',
     icon: MessageSquare,
     description: 'Start a conversation or ask questions',
     roleRequired: 'student',
   },
   {
-    value: 'announcement',
+    value: 'ANNOUNCEMENT',
     label: 'Announcement',
     icon: Megaphone,
     description: 'Make an important announcement (Instructor only)',
@@ -72,10 +72,10 @@ export const PostTypeSelector: React.FC<PostTypeSelectorProps> = ({
               onClick={() => onChange(option.value)}
               className={cn(
                 'relative flex flex-col items-start gap-2 p-3 rounded-lg border-2 transition-all duration-200',
-                'hover:border-accent-teal hover:shadow-md',
-                'focus:outline-none focus:ring-2 focus:ring-accent-teal focus:ring-offset-2',
+                'hover:border-primary hover:shadow-md',
+                'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
                 isSelected
-                  ? 'border-accent-teal bg-accent-teal/10 shadow-md'
+                  ? 'border-primary bg-primary/10 shadow-md'
                   : 'border-border bg-background hover:bg-muted/50'
               )}
               aria-pressed={isSelected}
@@ -87,7 +87,7 @@ export const PostTypeSelector: React.FC<PostTypeSelectorProps> = ({
                   className={cn(
                     'p-2 rounded-md transition-colors',
                     isSelected
-                      ? 'bg-muted-foreground text-white'
+                      ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-muted-foreground'
                   )}
                 >
@@ -96,7 +96,7 @@ export const PostTypeSelector: React.FC<PostTypeSelectorProps> = ({
                 <span
                   className={cn(
                     'font-semibold text-sm transition-colors',
-                    isSelected ? 'text-accent-teal' : 'text-foreground'
+                    isSelected ? 'text-primary' : 'text-foreground'
                   )}
                 >
                   {option.label}
@@ -110,7 +110,7 @@ export const PostTypeSelector: React.FC<PostTypeSelectorProps> = ({
 
               {/* Active Indicator */}
               {isSelected && (
-                <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-accent-teal animate-pulse" />
+                <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary animate-pulse" />
               )}
             </button>
           );

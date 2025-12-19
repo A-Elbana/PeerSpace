@@ -526,12 +526,14 @@ export const postApi = {
     search?: string;
     tags?: string;
     communityId?: string;
+    type?: string;
   }): Promise<PostsListResponse> => {
     // Filter out empty/undefined parameters
     const cleanParams: any = {};
     if (params) {
       if (params.page) cleanParams.page = params.page;
       if (params.limit) cleanParams.limit = params.limit;
+      if (params.type) cleanParams.type = params.type;
       if (params.search && params.search.trim())
         cleanParams.search = params.search.trim();
       if (params.tags && params.tags.trim())
@@ -690,6 +692,7 @@ export const instructorApi = {
     resolved?: string;
     cid?: string;
     sort?: "new" | "top" | string;
+    type?: string;
   }): Promise<PostsListResponse> => {
     const cleanParams: any = {};
     if (params) {
@@ -698,6 +701,7 @@ export const instructorApi = {
       if (params.resolved) cleanParams.resolved = params.resolved;
       if (params.cid) cleanParams.cid = params.cid;
       if (params.sort) cleanParams.sort = params.sort;
+      if (params.type) cleanParams.type = params.type;
     }
     const response = await api.get("/instructor/feed/posts", {
       params: cleanParams,
@@ -733,12 +737,14 @@ export const instructorApi = {
     page?: number;
     limit?: number;
     cid?: string;
-  }) => {
+    type?: string;
+  }): Promise<PostsListResponse> => {
     const cleanParams: any = {};
     if (params) {
       if (params.page) cleanParams.page = params.page;
       if (params.limit) cleanParams.limit = params.limit;
       if (params.cid) cleanParams.cid = params.cid;
+      if (params.type) cleanParams.type = params.type;
     }
     const response = await api.get("/instructor/posts/unresolved", {
       params: cleanParams,
@@ -821,6 +827,12 @@ export const instructorApi = {
       meta: PaginationMeta;
     };
   },
+
+  // Semantic wrappers for dashboard
+  getStats: (params?: { cid?: string }) => instructorApi.getInsights(params),
+  getActiveCourses: (params?: { page?: number; limit?: number; search?: string }) => instructorApi.getManagedCommunities(params),
+  getPendingGrading: (params?: { page?: number; limit?: number }) => instructorApi.getManagedSubmissions({ graded: 'false', ...params }),
+  getEngagementData: (params?: { cid?: string }) => instructorApi.getInsights(params),
 };
 
 // Student API (student-specific endpoints)
@@ -832,6 +844,7 @@ export const studentApi = {
     sort?: "new" | "top" | string;
     category?: string;
     tags?: string;
+    type?: string;
   }): Promise<PostsListResponse> => {
     const cleanParams: any = {};
     if (params) {
@@ -840,6 +853,7 @@ export const studentApi = {
       if (params.sort) cleanParams.sort = params.sort;
       if (params.category) cleanParams.category = params.category;
       if (params.tags) cleanParams.tags = params.tags;
+      if (params.type) cleanParams.type = params.type;
     }
     const response = await api.get('/student/explore', { params: cleanParams });
     return response.data as PostsListResponse;
@@ -850,6 +864,12 @@ export const studentApi = {
     const response = await api.get('/student/dashboard');
     return response.data;
   },
+
+  // Semantic wrappers for dashboard
+  getProfile: () => api.get('/auth/me').then(res => res.data),
+  getEnrolledCourses: (params?: { page?: number; limit?: number }) => communityApi.getMyCommunities(params),
+  getUpcomingDeadlines: () => studentApi.getDashboard().then(res => res.data.upcomingTasks || []),
+  getRecentActivity: (params?: { page?: number; limit?: number }) => postApi.getMyPosts(params),
 };
 
 // Comment API
@@ -1061,6 +1081,7 @@ export const userApi = {
     limit?: number;
     search?: string;
     role?: string;
+    mutualWithMe?: boolean;
   }): Promise<{
     data: Array<{
       id: number;
@@ -1081,6 +1102,7 @@ export const userApi = {
       if (params.search && params.search.trim())
         cleanParams.search = params.search.trim();
       if (params.role && params.role !== "all") cleanParams.role = params.role;
+      if (params.mutualWithMe) cleanParams.mutualWithMe = true;
     }
     const response = await api.get("/users", { params: cleanParams });
     return response.data;
@@ -1387,6 +1409,39 @@ export const submissionApi = {
     });
     return response.data;
   },
+};
+
+// Search API
+export interface SearchResults {
+  posts: PostResponse[];
+  communities: CommunityResponse[];
+  users: Array<{
+    id: number;
+    email: string;
+    fname: string;
+    lname: string;
+    role: string;
+    avatar_file_id?: string;
+  }>;
+}
+
+export const searchApi = {
+  searchAll: async (query: string, options?: { limit?: number; mutualWithMe?: boolean }): Promise<SearchResults> => {
+    const limit = options?.limit || 5;
+    const mutualWithMe = options?.mutualWithMe ?? true;
+
+    const results = await Promise.allSettled([
+      postApi.getAll({ search: query, limit }),
+      communityApi.getAll({ search: query, limit }),
+      userApi.getAll({ search: query, limit, ...(mutualWithMe ? { mutualWithMe: true } : {}) })
+    ]);
+
+    return {
+      posts: results[0].status === 'fulfilled' ? results[0].value.data : [],
+      communities: results[1].status === 'fulfilled' ? ((results[1].value as any).data || []) : [],
+      users: results[2].status === 'fulfilled' ? results[2].value.data : []
+    };
+  }
 };
 
 export default api;

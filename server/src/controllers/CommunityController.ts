@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
-import { Role, CommunityType } from "../generated/prisma/client";
+import { Role, CommunityType } from "@prisma/client";
 import ActivityLogService from "../services/ActivityLogService";
 
 // Community selection for safe public responses
@@ -271,7 +271,7 @@ export const getCommunities = async (req: Request, res: Response) => {
     const bannerFileIds = communities
       .map(c => c.banner_file_id)
       .filter((id): id is string => id !== null);
-    
+
     const bannerFiles = await prisma.file.findMany({
       where: { id: { in: bannerFileIds } },
       select: {
@@ -354,26 +354,26 @@ export const getCommunityById = async (req: Request, res: Response) => {
         ...communityDetails,
         banner_url: communityDetails?.banner_file_id
           ? await (async () => {
-              try {
-                const file = await prisma.file.findUnique({
-                  where: { id: communityDetails!.banner_file_id! },
-                });
-                if (!file) return null;
-                if (file.is_private) {
-                  return require("../config/cloudinary").default.utils.private_download_url(
-                    file.public_id,
-                    file.resource_type,
-                    {
-                      expires_at: Math.floor(Date.now() / 1000) + 3600,
-                      attachment: false,
-                    }
-                  );
-                }
-                return file.secure_url;
-              } catch {
-                return null;
+            try {
+              const file = await prisma.file.findUnique({
+                where: { id: communityDetails!.banner_file_id! },
+              });
+              if (!file) return null;
+              if (file.is_private) {
+                return require("../config/cloudinary").default.utils.private_download_url(
+                  file.public_id,
+                  file.resource_type,
+                  {
+                    expires_at: Math.floor(Date.now() / 1000) + 3600,
+                    attachment: false,
+                  }
+                );
               }
-            })()
+              return file.secure_url;
+            } catch {
+              return null;
+            }
+          })()
           : null,
       },
     });

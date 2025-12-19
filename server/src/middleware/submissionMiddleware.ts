@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import prisma from "../config/prisma";
-import { Role } from "../generated/prisma/client";
+import { Role } from "@prisma/client";
 
 export const loadSubmission = async (
   req: Request,
@@ -28,7 +28,7 @@ export const loadSubmission = async (
   }
 };
 
-export  const  authorizeSubmissionOwner = async(
+export const authorizeSubmissionOwner = async (
   req: Request,
   res: Response,
   next: NextFunction

@@ -43,14 +43,14 @@ const PostCardHeader: FC<PostCardHeaderProps> = ({
   return (
     <div className="flex items-center gap-3">
       {authorAvatarUrl ? (
-        <img 
-          src={authorAvatarUrl} 
-          alt={`${author.fname} ${author.lname}`} 
-          className="w-8 h-8 rounded-full object-cover" 
+        <img
+          src={authorAvatarUrl}
+          alt={`${author.fname} ${author.lname}`}
+          className="w-8 h-8 rounded-full object-cover"
         />
       ) : (
-        <div className="w-8 h-8 rounded-full bg-frosted-blue-500/20 flex items-center justify-center">
-          <User className="w-4 h-4 text-frosted-blue-600" />
+        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+          <User className="w-4 h-4 text-primary" />
         </div>
       )}
       <div>
@@ -60,7 +60,7 @@ const PostCardHeader: FC<PostCardHeaderProps> = ({
               e.stopPropagation();
               navigate(`/profile/${author.id}`);
             }}
-            className="text-sm font-medium text-foreground hover:text-frosted-blue-600 hover:underline cursor-pointer transition-colors"
+            className="text-sm font-medium text-foreground hover:text-primary hover:underline cursor-pointer transition-colors"
           >
             {author.fname} {author.lname}
           </button>

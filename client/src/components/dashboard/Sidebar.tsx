@@ -23,11 +23,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
   // Fetch current user role to respect roleRestricted nav items
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [userLoading, setUserLoading] = useState(true);
-  
+
   // Track actual sidebar width for toggle button positioning
-  const sidebarWidth = isMobile 
-    ? (isMobileOpen ? 288 : 0) // 72 * 4 = 288px (w-72)
-    : (isExpanded || isHovered ? 288 : 80); // 72 * 4 = 288px or 20 * 4 = 80px (w-20)
+  const sidebarWidth = isMobile
+    ? (isMobileOpen ? 288 : 0)
+    : (isExpanded || isHovered ? 288 : 80);
 
 
   useEffect(() => {
@@ -110,8 +110,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
           group relative w-full flex items-center gap-3 px-4 py-3 rounded-xl
           transition-all duration-300 ease-out
           ${active
-            ? 'bg-frosted-blue-500/10 text-frosted-blue-600 shadow-sm'
-            : 'text-sidebar-foreground hover:bg-muted/50 hover:text-foreground'
+            ? 'bg-primary/10 text-primary shadow-sm'
+            : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
           }
           ${!showLabel && 'justify-center'}
         `}
@@ -119,7 +119,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
       >
         <div className={`
           flex items-center justify-center shrink-0
-          ${active ? 'text-frosted-blue-600' : 'text-muted-foreground group-hover:text-foreground'}
+          ${active ? 'text-primary' : 'text-sidebar-foreground/70 group-hover:text-sidebar-accent-foreground'}
           transition-colors duration-200
         `}>
           <Icon size={20} strokeWidth={active ? 2.5 : 2} />
@@ -137,12 +137,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
           {item.label}
         </span>
         {active && (
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-frosted-blue-500 rounded-r-full" />
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-r-full" />
         )}
         {showLabel && active && (
           <ChevronRight
             size={16}
-            className="ml-auto text-frosted-blue-600 opacity-60"
+            className="ml-auto text-primary opacity-60"
           />
         )}
       </button>
@@ -153,12 +153,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
     <div className="flex flex-col h-full">
       {/* Logo Section */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-sidebar-border">
-        <div className="w-10 h-10 flex items-center justify-center shrink-0 rounded-xl bg-gradient-to-br from-frosted-blue-500 to-turf-green-500 p-2 shadow-lg shadow-frosted-blue-500/20">
+        <div className="w-10 h-10 flex items-center justify-center shrink-0 rounded-xl bg-gradient-to-br from-primary to-chart-2 p-2 shadow-lg shadow-primary/20">
           <img
             src={logo}
             alt="PeerSpace"
             className="w-full h-full object-contain"
-            style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }}
+            style={{ filter: isDarkMode ? 'none' : 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }}
           />
         </div>
         <div
@@ -170,7 +170,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
             }
           `}
         >
-          <h2 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-frosted-blue-600 to-turf-green-600 whitespace-nowrap">
+          <h2 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-chart-2 whitespace-nowrap">
             PeerSpace
           </h2>
           <p className="text-xs text-muted-foreground">Learning Platform</p>
@@ -178,7 +178,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
       </div>
 
       {/* Main Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 no-scrollbar">
         <div className="space-y-1">
           {mainNavItems.filter(shouldShowItem).map((item: NavItem) => (
             <NavItemComponent key={item.id} item={item} />
@@ -191,19 +191,19 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         {secondaryNavItems.map((item: NavItem) => (
           <NavItemComponent key={item.id} item={item} />
         ))}
-        
+
         {/* Theme Toggle */}
         <button
           onClick={toggleTheme}
           className={`
             group w-full flex items-center gap-3 px-4 py-3 rounded-xl
-            text-sidebar-foreground hover:bg-muted/50 hover:text-foreground
+            text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground
             transition-all duration-300 ease-out
             ${(isMobile || isExpanded || isHovered) ? 'justify-start' : 'justify-center'}
           `}
           title={!isMobile && !isExpanded && !isHovered ? (isDarkMode ? 'Light Mode' : 'Dark Mode') : undefined}
         >
-          <div className="flex items-center justify-center shrink-0 text-muted-foreground group-hover:text-foreground transition-colors duration-200">
+          <div className="flex items-center justify-center shrink-0 text-sidebar-foreground/70 group-hover:text-sidebar-accent-foreground transition-colors duration-200">
             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
           </div>
           {(isMobile || isExpanded || isHovered) && (
@@ -218,7 +218,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
           onClick={onLogout}
           className={`
             group w-full flex items-center gap-3 px-4 py-3 rounded-xl
-            text-red-500 hover:bg-red-500/10 hover:text-red-600
+            text-destructive hover:bg-destructive/10 hover:text-destructive
             transition-all duration-300 ease-out
             ${(isMobile || isExpanded || isHovered) ? 'justify-start' : 'justify-center'}
           `}
@@ -241,7 +241,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
       {isMobile && (
         <button
           onClick={() => setIsMobileOpen(!isMobileOpen)}
-          className="fixed top-4 left-4 z-[60] lg:hidden p-2 rounded-xl bg-card border border-border shadow-lg hover:bg-muted transition-colors"
+          className="fixed top-4 left-4 z-[60] lg:hidden p-2 rounded-xl bg-card border border-border shadow-lg hover:bg-accent transition-colors"
           aria-label="Toggle menu"
         >
           {isMobileOpen ? (
@@ -271,7 +271,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
             ? `${isMobileOpen ? 'translate-x-0' : '-translate-x-full'} w-72`
             : `${isExpanded || isHovered ? 'w-72' : 'w-20'}`
           }
-          shadow-xl
+          shadow-xl shadow-black/10 dark:shadow-black/50
         `}
         onMouseEnter={() => !isMobile && setIsHovered(true)}
         onMouseLeave={() => !isMobile && setIsHovered(false)}
@@ -286,20 +286,20 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
           className={`
             fixed z-[55]
             p-2.5 rounded-full
-            bg-frosted-blue-500 text-white
-            shadow-lg shadow-frosted-blue-500/30
-            hover:bg-frosted-blue-600 hover:scale-110 active:scale-95
+            bg-primary text-primary-foreground
+            shadow-lg shadow-primary/30
+            hover:scale-110 active:scale-95
             transition-all duration-300 ease-out
             bottom-4
           `}
           style={{
-            left: `${sidebarWidth + 16}px`, // 16px = 1rem margin from sidebar
+            left: `${sidebarWidth + 16}px`,
           }}
           aria-label={isExpanded || isHovered ? 'Collapse sidebar' : 'Expand sidebar'}
           title={isExpanded || isHovered ? 'Collapse sidebar' : 'Expand sidebar'}
         >
-          <ChevronRight 
-            size={18} 
+          <ChevronRight
+            size={18}
             className={`transition-transform duration-300 ${(isExpanded || isHovered) ? 'rotate-180' : ''}`}
           />
         </button>
