@@ -22,11 +22,12 @@ interface CreatePostWidgetProps {
   currentUser?: CurrentUser | null;
   defaultCommunityId?: string;
   onCreated?: (newPost?: any) => void; // callback receives created post when available
+  defaultPostType?: PostType;
 }
 
-const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaultCommunityId, onCreated }) => {
+const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaultCommunityId, onCreated, defaultPostType }) => {
   const [expanded, setExpanded] = useState(false);
-  const [postType, setPostType] = useState<PostType>('discussion');
+  const [postType, setPostType] = useState<PostType>(defaultPostType || 'discussion');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [tagsArr, setTagsArr] = useState<string[]>([]);
@@ -349,13 +350,15 @@ const CreatePostWidget: React.FC<CreatePostWidgetProps> = ({ currentUser, defaul
             )}
           </div>
 
-          {/* Post Type Selector */}
-          {currentUser?.role && (
-            <PostTypeSelector
-              value={postType}
-              onChange={setPostType}
-              userRole={currentUser.role}
-            />
+          {/* Post Type Selector - only show if no default is provided */}
+          {!defaultPostType && (
+            <div className="mb-4">
+              <PostTypeSelector
+                value={postType}
+                onChange={setPostType}
+                userRole={currentUser?.role || 'student'}
+              />
+            </div>
           )}
 
           <input

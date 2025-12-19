@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Sparkles, Loader2, BookOpen, Rocket, X, Clock, Filter, ArrowBigUp, Search } from 'lucide-react';
 import { instructorApi, postApi, studentApi } from '../../services/api';
 import CreatePostWidget from '../../components/posts/CreatePostWidget';
@@ -6,37 +6,64 @@ import PostCard from '../../components/posts/PostCard';
 
 interface FeedProps {
   user?: any;
-  communities: any[];
-  activeTab: string;
-  setActiveTab: (s: string) => void;
-  filterRef: React.RefObject<HTMLDivElement | null>;
-  isFilterOpen: boolean;
-  setIsFilterOpen: (v: boolean) => void;
-  filterSearch: string;
-  setFilterSearch: (v: string) => void;
-  postTitleSearch: string;
-  setPostTitleSearch: (v: string) => void;
-  loadMoreRef: React.RefObject<HTMLDivElement | null>;
-  getCommunityName: (cid: string) => string;
+  communities?: any[];
+  activeTab?: string;
+  setActiveTab?: (s: string) => void;
+  filterRef?: React.RefObject<HTMLDivElement | null>;
+  isFilterOpen?: boolean;
+  setIsFilterOpen?: (v: boolean) => void;
+  filterSearch?: string;
+  setFilterSearch?: (v: string) => void;
+  postTitleSearch?: string;
+  setPostTitleSearch?: (v: string) => void;
+  loadMoreRef?: React.RefObject<HTMLDivElement | null>;
+  getCommunityName?: (cid: string) => string;
+  postType?: string;
 };
 
 const Feed: React.FC<FeedProps> = (props) => {
   const {
     user,
-    activeTab,
-    setActiveTab,
-    filterRef,
-    isFilterOpen,
-    setIsFilterOpen,
-    filterSearch,
-    setFilterSearch,
-    postTitleSearch,
-    setPostTitleSearch,
-
+    communities = [],
+    activeTab: propActiveTab,
+    setActiveTab: propSetActiveTab,
+    filterRef: propFilterRef,
+    isFilterOpen: propIsFilterOpen,
+    setIsFilterOpen: propSetIsFilterOpen,
+    filterSearch: propFilterSearch,
+    setFilterSearch: propSetFilterSearch,
+    postTitleSearch: propPostTitleSearch,
+    setPostTitleSearch: propSetPostTitleSearch,
     loadMoreRef,
-
-    getCommunityName,
+    getCommunityName: propGetCommunityName,
+    postType,
   } = props;
+
+  // Internal state for optional props
+  const [internalActiveTab, setInternalActiveTab] = useState<'new' | 'top' | 'unresolved'>('new');
+  const activeTab = (propActiveTab as any) || internalActiveTab;
+  const setActiveTab = (propSetActiveTab as any) || setInternalActiveTab;
+
+  const [internalIsFilterOpen, setInternalIsFilterOpen] = useState(false);
+  const isFilterOpen = propIsFilterOpen ?? internalIsFilterOpen;
+  const setIsFilterOpen = propSetIsFilterOpen || setInternalIsFilterOpen;
+
+  const [internalFilterSearch, setInternalFilterSearch] = useState('');
+  const filterSearch = propFilterSearch ?? internalFilterSearch;
+  const setFilterSearch = propSetFilterSearch || setInternalFilterSearch;
+
+  const [internalPostTitleSearch, setInternalPostTitleSearch] = useState('');
+  const postTitleSearch = propPostTitleSearch ?? internalPostTitleSearch;
+  const setPostTitleSearch = propSetPostTitleSearch || setInternalPostTitleSearch;
+
+  const internalFilterRef = useRef<HTMLDivElement | null>(null);
+  const filterRef = propFilterRef || internalFilterRef;
+
+  const getCommunityName = useCallback((cid: string) => {
+    if (propGetCommunityName) return propGetCommunityName(cid);
+    const community = communities.find(c => c.id === cid);
+    return community?.name || 'Unknown';
+  }, [communities, propGetCommunityName]);
 
   // Internal paginated state (fetch 10 posts per page)
   const [postsList, setPostsList] = useState<any[]>([]);
@@ -56,15 +83,15 @@ const Feed: React.FC<FeedProps> = (props) => {
       let res: any;
       if (user?.role === 'instructor') {
         if (activeTab === 'unresolved') {
-          res = await instructorApi.getUnresolvedPosts({ page: p, limit: 10, cid: undefined });
+          res = await instructorApi.getUnresolvedPosts({ page: p, limit: 10, cid: undefined, type: postType });
         } else {
-          res = await instructorApi.getFeed({ page: p, limit: 10, sort: activeTab as any, cid: undefined });
+          res = await instructorApi.getFeed({ page: p, limit: 10, sort: activeTab as any, cid: undefined, type: postType });
         }
-      } else if (user?.role === 'student') {
-        res = await studentApi.getFeed({ page: p, limit: 10, sort: activeTab as any });
+      } else if (user?.role === 'student' || user?.role === 'admin') {
+        // Admin or Student use similar logic for feed
+        res = await studentApi.getFeed({ page: p, limit: 10, sort: activeTab as any, type: postType });
       } else {
-        res = await postApi.getAll({ page: p, limit: 10 });
-
+        res = await postApi.getAll({ page: p, limit: 10, type: postType });
       }
 
       const newPosts = res.data || [];
@@ -83,6 +110,20 @@ const Feed: React.FC<FeedProps> = (props) => {
       fetchingRef.current = false;
     }
   };
+
+  // Close filter dropdowns when clicking outside if using internal ref
+  useEffect(() => {
+    if (propFilterRef) return; // Parent handles this
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
+        setIsFilterOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [filterRef, setIsFilterOpen, propFilterRef]);
 
   // Load first page when activeTab or selectedCommunity changes
   useEffect(() => {
@@ -115,17 +156,24 @@ const Feed: React.FC<FeedProps> = (props) => {
         <div className="relative">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-chart-2">
-              Welcome back, {user?.fname || 'User'}!
+              {postType === 'announcement' ? 'Announcements' :
+                postType === 'material' ? 'Learning Materials' :
+                  `Welcome back, ${user?.fname || 'User'}!`}
             </h1>
             <Sparkles className="w-5 h-5 text-chart-3 animate-pulse" />
           </div>
-          <p className="text-muted-foreground text-sm">Explore public communities and join the conversation.</p>
+          <p className="text-muted-foreground text-sm">
+            {postType === 'announcement' ? 'Stay updated with the latest news and important notices.' :
+              postType === 'material' ? 'Access course materials, resources, and shared documents.' :
+                'Explore public communities and join the conversation.'}
+          </p>
         </div>
       </div>
 
       <CreatePostWidget
         currentUser={user || undefined}
         onCreated={() => void fetchPage(1)}
+        defaultPostType={postType as any}
       />
 
       <div className="flex items-center gap-4 text-sm font-medium text-muted-foreground mb-2">
@@ -271,7 +319,7 @@ const Feed: React.FC<FeedProps> = (props) => {
               />
             ))}
 
-          <div ref={sentinelRef as any} className="py-4">
+          <div ref={(loadMoreRef ? null : internalLoadRef) as any} className="py-4">
             {(isLoadingPage) && (
               <div className="flex items-center justify-center gap-3">
                 <Loader2 className="w-5 h-5 text-primary animate-spin" />

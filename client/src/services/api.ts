@@ -526,12 +526,14 @@ export const postApi = {
     search?: string;
     tags?: string;
     communityId?: string;
+    type?: string;
   }): Promise<PostsListResponse> => {
     // Filter out empty/undefined parameters
     const cleanParams: any = {};
     if (params) {
       if (params.page) cleanParams.page = params.page;
       if (params.limit) cleanParams.limit = params.limit;
+      if (params.type) cleanParams.type = params.type;
       if (params.search && params.search.trim())
         cleanParams.search = params.search.trim();
       if (params.tags && params.tags.trim())
@@ -690,6 +692,7 @@ export const instructorApi = {
     resolved?: string;
     cid?: string;
     sort?: "new" | "top" | string;
+    type?: string;
   }): Promise<PostsListResponse> => {
     const cleanParams: any = {};
     if (params) {
@@ -698,6 +701,7 @@ export const instructorApi = {
       if (params.resolved) cleanParams.resolved = params.resolved;
       if (params.cid) cleanParams.cid = params.cid;
       if (params.sort) cleanParams.sort = params.sort;
+      if (params.type) cleanParams.type = params.type;
     }
     const response = await api.get("/instructor/feed/posts", {
       params: cleanParams,
@@ -733,12 +737,14 @@ export const instructorApi = {
     page?: number;
     limit?: number;
     cid?: string;
-  }) => {
+    type?: string;
+  }): Promise<PostsListResponse> => {
     const cleanParams: any = {};
     if (params) {
       if (params.page) cleanParams.page = params.page;
       if (params.limit) cleanParams.limit = params.limit;
       if (params.cid) cleanParams.cid = params.cid;
+      if (params.type) cleanParams.type = params.type;
     }
     const response = await api.get("/instructor/posts/unresolved", {
       params: cleanParams,
@@ -838,6 +844,7 @@ export const studentApi = {
     sort?: "new" | "top" | string;
     category?: string;
     tags?: string;
+    type?: string;
   }): Promise<PostsListResponse> => {
     const cleanParams: any = {};
     if (params) {
@@ -846,6 +853,7 @@ export const studentApi = {
       if (params.sort) cleanParams.sort = params.sort;
       if (params.category) cleanParams.category = params.category;
       if (params.tags) cleanParams.tags = params.tags;
+      if (params.type) cleanParams.type = params.type;
     }
     const response = await api.get('/student/explore', { params: cleanParams });
     return response.data as PostsListResponse;

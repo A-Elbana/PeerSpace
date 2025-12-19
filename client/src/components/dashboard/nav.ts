@@ -9,6 +9,7 @@ import {
   CheckSquare,
   User,
   Settings,
+  BookOpen, // Added BookOpen
 } from "lucide-react";
 
 type UserRole = "student" | "instructor" | "admin";
@@ -29,7 +30,14 @@ export const mainNavItems: NavItem[] = [
     icon: LayoutDashboard,
     path: "/dashboard",
   },
-  { id: "explore", label: "Explore", icon: Compass, path: "/explore" },
+  {
+    id: "announcements",
+    label: "Announcements",
+    icon: Megaphone,
+    path: "/announcements",
+    roleRestriction: ["student", "instructor"],
+  },
+  { id: "materials", label: "Materials", icon: BookOpen, path: "/materials" },
   {
     id: "assignments",
     label: "Assignments",
@@ -38,14 +46,6 @@ export const mainNavItems: NavItem[] = [
     roleRestriction: ["instructor", "admin"],
   },
   { id: "submissions", label: "My Submissions", icon: FileText, path: "/submissions", roleRestriction: ["student"] },
-  {
-
-    id: "announcements",
-    label: "Announcements",
-    icon: Megaphone,
-    path: "/announcements",
-    roleRestriction: ["student", "instructor"],
-  },
   { id: "notes", label: "Notes", icon: Book, path: "/notes" },
   {
     id: "tasks",
